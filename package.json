@@ -1,0 +1,39 @@
+{
+  "name": "fulcrum-be",
+  "version": "1.0.0",
+  "description": "",
+  "main": "dist/app/index.js",
+  "scripts": {
+    "watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
+    "build": "tsc && tsc-alias",
+    "dev": "nodemon dist/app/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/binarytrance/fulcrum-BE.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/binarytrance/fulcrum-BE/issues"
+  },
+  "homepage": "https://github.com/binarytrance/fulcrum-BE#readme",
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.0.7",
+    "@types/pg": "^8.15.4",
+    "concurrently": "^9.2.0",
+    "drizzle-kit": "^0.31.4",
+    "nodemon": "^3.1.10",
+    "tsc-alias": "^1.8.16",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "dotenv": "^17.0.0",
+    "drizzle-orm": "^0.44.2",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "zod": "^3.25.67"
+  }
+}
