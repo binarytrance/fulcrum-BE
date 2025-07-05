@@ -2,7 +2,7 @@ import { Pool } from 'pg';
 import { env } from '~/data/env';
 import { drizzle } from 'drizzle-orm/node-postgres';
 
-const pool = new Pool({
+export const pool = new Pool({
   user: env.DATABASE.DB_USER,
   password: env.DATABASE.DB_PASSWORD,
   host: env.DATABASE.DB_HOST,
