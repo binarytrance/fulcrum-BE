@@ -1,0 +1,11 @@
+config:
+  target: 'http://localhost:6969'
+  phases:
+    - duration: 10
+      arrivalRate: 10
+scenarios:
+  - name: health-check
+    flow:
+      - log: 'GET /health'
+      - get:
+          url: '/health'

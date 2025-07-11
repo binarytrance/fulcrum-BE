@@ -1,7 +1,7 @@
 import express, { Router } from 'express';
 import { TaskController } from '~/app/controllers/v1';
-import { validationHandler } from '~/app/middleware';
-import { tasksParamsSchema } from '~/app/schema/tasks';
+import { middlewares } from '~/app/middleware';
+import { tasksParamsSchema } from '~/app/schema';
 
 export class TaskRoutes {
   public taskRouter: Router;
@@ -16,7 +16,7 @@ export class TaskRoutes {
   private initGetRoutes() {
     this.taskRouter.get(
       '/:goalId',
-      validationHandler({ params: tasksParamsSchema }),
+      middlewares.validationMiddleware.validate({ params: tasksParamsSchema }),
       this.taskController.getTasks,
     );
   }

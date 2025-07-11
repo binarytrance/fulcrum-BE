@@ -20,13 +20,15 @@ const customColors = {
 };
 
 class Logger {
+  private static instance: Logger;
   private logger: WinstonLogger;
 
-  constructor(options: LoggerOptions) {
+  private constructor(options: LoggerOptions) {
     const { service, level = 'info', winstonOptions = {} } = options;
     const isProd = env.APP.NODE_ENV === 'production';
 
     winston.addColors(customColors);
+
     const loggerFormat = isProd
       ? format.combine(format.timestamp(), format.json())
       : format.combine(
@@ -37,7 +39,6 @@ class Logger {
             if (Object.keys(meta).length) {
               metaString = JSON.stringify(meta);
             }
-
             return `[${timestamp}] [${service}] ${level}: ${message} ${metaString}`;
           }),
           format.align(),
@@ -51,6 +52,15 @@ class Logger {
       transports: loggerTransports,
       ...winstonOptions,
     });
+  }
+
+  public static getInstance(
+    options: LoggerOptions = { service: 'FulCrum' },
+  ): Logger {
+    if (!Logger.instance) {
+      Logger.instance = new Logger(options);
+    }
+    return Logger.instance;
   }
 
   info(message: string, meta?: object) {
@@ -67,5 +77,6 @@ class Logger {
   }
 }
 
-const logger = new Logger({ service: 'FulCrum' });
+// Export singleton instance for use across your app
+const logger = Logger.getInstance();
 export { logger, Logger };

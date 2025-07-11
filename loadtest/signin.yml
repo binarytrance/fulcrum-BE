@@ -1,0 +1,12 @@
+config:
+  target: 'http://localhost:6969'
+  phases:
+    - duration: 10
+      arrivalRate: 10 # 10 new users per second
+scenarios:
+  - name: login-users
+    flow:
+      - post:
+          url: '/api/v1/users/login'
+          json:
+            username: 'Grace'

@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { GoalsController } from '~/app/controllers/v1';
-import { authHandler, validationHandler } from '~/app/middleware';
+import { middlewares } from '~/app/middleware';
 import { goalsParamsSchema } from '~/app/schema';
 
 export class GoalRoutes {
@@ -16,8 +16,8 @@ export class GoalRoutes {
   private initGetRoutes() {
     this.goalRouter.get(
       '/:userId',
-      authHandler,
-      validationHandler({ params: goalsParamsSchema }),
+      middlewares.authMiddleware.authorized,
+      middlewares.validationMiddleware.validate({ params: goalsParamsSchema }),
       this.goalsController.getGoals,
     );
   }
