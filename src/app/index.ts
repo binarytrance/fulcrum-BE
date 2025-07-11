@@ -17,7 +17,7 @@ import {
   RedisProvider,
   NotFoundError,
 } from '~/services';
-import { errorHandler, responseHandler } from '~/app/middleware';
+import { middlewares } from '~/app/middleware';
 import { env } from '~/data/env';
 import { Routes } from '~/app/routes';
 
@@ -80,7 +80,7 @@ class App {
     } else {
       this.app.use(morgan('dev'));
     }
-    this.app.use(responseHandler);
+    this.app.use(middlewares.responseMiddleware.sendFormattedResponse);
   }
 
   private initRoutes() {
@@ -100,7 +100,7 @@ class App {
 
   private initErrorHandlers() {
     // Centralized error handling
-    this.app.use(errorHandler);
+    this.app.use(middlewares.errorMiddleware.errorHandler);
   }
 
   private async shutdown(exitCode = 0) {

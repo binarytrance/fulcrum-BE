@@ -1,6 +1,6 @@
 import express, { Router } from 'express';
 import { UserController } from '~/app/controllers/v1';
-import { validationHandler } from '~/app/middleware';
+import { middlewares } from '~/app/middleware';
 import { loginSchema } from '~/app/schema';
 
 export class UserRoutes {
@@ -16,7 +16,7 @@ export class UserRoutes {
   private initGetRoutes() {
     this.userRouter.get(
       '/login',
-      validationHandler({ body: loginSchema }),
+      middlewares.validationMiddleware.validate({ body: loginSchema }),
       this.userController.loginHandler,
     );
   }

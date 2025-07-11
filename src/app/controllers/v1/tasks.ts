@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { Request, Response } from 'express';
-import { TasksParams } from '~/app/schema/tasks';
+import { TasksParams } from '~/app/schema';
 import { BadRequestError, DatabaseError } from '~/app/services';
 import { db, TasksTable } from '~/drizzle';
 
@@ -24,7 +24,7 @@ export class TaskController {
         throw new BadRequestError();
       }
 
-      res.success(goals, 'goals found', 200);
+      res.success(goals, 'tasks found', 200);
     } catch (err) {
       throw new DatabaseError();
     }
