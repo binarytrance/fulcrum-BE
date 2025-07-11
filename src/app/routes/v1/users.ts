@@ -1,8 +1,23 @@
-import express from 'express';
-import { signInHandler } from '~/app/controllers/v1';
+import express, { Router } from 'express';
+import { UserController } from '~/app/controllers/v1';
+import { validationHandler } from '~/app/middleware';
+import { loginSchema } from '~/app/schema';
 
-const userRouter = express.Router();
+export class UserRoutes {
+  public userRouter: Router;
+  private userController: UserController;
 
-userRouter.get('/signin', signInHandler);
+  constructor() {
+    this.userRouter = express.Router();
+    this.userController = new UserController();
+    this.initGetRoutes();
+  }
 
-export { userRouter as UserRoutes };
+  private initGetRoutes() {
+    this.userRouter.get(
+      '/login',
+      validationHandler({ body: loginSchema }),
+      this.userController.loginHandler,
+    );
+  }
+}
