@@ -1,5 +1,5 @@
 services:
-  db:
+  postgres:
     image: postgres:17.0
     hostname: ${DB_HOST}
     ports:
@@ -20,6 +20,27 @@ services:
     command: ['redis-server', '--requirepass', '${REDIS_PASSWORD}']
     volumes:
       - redisdata:/data
+  # app:
+  #   build: .
+  #   ports:
+  #     - '6969:${PORT}'
+  #   environment:
+  #     - DB_HOST=postgres
+  #     - DB_PORT=${DB_PORT}
+  #     - DB_USER=${DB_USER}
+  #     - DB_PASSWORD=${DB_PASSWORD}
+  #     - DB_NAME=${DB_NAME}
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=${REDIS_PORT}
+  #     - REDIS_PASSWORD=${REDIS_PASSWORD}
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   volumes:
+  #     - .:/usr/src/app
+  #     - /usr/src/app/node_modules
+  #     # if you want docker to manage your dist file separately then uncomment the below line
+  #     - /usr/src/app/dist
 volumes:
   pgdata:
   redisdata:

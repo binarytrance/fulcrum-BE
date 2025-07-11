@@ -14,7 +14,7 @@ export class BaseError extends Error {
   public message: string;
   public statusCode: number;
   public isOperational: boolean;
-  public details: unknown;
+  public details?: unknown;
 
   constructor(options: BaseErrorOptions) {
     super(options.message);
@@ -38,7 +38,7 @@ export class BaseError extends Error {
 export class BadRequestError extends BaseError {
   constructor(
     message: string = 'Bad request',
-    details: unknown,
+    details?: unknown,
     statusCode: number = 400,
     isOperational: boolean = true,
   ) {
@@ -49,7 +49,7 @@ export class BadRequestError extends BaseError {
 export class UnAuthorizedError extends BaseError {
   constructor(
     message: string = 'Unauthorized',
-    details: unknown,
+    details?: unknown,
     statusCode: number = 401,
     isOperational: boolean = true,
   ) {
@@ -60,7 +60,7 @@ export class UnAuthorizedError extends BaseError {
 export class NotFoundError extends BaseError {
   constructor(
     message: string = 'Resource not found',
-    details: unknown,
+    details?: unknown,
     statusCode: number = 404,
     isOperational: boolean = true,
   ) {
@@ -71,7 +71,7 @@ export class NotFoundError extends BaseError {
 export class RequestValidationError extends BaseError {
   constructor(
     message: string = 'Request validation failed',
-    details: unknown,
+    details?: unknown,
     statusCode: number = 422,
     isOperational: boolean = true,
   ) {
@@ -82,7 +82,7 @@ export class RequestValidationError extends BaseError {
 export class DatabaseError extends BaseError {
   constructor(
     message: string = 'Database error',
-    details: unknown,
+    details?: unknown,
     statusCode: number = 500,
     isOperational: boolean = true,
   ) {

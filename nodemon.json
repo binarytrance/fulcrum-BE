@@ -1,0 +1,6 @@
+{
+  "watch": ["dist/app"],
+  "ignore": ["node_modules"],
+  "ext": "js,json",
+  "legacyWatch": true
+}
