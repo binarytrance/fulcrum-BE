@@ -10,13 +10,7 @@ import { RedisStore } from 'connect-redis';
 import session, { SessionOptions } from 'express-session';
 import { Server } from 'http';
 
-import {
-  DatabaseError,
-  logger,
-  Database,
-  RedisProvider,
-  NotFoundError,
-} from '~/services';
+import { DatabaseError, logger, Database, RedisProvider } from '~/services';
 import { middlewares } from '~/app/middleware';
 import { env } from '~/data/env';
 import { Routes } from '~/app/routes';
@@ -67,7 +61,7 @@ class App {
       },
     };
 
-    this.app.use(express.json());
+    this.app.use(express.json({ limit: '1024' }));
     this.app.use(express.urlencoded({ extended: true }));
     this.app.use(helmet());
     this.app.use(hpp());
@@ -75,27 +69,16 @@ class App {
     this.app.use(morgan('combined', { stream: morganStreamOptions }));
     this.app.use(rateLimit(rateLimitingOptions));
     this.app.use(session(sessionOptions));
-    if (env.APP.NODE_ENV === 'production') {
-      this.app.use(compression(compressionOptions));
-    } else {
-      this.app.use(morgan('dev'));
-    }
+    this.app.use(compression(compressionOptions));
+    this.app.use(morgan('dev'));
     this.app.use(middlewares.responseMiddleware.sendFormattedResponse);
   }
 
   private initRoutes() {
-    // Health check
-    this.app.get('/health', (_: Request, res: Response) => {
-      res.send('healthy');
-    });
-
-    // v1 routes
+    this.routes.swaggerDocRoute();
+    this.routes.healthRoute();
     this.routes.v1Routes();
-
-    // not found route
-    this.app.use((_req: Request, _res: Response, _next: NextFunction) => {
-      throw new NotFoundError();
-    });
+    this.routes.notFoundRoute();
   }
 
   private initErrorHandlers() {
@@ -146,34 +129,41 @@ class App {
     });
   }
 
-  public async bootstrap() {
+  private async connectDB() {
     try {
       await this.db.connect();
       logger.info('Database connection OK!');
-      this.server = this.app.listen(
-        env.APP.PORT,
-        env.APP.HOST,
-        (err?: Error) => {
-          if (err) {
-            logger.error('Application failed to start', {
-              message: err.message,
-            });
-            process.exit(1);
-          }
-          logger.info(
-            `Application started at http://${env.APP.HOST}:${env.APP.PORT}`,
-          );
-        },
-      );
-      this.setupProcessHandlers();
+      await this.redisProvider.ping();
+      logger.info('Redis connection OK!');
     } catch (err) {
       if (err instanceof DatabaseError) {
         logger.error('DB Connection Failed', { errors: err.serializeError() });
       } else {
         logger.error('Unexpected error while connecting to DB', { error: err });
       }
-      process.exit(1);
+
+      this.shutdown(1);
     }
+  }
+
+  private listenServer() {
+    this.server = this.app.listen(env.APP.PORT, env.APP.HOST, (err?: Error) => {
+      if (err) {
+        logger.error('Application failed to start', {
+          message: err.message,
+        });
+        process.exit(1);
+      }
+      logger.info(
+        `Application started at http://${env.APP.HOST}:${env.APP.PORT}`,
+      );
+    });
+  }
+
+  public async bootstrap() {
+    this.setupProcessHandlers();
+    this.connectDB();
+    this.listenServer();
   }
 }
 

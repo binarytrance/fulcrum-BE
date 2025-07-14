@@ -1,7 +1,12 @@
 import { eq } from 'drizzle-orm';
 import { Request, Response } from 'express';
 import { LoginBody } from '~/app/schema';
-import { DatabaseError, UnAuthorizedError } from '~/app/services';
+import {
+  DatabaseError,
+  InternalServerError,
+  UnAuthorizedError,
+} from '~/app/services';
+import { env } from '~/data/env';
 import { db, UserTable } from '~/drizzle';
 
 export class UserController {
@@ -29,5 +34,15 @@ export class UserController {
     } catch (err) {
       throw new DatabaseError();
     }
+  }
+
+  public async logoutHandler(req: Request, res: Response) {
+    req.session.destroy((err) => {
+      if (err) {
+        throw new InternalServerError();
+      }
+    });
+    res.clearCookie(env.APP.SESSION_NAME);
+    res.success(null, 'user logged out', 200);
   }
 }

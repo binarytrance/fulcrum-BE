@@ -21,6 +21,8 @@ export class ValidationMiddleware {
           const result = schema.safeParse(req[key as keyof ValidationSchemas]);
           if (!result.success) {
             errors.push(result.error);
+          } else {
+            req[key as keyof ValidationSchemas] = result.data;
           }
         }
       }

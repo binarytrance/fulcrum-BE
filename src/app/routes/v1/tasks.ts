@@ -14,6 +14,24 @@ export class TaskRoutes {
   }
 
   private initGetRoutes() {
+    this.getTasks();
+  }
+
+  private getTasks() {
+    /**
+     * @swagger
+     * /api/v1/tasks:
+     *   get:
+     *     tags:
+     *       - tasks
+     *     description: get tasks of logedin user
+     *     produces:
+     *       - application/json
+     *     responses:
+     *       200:
+     *         description: successful login
+     */
+
     this.taskRouter.get(
       '/:goalId',
       middlewares.validationMiddleware.validate({ params: tasksParamsSchema }),

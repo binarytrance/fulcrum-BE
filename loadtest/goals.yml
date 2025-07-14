@@ -1,0 +1,19 @@
+config:
+  target: 'http://localhost:6969'
+  phases:
+    - duration: 10
+      arrivalRate: 10
+scenarios:
+  - name: Login and fetch goals
+    flow:
+      - post:
+          url: '/api/v1/users/login'
+          json:
+            username: 'Grace'
+          capture:
+            - header: 'set-cookie'
+              as: 'cookie'
+      - get:
+          url: '/api/v1/goals/607df3ba-60dd-4468-9e2d-edb6d956109b'
+          headers:
+            fulcrum.sid: '{{ cookie }}'

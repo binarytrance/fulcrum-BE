@@ -2,10 +2,11 @@ config:
   target: 'http://localhost:6969'
   phases:
     - duration: 10
-      arrivalRate: 10 # 10 new users per second
+      arrivalRate: 10
 scenarios:
   - name: login-users
     flow:
+      - log: 'POST /api/v1/users/login'
       - post:
           url: '/api/v1/users/login'
           json:
