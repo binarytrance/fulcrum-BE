@@ -5,7 +5,7 @@ export class AuthMiddleware {
   constructor() {}
 
   public authorized(req: Request, _: Response, next: NextFunction) {
-    if (!req.session || !req.session.id) {
+    if (!req.session || !req.session?.user?.id) {
       throw new UnAuthorizedError();
     }
 

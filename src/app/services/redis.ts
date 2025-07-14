@@ -21,15 +21,15 @@ export class RedisProvider {
         return delay;
       },
     });
+  }
 
-    this.client.on('error', (err) => {
-      logger.error('Error connecting to redis', { message: err.message });
-    });
-    this.client.on('close', () => {
-      logger.warn('Redis connection closed');
-    });
-    this.client.on('ready', () => {
-      logger.info('Redis connected and ready');
+  public async ping() {
+    this.client.ping((err, result) => {
+      if (err) {
+        logger.error('Redis PING failed', { message: err.message });
+      } else {
+        logger.info('Redis PING successful', { result });
+      }
     });
   }
 

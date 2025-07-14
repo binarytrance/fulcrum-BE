@@ -93,7 +93,7 @@ export class DatabaseError extends BaseError {
 export class InternalServerError extends BaseError {
   constructor(
     message: string = 'internal server error',
-    details: unknown,
+    details?: unknown,
     statusCode: number = 500,
     isOperational: boolean = true,
   ) {
