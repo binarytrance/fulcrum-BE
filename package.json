@@ -29,7 +29,6 @@
   },
   "homepage": "https://github.com/binarytrance/fulcrum-BE#readme",
   "devDependencies": {
-    "@types/autocannon": "^7.12.7",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.3",
