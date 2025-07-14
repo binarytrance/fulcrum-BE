@@ -64,7 +64,6 @@ export class GoalsController {
         .returning();
       res.success(goal, 'goal created', 201);
     } catch (err) {
-      console.error(err);
       throw new DatabaseError('error creating post', { error: err });
     }
   }
