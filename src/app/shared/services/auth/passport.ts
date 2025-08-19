@@ -1,0 +1,4 @@
+export class PassportStrategies {
+  constructor() {}
+  
+}

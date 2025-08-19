@@ -7,15 +7,15 @@
     "watch": "tsc -w --watchFile dynamicPriorityPolling",
     "watch-alias": "tsc-alias -w",
     "build": "tsc && tsc-alias",
-    "dev": "nodemon --inspect dist/app/index.js",
-    "watch-dev": "npm run build && concurrently --raw --names \"tsc,alias,nodemon\" \"npm run watch\" \"npm run watch-alias\" \"npm run dev\"",
+    "dev": "nodemon | pino-pretty -c",
+    "start": "node dist/app/index.js | pino-pretty -c",
     "pm2:start": "pm2 start dist/app/index.js -i 1",
     "load:test": "artillery run loadtest/goals.yml",
-    "db:push": "drizzle-kit push",
-    "db:migrate": "drizzle-kit migrate",
-    "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:seed": "node dist/drizzle/seeds/seeds.js"
+    "db:push": "drizzle-kit push --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
+    "db:generate": "drizzle-kit generate --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
+    "db:seed": "node dist/app/shared/services/db/drizzle/seeds/seeds.js"
   },
   "repository": {
     "type": "git",
@@ -45,7 +45,9 @@
     "concurrently": "^9.2.0",
     "drizzle-kit": "^0.31.4",
     "nodemon": "^3.1.10",
+    "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.16",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.8.3"
   },
   "dependencies": {
@@ -67,8 +69,11 @@
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
     "pg": "^8.16.3",
+    "pino-pretty": "^13.1.1",
+    "reflect-metadata": "^0.2.2",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
+    "tsyringe": "^4.10.0",
     "winston": "^3.17.0",
     "zod": "^3.25.67"
   }
