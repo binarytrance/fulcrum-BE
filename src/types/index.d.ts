@@ -24,17 +24,24 @@ declare global {
 interface PendingOAuthUser {
   provider: AuthProviders;
   providerUserId: string;
-  email: string;
+  email: string | null;
 }
 
 interface SessionUser {
   id: string;
   name: string;
-  pendingOauthuser?: PendingOAuthUser;
+}
+
+declare global {
+  namespace Express {
+    // Makes req.user strongly typed
+    interface User extends SessionUser {}
+  }
 }
 
 declare module 'express-session' {
   interface SessionData {
-    user: SessionUser | null;
+    passport?: { user: string };
+    pendingOAuth?: PendingOAuth;
   }
 }

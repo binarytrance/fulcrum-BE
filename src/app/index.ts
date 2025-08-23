@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { container } from 'tsyringe';
-import { registerContainers, Tokens } from '~/app/core/di';
-import { FulcrumServer } from '~/app/core/http';
 import { createHttpTerminator } from 'http-terminator';
+import { registerContainers, Tokens } from '@core/di';
+import { FulcrumServer } from '@core/http';
 
 async function bootstrap() {
   registerContainers();

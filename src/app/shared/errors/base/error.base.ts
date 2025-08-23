@@ -1,7 +1,4 @@
-import {
-  BaseErrorOptions,
-  SerializedErrorOptions,
-} from '../interfaces/error.interface';
+import { BaseErrorOptions, SerializedErrorOptions } from '@interfaces';
 
 export class BaseError extends Error {
   public message: string;

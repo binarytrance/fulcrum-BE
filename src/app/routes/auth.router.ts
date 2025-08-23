@@ -1,22 +1,24 @@
 import { Router } from 'express';
 import { inject, injectable } from 'tsyringe';
-import { GithhubStrategy } from '~/app/shared/services';
-import { Tokens } from '../core/di';
+import { Tokens } from '@core/di';
+import { AuthController } from '@controllers';
 
 @injectable()
 export class AuthRouter {
   constructor(
-    @inject(Tokens.AUTH_ROUTER) private readonly authRouter: Router,
-    private githubStrategy: GithhubStrategy
+    @inject(Tokens.GITHUB_AUTH_ROUTER) private readonly authRouter: Router,
+    private authController: AuthController
   ) {}
 
   public mount(): Router {
-    this.authRouter.get('/github', this.githubStrategy.authenticate());
-    this.authRouter.get(
-      '/github/callback',
-      this.githubStrategy.authenticateCallback(),
-      (req, res) => res.redirect('/')
-    );
+    this.authRouter.get('/github', this.authController.githubAuthenticate);
+    this.authRouter.get('/github/callback', this.authController.githubCallback);
+
+    this.authRouter.post('/local/login', this.authController.localLogin);
+    this.authRouter.post('/local/signup', this.authController.localSignup);
+
+    this.authRouter.get('/google', this.authController.googleAuthenticate);
+    this.authRouter.get('/google/callback', this.authController.googleCallback);
 
     return this.authRouter;
   }

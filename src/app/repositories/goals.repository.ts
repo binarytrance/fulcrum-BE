@@ -1,10 +1,9 @@
 import { eq } from 'drizzle-orm';
 import { injectable } from 'tsyringe';
-
-import { GoalsTable } from '~/app/shared/services/db/drizzle';
-import { Database } from '~/app/shared/services';
-import { DatabaseError } from '~/app/shared/errors/app/database.error';
-import { ICreateGoal, IGoals } from '../interfaces';
+import { GoalsTable } from '@core/infra/db/drizzle';
+import { Database } from '@shared/services';
+import { DatabaseError } from '@shared/errors';
+import { ICreateGoal, IGoals } from '@interfaces';
 
 @injectable()
 export class GoalsRepository {

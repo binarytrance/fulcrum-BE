@@ -1,4 +1,3 @@
-export * from '../interfaces';
 export * from './badRequest.error';
 export * from '../base';
 export * from './database.error';

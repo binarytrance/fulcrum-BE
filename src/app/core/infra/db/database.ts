@@ -1,10 +1,10 @@
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { Env, Logger } from '~/app/shared/config';
-import * as schema from '~/app/shared/services/db/drizzle';
+import { Env, Logger } from '@shared/config';
+import * as schema from '@core/infra/db/drizzle';
 import { sql } from 'drizzle-orm';
 import { inject, singleton } from 'tsyringe';
-import { Tokens } from '~/app/core/di';
+import { Tokens } from '@core/di';
 
 @singleton()
 export class Database {

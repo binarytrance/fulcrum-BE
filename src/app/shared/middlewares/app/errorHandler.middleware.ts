@@ -7,9 +7,10 @@ import {
 } from 'express';
 import { injectable } from 'tsyringe';
 import { StatusCodes } from 'http-status-codes';
-import { Logger } from '~/app/shared/config';
+import { Logger } from '@shared/config';
+import { BaseError } from '@shared/errors';
+import { SerializedErrorOptions } from '@interfaces';
 import { AppMiddleware } from '../base';
-import { BaseError, SerializedErrorOptions } from '~/app/shared/errors/app';
 
 @injectable()
 export class GlobalErrorHandlerMiddleware extends AppMiddleware {

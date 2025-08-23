@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { defineConfig } from 'drizzle-kit';
-import { Env } from '../../../config';
+import { Env } from '../../../../shared/config';
 
 class DrizzleConfig {
   constructor(private readonly env: Env) {}

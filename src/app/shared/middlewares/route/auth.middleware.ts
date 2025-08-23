@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
 import { injectable } from 'tsyringe';
-import { UnAuthorizedError } from '../../errors/app/unAuthorized.error';
+import { UnAuthorizedError } from '@shared/errors';
 import { RouteMiddleware } from '../base';
 
 @injectable()
 export class AuthMiddleware extends RouteMiddleware {
   handler(req: Request, _: Response, next: NextFunction): void {
-    if (!req.session || !req.session?.user?.id) {
+    if (!req.isAuthenticated()) {
       throw new UnAuthorizedError();
     }
 

@@ -1,6 +1,6 @@
 import z from 'zod';
-import { createGoalSchema } from '~/app/schemas';
-import { GoalsTable } from '~/app/shared/services/db/drizzle';
+import { createGoalSchema } from '@schemas';
+import { GoalsTable } from '@core/infra/db/drizzle';
 import { InferSelectModel } from 'drizzle-orm';
 
 export type ICreateGoal = z.infer<typeof createGoalSchema>;

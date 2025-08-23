@@ -1,14 +1,11 @@
 import express, { Router } from 'express';
 import { container } from 'tsyringe';
-import { Tokens } from './tokens';
-import { Env, Logger } from '~/app/shared/config';
+import { Tokens } from '@core/di/tokens';
+import { Env, Logger } from '@shared/config';
 import { Pool } from 'pg';
 import IoRedis from 'ioredis';
 import { drizzle } from 'drizzle-orm/node-postgres';
-import * as schema from '~/app/shared/services/db/drizzle';
-import morgan from 'morgan';
-import passport from 'passport';
-import compression from 'compression';
+import * as schema from '@core/infra/db/drizzle';
 
 const env = container.resolve(Env);
 const logger = container.resolve(Logger);
@@ -22,7 +19,10 @@ function registerRouters() {
   container.register(Tokens.GOALS_ROUTER, {
     useValue: Router({ mergeParams: true }),
   });
-  container.register(Tokens.AUTH_ROUTER, {
+  container.register(Tokens.GITHUB_AUTH_ROUTER, {
+    useValue: Router({ mergeParams: true }),
+  });
+  container.register(Tokens.LOCAL_AUTH_ROUTER, {
     useValue: Router({ mergeParams: true }),
   });
 }
@@ -66,11 +66,7 @@ function registerInfra() {
   container.register(Tokens.REDIS, { useValue: redisClient });
 }
 
-function registerMiddlewares() {
-  container.register(Tokens.MORGAN, { useValue: morgan });
-  container.register(Tokens.PASSPORT, { useValue: passport });
-  container.register(Tokens.COMPRESSION, { useValue: compression });
-}
+function registerMiddlewares() {}
 
 function registerContainers() {
   registerApp();

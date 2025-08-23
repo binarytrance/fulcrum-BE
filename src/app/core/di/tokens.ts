@@ -1,21 +1,13 @@
-import compression from 'compression';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
-import { Application, Request, Response, Router, Express } from 'express';
+import { Application, Router } from 'express';
 import Redis from 'ioredis';
-import { Morgan } from 'morgan';
-import { PassportStatic } from 'passport';
 import { Pool } from 'pg';
 import { InjectionToken } from 'tsyringe';
-import * as schema from '~/app/shared/services/db/drizzle/schema';
+import * as schema from '@core/infra/db/drizzle';
 
 const Tokens = {
   // app
   APP: 'app' as InjectionToken<Application>,
-
-  // middlewares
-  MORGAN: 'morgan' as InjectionToken<Morgan<Request, Response>>,
-  PASSPORT: 'passport' as InjectionToken<PassportStatic>,
-  COMPRESSION: 'compression' as InjectionToken<typeof compression>,
 
   // infra
   DRIZZLE_DB: 'drizzle_db' as InjectionToken<NodePgDatabase<typeof schema>>,
@@ -24,7 +16,8 @@ const Tokens = {
 
   // router
   GOALS_ROUTER: 'goals_router' as InjectionToken<Router>,
-  AUTH_ROUTER: 'auth-router' as InjectionToken<Router>,
+  GITHUB_AUTH_ROUTER: 'github-auth-router' as InjectionToken<Router>,
+  LOCAL_AUTH_ROUTER: 'local_auth-router' as InjectionToken<Router>,
 };
 
 export { Tokens };

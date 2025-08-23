@@ -1,11 +1,6 @@
-import { GlobalErrorHandlerMiddleware, GlobalResponseHandlerMiddleware } from '~/app/shared/middlewares';
-import { AppRouter } from '~/app/core/router';
-import { Database, GithhubStrategy, Redis } from '~/app/shared/services';
-import { DatabaseError } from '~/app/shared/errors';
-import { Logger, Env } from '~/app/shared/config';
 import { Application } from 'express';
 import { inject, injectable } from 'tsyringe';
-import { Tokens } from '../di';
+import { Tokens } from '@core/di';
 import { HttpTerminator } from 'http-terminator';
 import { IncomingMessage, Server, ServerResponse } from 'http';
 import helmet from 'helmet';
@@ -20,6 +15,19 @@ import express from 'express';
 import morgan, { StreamOptions } from 'morgan';
 import { DateTime } from 'luxon';
 import passport from 'passport';
+import {
+  GlobalErrorHandlerMiddleware,
+  GlobalResponseHandlerMiddleware,
+} from '@shared/middlewares';
+import { AppRouter } from '@core/router';
+import {
+  GithhubStrategy,
+  LocalStrategy,
+  GoogleStrategy,
+} from '@shared/services';
+import { Database, Redis } from '@core/infra';
+import { DatabaseError } from '@shared/errors';
+import { Logger, Env } from '@shared/config';
 
 @injectable()
 export class FulcrumServer {
@@ -32,7 +40,9 @@ export class FulcrumServer {
     private readonly appRouter: AppRouter,
     private readonly db: Database,
     private readonly redis: Redis,
-    private readonly githubStrategy: GithhubStrategy
+    private readonly githubStrategy: GithhubStrategy,
+    private readonly localStrategy: LocalStrategy,
+    private readonly googleStrategy: GoogleStrategy
   ) {}
 
   public setupMiddlewareAndRoutes() {
@@ -175,15 +185,18 @@ export class FulcrumServer {
 
   private setupAuth(): void {
     this.githubStrategy.configure();
+    this.localStrategy.configure();
+    this.googleStrategy.configure();
+
     this.app.use(passport.initialize());
     this.app.use(passport.session());
   }
 
   private setupGlobalResponseHandler(): void {
-    this.globalErrorHandler.register(this.app);
+    this.globalResponseHandler.register(this.app);
   }
 
   private setupGlobalErrorHandler(): void {
-    this.globalResponseHandler.register(this.app);
+    this.globalErrorHandler.register(this.app);
   }
 }

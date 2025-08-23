@@ -1,5 +1,5 @@
 import z from 'zod';
-import { goalStatuses } from '~/app/shared/services/db/drizzle';
+import { goalStatuses } from '@core/infra/db/drizzle';
 
 export const createGoalSchema = z
   .object({

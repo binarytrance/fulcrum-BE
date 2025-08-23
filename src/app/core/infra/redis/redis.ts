@@ -1,8 +1,7 @@
 import { inject, singleton } from 'tsyringe';
 import IoRedis, { Redis as RedisClient } from 'ioredis';
-import { Logger } from '../../config';
-import { Env } from '../../config';
-import { Tokens } from '~/app/core/di';
+import { Logger, Env } from '@shared/config';
+import { Tokens } from '@core/di';
 
 @singleton()
 export class Redis {

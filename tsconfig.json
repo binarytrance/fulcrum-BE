@@ -8,12 +8,15 @@
     "rootDir": "./src",
     "baseUrl": "./src",
     "paths": {
-      "~/*": ["./*"],
-      "~/middlewares": ["./app/middlewares"],
-      "~/common": ["./app/common"],
-      "~/features": ["./app/features"],
-      "~/core": ["./app/core"],
-      "~/errors": ["./app/errors"]
+      "@/*": ["./*"],
+      "@core/*": ["./app/core/*"],
+      "@shared/*": ["./app/shared/*"],
+      "@interfaces": ["./app/interfaces"],
+      "@repositories": ["./app/repositories"],
+      "@controllers": ["./app/controllers"],
+      "@routes": ["./app/routes"],
+      "@schemas": ["./app/schemas"],
+      "@services": ["./app/services"]
     },
     "outDir": "./dist",
     "esModuleInterop": true,

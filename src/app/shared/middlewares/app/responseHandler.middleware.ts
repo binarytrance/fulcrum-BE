@@ -1,5 +1,5 @@
 import { Application, NextFunction, Request, Response } from 'express';
-import { SerializedErrorOptions } from '~/app/shared/errors/app';
+import { SerializedErrorOptions } from '@interfaces';
 import { AppMiddleware } from '../base';
 
 export class GlobalResponseHandlerMiddleware extends AppMiddleware {

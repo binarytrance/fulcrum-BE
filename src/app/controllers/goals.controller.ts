@@ -1,15 +1,15 @@
 import { Request, Response } from 'express';
 import { StatusCodes } from 'http-status-codes';
 import { injectable } from 'tsyringe';
-import { createGoalSchema } from '~/app/schemas';
-import { ICreateGoal } from '~/app/interfaces';
-import { Validate } from '~/app/shared/decorators';
+import { createGoalSchema } from '@schemas';
+import { ICreateGoal } from '@interfaces';
+import { Validate } from '@shared/decorators';
 import {
   DatabaseError,
   NotFoundError,
   UnAuthorizedError,
-} from '~/app/shared/errors';
-import { GoalsService } from '~/app/services';
+} from '@shared/errors';
+import { GoalsService } from '@services';
 
 @injectable()
 export class GoalsController {
@@ -20,9 +20,9 @@ export class GoalsController {
 
   public async getGoals(req: Request, res: Response) {
     try {
-      const userId = req.session.user?.id!;
+      const userId = req.user?.id;
       if (!userId) {
-        throw new UnAuthorizedError();
+        throw new UnAuthorizedError('Login to fetch goals');
       }
 
       const goals = await this.goalsService.getGoalsByUserId(userId);
@@ -40,7 +40,7 @@ export class GoalsController {
   @Validate({ body: createGoalSchema })
   public async postGoal(req: Request<{}, {}, ICreateGoal>, res: Response) {
     try {
-      const userId = req.session.user?.id!;
+      const userId = req.user?.id!;
       const createdGoal = await this.goalsService.createGoal(req.body, userId);
 
       res.success(createdGoal, 'goal created', 201);

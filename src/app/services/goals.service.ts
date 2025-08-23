@@ -1,6 +1,6 @@
 import { injectable } from 'tsyringe';
-import { ICreateGoal, IGoals } from '~/app/interfaces';
-import { GoalsRepository } from '~/app/repositories';
+import { ICreateGoal, IGoals } from '@interfaces';
+import { GoalsRepository } from '@repositories';
 
 @injectable()
 export class GoalsService {

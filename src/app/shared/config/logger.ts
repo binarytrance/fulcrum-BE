@@ -1,9 +1,4 @@
-import winston, {
-  Logger as WinstonLogger,
-  LoggerOptions as WinstonLoggerOptions,
-  format,
-  transports,
-} from 'winston';
+import winston, { Logger as WinstonLogger, format, transports } from 'winston';
 import { Env } from './env';
 import { singleton } from 'tsyringe';
 
