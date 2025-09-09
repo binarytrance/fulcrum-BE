@@ -1,11 +1,11 @@
 import { StatusCodes } from "http-status-codes";
-import { BaseError } from "../base";
+import { BaseError } from "./base.error";
 
-export class NotFoundError extends BaseError {
+export class DatabaseError extends BaseError {
   constructor(
-    message: string = 'Resource not found',
+    message: string = 'Database error',
     details?: unknown,
-    statusCode: number = StatusCodes.NOT_FOUND,
+    statusCode: number = StatusCodes.INTERNAL_SERVER_ERROR,
     isOperational: boolean = true,
   ) {
     super({ message, statusCode, isOperational, details });

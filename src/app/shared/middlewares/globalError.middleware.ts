@@ -9,14 +9,11 @@ import { injectable } from 'tsyringe';
 import { StatusCodes } from 'http-status-codes';
 import { Logger } from '@shared/config';
 import { BaseError } from '@shared/errors';
-import { SerializedErrorOptions } from '@interfaces';
-import { AppMiddleware } from '../base';
+import { AppMiddleware, SerializedErrorOptions } from '@interfaces';
 
 @injectable()
-export class GlobalErrorHandlerMiddleware extends AppMiddleware {
-  constructor(private logger: Logger) {
-    super();
-  }
+export class GlobalErrorHandlerMiddleware implements AppMiddleware {
+  constructor(private logger: Logger) {}
 
   register(app: Application): void {
     app.use(this.handler);

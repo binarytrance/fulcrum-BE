@@ -20,6 +20,8 @@ export class AuthRouter {
     this.authRouter.get('/google', this.authController.googleAuthenticate);
     this.authRouter.get('/google/callback', this.authController.googleCallback);
 
+    this.authRouter.post('/logout', this.authController.logout);
+
     return this.authRouter;
   }
 }

@@ -14,7 +14,7 @@ import { habitSchedules } from './habitSchedules';
 import { habits } from './habits';
 import { habitCompletions } from './habitCompletions';
 import { Pool } from 'pg';
-import { Env } from '~/app/shared/config';
+import { Env } from '@shared/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 
 const env = new Env();

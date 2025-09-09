@@ -19,7 +19,7 @@ import {
   GlobalErrorHandlerMiddleware,
   GlobalResponseHandlerMiddleware,
 } from '@shared/middlewares';
-import { AppRouter } from '@core/router';
+import { AppRouter } from '@routes';
 import {
   GithhubStrategy,
   LocalStrategy,

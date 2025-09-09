@@ -4,6 +4,7 @@ import Redis from 'ioredis';
 import { Pool } from 'pg';
 import { InjectionToken } from 'tsyringe';
 import * as schema from '@core/infra/db/drizzle';
+import { LRUCache } from 'lru-cache';
 
 const Tokens = {
   // app
@@ -13,6 +14,10 @@ const Tokens = {
   DRIZZLE_DB: 'drizzle_db' as InjectionToken<NodePgDatabase<typeof schema>>,
   DB_POOL: 'db_pool' as InjectionToken<Pool>,
   REDIS: 'redis' as InjectionToken<Redis>,
+
+  // services
+  LRU_MAIN: 'lru-cache' as InjectionToken<LRUCache<string, any>>,
+  LRU_TAG_INDEX: 'lru-cache' as InjectionToken<LRUCache<string, Set<string>>>,
 
   // router
   GOALS_ROUTER: 'goals_router' as InjectionToken<Router>,

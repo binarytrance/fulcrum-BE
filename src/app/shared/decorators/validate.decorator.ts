@@ -36,19 +36,17 @@ export function Validate(validationSchemas: IPartialValidationSchemas) {
           | undefined;
 
         if (!schema) {
-          return;
+          throw new RequestValidationError(
+            'Validation Failed No schema found',
+            errors
+          );
         }
 
         const result = schema.safeParse(req[key as IValidationSchemaKey]);
-        console.log({ result });
         if (!result.success) {
           errors.push(result.error);
-        } else {
-          req[key as IValidationSchemaKey] = result.data;
         }
       });
-
-      console.log({ errors });
 
       if (errors.length) {
         throw new RequestValidationError('Validation Failed', errors);

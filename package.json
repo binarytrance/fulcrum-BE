@@ -11,11 +11,11 @@
     "start": "node dist/app/index.js | pino-pretty -c",
     "pm2:start": "pm2 start dist/app/index.js -i 1",
     "load:test": "artillery run loadtest/goals.yml",
-    "db:push": "drizzle-kit push --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
-    "db:migrate": "drizzle-kit migrate --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
-    "db:generate": "drizzle-kit generate --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
-    "db:studio": "drizzle-kit studio --config=src/app/shared/services/db/drizzle/drizzle.config.ts",
-    "db:seed": "node dist/app/shared/services/db/drizzle/seeds/seeds.js"
+    "db:push": "drizzle-kit push --config=src/app/core/infra/db/drizzle/drizzle.config.ts",
+    "db:migrate": "drizzle-kit migrate --config=src/app/core/infra/db/drizzle/drizzle.config.ts",
+    "db:generate": "drizzle-kit generate --config=src/app/core/infra/db/drizzle/drizzle.config.ts",
+    "db:studio": "drizzle-kit studio --config=src/app/core/infra/db/drizzle/drizzle.config.ts",
+    "db:seed": "node dist/app/core/infra/db/drizzle/seeds/seeds.js"
   },
   "repository": {
     "type": "git",
@@ -44,7 +44,6 @@
     "@types/swagger-jsdoc": "^6.0.4",
     "@types/swagger-ui-express": "^4.1.8",
     "artillery": "^2.0.23",
-    "concurrently": "^9.2.0",
     "drizzle-kit": "^0.31.4",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
@@ -67,6 +66,7 @@
     "hpp": "^0.2.3",
     "http-terminator": "^3.2.0",
     "ioredis": "^5.6.1",
+    "lru-cache": "^11.1.0",
     "luxon": "^3.6.1",
     "morgan": "^1.10.0",
     "passport": "^0.7.0",

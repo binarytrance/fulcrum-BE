@@ -1,11 +1,12 @@
 import express, { Router } from 'express';
 import { container } from 'tsyringe';
-import { Tokens } from '@core/di/tokens';
-import { Env, Logger } from '@shared/config';
 import { Pool } from 'pg';
 import IoRedis from 'ioredis';
+import { Tokens } from '@core/di/tokens';
+import { Env, Logger } from '@shared/config';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@core/infra/db/drizzle';
+import { LRUCache } from 'lru-cache';
 
 const env = container.resolve(Env);
 const logger = container.resolve(Logger);
@@ -66,13 +67,27 @@ function registerInfra() {
   container.register(Tokens.REDIS, { useValue: redisClient });
 }
 
-function registerMiddlewares() {}
+function registerServices() {
+  container.register(Tokens.LRU_MAIN, {
+    useValue: new LRUCache<string, {}>({
+      max: 5_000,
+      ttlAutopurge: true,
+    }),
+  });
+
+  container.register(Tokens.LRU_TAG_INDEX, {
+    useValue: new LRUCache<string, Set<string>>({
+      max: 10_000,
+      ttlAutopurge: true,
+    }),
+  });
+}
 
 function registerContainers() {
   registerApp();
   registerRouters();
   registerInfra();
-  registerMiddlewares();
+  registerServices();
 }
 
 export { registerContainers };

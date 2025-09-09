@@ -43,6 +43,7 @@ export class Env {
         HOST: process.env.HOST,
         SESSION_SECRET: process.env.SESSION_SECRET,
         SESSION_NAME: process.env.SESSION_NAME,
+        HMAC_SECRET: process.env.HMAC_SECRET
       },
       DATABASE: {
         DB_PASSWORD: process.env.DB_PASSWORD,
@@ -80,6 +81,7 @@ export class Env {
         HOST: z.string().min(3),
         SESSION_SECRET: z.string().min(3),
         SESSION_NAME: z.string().min(3),
+        HMAC_SECRET: z.string().min(3)
       }),
       DATABASE: z.object({
         DB_PASSWORD: z.string().min(3),

@@ -1,14 +1,14 @@
 import 'reflect-metadata';
 import { defineConfig } from 'drizzle-kit';
-import { Env } from '../../../../shared/config';
+import { Env } from '@shared/config';
 
 class DrizzleConfig {
   constructor(private readonly env: Env) {}
 
   public createConfig() {
     return defineConfig({
-      out: 'src/app/shared/services/db/drizzle/migrations',
-      schema: 'src/app/shared/services/db/drizzle/schema',
+      out: 'src/app/core/infra/db/drizzle/migrations',
+      schema: 'src/app/core/infra/db/drizzle/schema',
       dialect: 'postgresql',
       dbCredentials: {
         host: this.env.database.DB_HOST,

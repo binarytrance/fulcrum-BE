@@ -2,11 +2,13 @@ import { Router } from 'express';
 import { injectable, inject } from 'tsyringe';
 import { GoalsController } from '@controllers';
 import { Tokens } from '@core/di';
+import { AuthMiddleware } from '@shared/middlewares';
 
 @injectable()
 export class GoalsRouter {
   constructor(
     private readonly goalsController: GoalsController,
+    private readonly authMiddleware: AuthMiddleware,
     @inject(Tokens.GOALS_ROUTER) private readonly goalsRouter: Router
   ) {}
 
@@ -24,7 +26,11 @@ export class GoalsRouter {
      *       200:
      *         description: successful login
      */
-    this.goalsRouter.get('/', this.goalsController.getGoals);
+    this.goalsRouter.get(
+      '/',
+      this.authMiddleware.handler,
+      this.goalsController.getGoalsByUserId
+    );
 
     /**
      * @swagger
@@ -39,7 +45,23 @@ export class GoalsRouter {
      *       200:
      *         description: successful login
      */
-    this.goalsRouter.post('/', this.goalsController.postGoal);
+    this.goalsRouter.post(
+      '/',
+      this.authMiddleware.handler,
+      this.goalsController.postGoalByUserId
+    );
+
+    this.goalsRouter.patch(
+      '/:goalId',
+      this.authMiddleware.handler,
+      this.goalsController.updateGoalsByUserId
+    );
+
+    this.goalsRouter.delete(
+      '/:goalId',
+      this.authMiddleware.handler,
+      this.goalsController.deleteGoal
+    );
 
     return this.goalsRouter;
   }

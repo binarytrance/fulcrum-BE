@@ -1,8 +1,7 @@
 import { Application, NextFunction, Request, Response } from 'express';
-import { SerializedErrorOptions } from '@interfaces';
-import { AppMiddleware } from '../base';
+import { SerializedErrorOptions, AppMiddleware } from '@interfaces';
 
-export class GlobalResponseHandlerMiddleware extends AppMiddleware {
+export class GlobalResponseHandlerMiddleware implements AppMiddleware {
   public register(app: Application): void {
     app.use(this.sendFormattedResponse);
   }

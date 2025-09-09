@@ -17,6 +17,7 @@ export class AuthController {
     this.googleCallback = this.googleCallback.bind(this);
     this.githubAuthenticate = this.githubAuthenticate.bind(this);
     this.githubCallback = this.githubCallback.bind(this);
+    this.logout = this.logout.bind(this);
   }
 
   public githubAuthenticate(req: Request, res: Response, next: NextFunction) {
@@ -126,11 +127,9 @@ export class AuthController {
     res: Response,
     next: NextFunction
   ) {
-    console.log('executing');
     passport.authenticate(
       'local-signup',
       (err: Error | null, user?: Express.User, info?: PassportInfo) => {
-        console.log({ error: err });
         if (err) {
           return next(err);
         }
@@ -154,5 +153,21 @@ export class AuthController {
         });
       }
     )(req, res, next);
+  }
+
+  public async logout(req: Request, res: Response, next: NextFunction) {
+    req.logout((err) => {
+      if (err) {
+        return next(err);
+      }
+
+      req.session.destroy((err) => {
+        if (err) {
+          return next(err);
+        }
+      });
+
+      return res.success(null, 'logged out successfully', StatusCodes.OK);
+    });
   }
 }

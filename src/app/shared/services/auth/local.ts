@@ -88,7 +88,6 @@ export class LocalStrategy {
 
   private deserializeUsers() {
     passport.deserializeUser(async (user: Express.User, done: DoneCallback) => {
-      this.logger.info('passport deserialized user', { user });
       try {
         done(null, user);
       } catch (e) {

@@ -1,6 +1,6 @@
 import { injectable } from 'tsyringe';
 import { eq } from 'drizzle-orm';
-import { Database } from '@shared/services';
+import { Database } from '@core/infra';
 import { IUser } from '@interfaces';
 import { DatabaseError } from '@shared/errors';
 import { UserTable } from '@core/infra/db/drizzle';

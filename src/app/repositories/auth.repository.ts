@@ -1,6 +1,6 @@
 import { injectable } from 'tsyringe';
 import { IAuthAccount, IPassword, IUser } from '@interfaces';
-import { Database } from '@shared/services';
+import { Database } from '@core/infra';
 import { Logger } from '@shared/config';
 import { DatabaseError } from '@shared/errors';
 import {
