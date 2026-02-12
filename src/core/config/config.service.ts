@@ -1,6 +1,8 @@
 import { ConfigService as NestConfigService } from '@nestjs/config';
 import { Env } from './config.schema';
+import { Injectable } from '@nestjs/common';
 
+@Injectable()
 export class ConfigService {
   constructor(private readonly config: NestConfigService<Env, true>) {}
 
@@ -13,7 +15,7 @@ export class ConfigService {
   }
 
   get port() {
-    return this.get('APP_PORT');
+    return this.get('PORT');
   }
 
   get mongoURL() {

@@ -5,7 +5,7 @@ export const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'production', 'test'])
     .default('development'),
-  APP_PORT: z.coerce.number(),
+  PORT: z.coerce.number(),
 });
 
 export type Env = z.infer<typeof envSchema>;
