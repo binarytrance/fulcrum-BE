@@ -4,25 +4,20 @@ import {
   ID_GENERATOR_PORT,
   type IIDGenerator,
 } from '@shared/domain/ports/id-generator.port';
-import { Auth } from '@auth/domain/entities/auth.entity';
-import { AuthProviders } from '@auth/domain/types/auth.types';
+import { PendingCredential } from '@auth/domain/entities/pending-credential.entity';
 import { SignupEmailEvent } from '@auth/domain/events/signup-email.event';
 import {
   type IPasswordHasher,
   PASSWORD_HASH_PORT,
 } from '@auth/domain/ports/password-hasher.port';
 import {
-  type IAuthRepository,
-  AUTH_REPO_PORT,
-} from '@auth/domain/ports/auth-repo.port';
-import {
-  CREATE_USER_PORT,
-  type ICreateUserPort,
-} from '@auth/domain/ports/create-user.port';
-import {
   EVENT_PUBLISHER_PORT,
   type IEventPublisher,
 } from '@auth/domain/ports/event-publisher.port';
+import {
+  PENDING_CREDENTIAL_REPO_PORT,
+  type IPendingCredentialRepository,
+} from '@auth/domain/ports/pending-credential-repo.port';
 
 @Injectable()
 export class SignupService {
@@ -31,9 +26,9 @@ export class SignupService {
   constructor(
     @Inject(PASSWORD_HASH_PORT)
     private readonly passwordHasher: IPasswordHasher,
-    @Inject(AUTH_REPO_PORT) private readonly authRepo: IAuthRepository,
+    @Inject(PENDING_CREDENTIAL_REPO_PORT)
+    private readonly pendingCredentialRepo: IPendingCredentialRepository,
     @Inject(ID_GENERATOR_PORT) private readonly idGenerator: IIDGenerator,
-    @Inject(CREATE_USER_PORT) private readonly createUserPort: ICreateUserPort,
     @Inject(EVENT_PUBLISHER_PORT)
     private readonly eventPublisher: IEventPublisher,
   ) {}
@@ -44,28 +39,25 @@ export class SignupService {
     firstname: string,
     lastname: string,
   ) {
-    const id = this.idGenerator.generate();
-    const now = new Date();
     const hashedPassword = await this.passwordHasher.hashPassword(password);
+    const emailVerificationToken = this.idGenerator.generate();
 
-    const user = await this.createUserPort.execute(email, firstname, lastname);
-
-    const auth = new Auth({
-      id,
+    const pending = new PendingCredential({
+      id: this.idGenerator.generate(),
+      email,
+      firstname,
+      lastname,
       hashedPassword,
-      createdAt: now,
-      updatedAt: now,
-      provider: AuthProviders.LOCAL,
-      providerId: null,
-      userId: user.id,
+      emailVerificationToken,
+      createdAt: new Date(),
     });
 
-    this.logger.log(`created user is: ${user.emailVerificationToken}`);
+    await this.pendingCredentialRepo.save(pending);
 
-    await this.authRepo.create(auth);
+    this.logger.log(`Stored pending signup for: ${email}`);
 
     await this.eventPublisher.publish(
-      new SignupEmailEvent(email, user.emailVerificationToken),
+      new SignupEmailEvent(email, emailVerificationToken),
     );
   }
 }

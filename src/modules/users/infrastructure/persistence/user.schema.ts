@@ -13,12 +13,6 @@ export class User {
   @Prop({ type: String, default: null })
   lastname: string | null;
 
-  @Prop({ type: Boolean, default: false })
-  isEmailVerified: boolean;
-
-  @Prop({ type: String, default: null })
-  emailVerificationToken: string | null;
-
   @Prop({ type: String, unique: true, index: true, required: true })
   email: string;
 
@@ -31,8 +25,3 @@ export class User {
 
 export type UserDocument = HydratedDocument<User>;
 export const UserSchema = SchemaFactory.createForClass(User);
-
-UserSchema.index(
-  { emailVerificationToken: 1 },
-  { partialFilterExpression: { emailVerificationToken: { $type: 'string' } } },
-);

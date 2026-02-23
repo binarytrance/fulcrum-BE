@@ -2,13 +2,11 @@
 @urlPath = api/v1
 @authPath = auth
 
-### Verify Request
-POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
+### Signup Request
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/verify-email
 Content-Type: application/json
 
 {
   "email": "humberto.hills@ethereal.email",
-  "password": "password123",
-  "firstname": "John",
-  "lastname": "Doe"
+  "token": "23e06076-b97d-4d29-b2a8-7af3661398f6"
 }

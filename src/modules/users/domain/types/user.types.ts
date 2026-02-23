@@ -2,7 +2,6 @@ export enum UserStatus {
   ACTIVE = 'ACTIVE',
   SUSPENDED = 'SUSPENDED',
   DELETED = 'DELETED',
-  PENDING = 'PENDING',
 }
 
 export interface UserFields {
@@ -11,8 +10,6 @@ export interface UserFields {
   lastname: string | null;
   email: string;
   status: UserStatus;
-  isEmailVerified: boolean;
-  emailVerificationToken: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

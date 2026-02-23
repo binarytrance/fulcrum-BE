@@ -31,8 +31,6 @@ export class UserRepository implements IUserRepository {
       firstname: doc.firstname,
       lastname: doc.lastname,
       email: doc.email,
-      isEmailVerified: doc.isEmailVerified,
-      emailVerificationToken: doc.emailVerificationToken,
       status: doc.status as UserStatus,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -49,8 +47,6 @@ export class UserRepository implements IUserRepository {
       firstname: doc.firstname,
       lastname: doc.lastname,
       email: doc.email,
-      isEmailVerified: doc.isEmailVerified,
-      emailVerificationToken: doc.emailVerificationToken,
       status: doc.status as UserStatus,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
@@ -65,24 +61,12 @@ export class UserRepository implements IUserRepository {
   }
 
   private toPersistence(user: User) {
-    const {
-      id,
-      email,
-      isEmailVerified,
-      firstname,
-      lastname,
-      status,
-      emailVerificationToken,
-    } = user;
-
     return {
-      _id: id,
-      email,
-      isEmailVerified,
-      emailVerificationToken,
-      firstname,
-      lastname,
-      status,
+      _id: user.id,
+      email: user.email,
+      firstname: user.firstname,
+      lastname: user.lastname,
+      status: user.status,
     };
   }
 }

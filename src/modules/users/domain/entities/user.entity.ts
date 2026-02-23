@@ -9,8 +9,6 @@ export class User {
   private readonly _lastname: string | null;
   private readonly _email: string;
   private readonly _status: UserStatus;
-  private readonly _isEmailVerified: boolean;
-  private readonly _emailVerificationToken: string | null;
   private readonly _createdAt: Date;
   private readonly _updatedAt: Date;
 
@@ -19,8 +17,6 @@ export class User {
     email,
     firstname,
     id,
-    isEmailVerified,
-    emailVerificationToken,
     lastname,
     status,
     updatedAt,
@@ -30,10 +26,8 @@ export class User {
     this._email = email;
     this._firstname = firstname;
     this._lastname = lastname;
-    this._isEmailVerified = isEmailVerified;
     this._status = status;
     this._updatedAt = updatedAt;
-    this._emailVerificationToken = emailVerificationToken;
   }
 
   get id() {
@@ -50,14 +44,6 @@ export class User {
 
   get lastname() {
     return this._lastname;
-  }
-
-  get isEmailVerified() {
-    return this._isEmailVerified;
-  }
-
-  get emailVerificationToken() {
-    return this._emailVerificationToken;
   }
 
   get status() {
