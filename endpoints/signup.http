@@ -1,0 +1,14 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+@authPath = auth
+
+### Signup Request
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
+Content-Type: application/json
+
+{
+  "email": "humberto.hills@ethereal.email",
+  "password": "password123",
+  "firstname": "John",
+  "lastname": "Doe"
+}
