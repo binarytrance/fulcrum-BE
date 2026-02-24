@@ -10,6 +10,6 @@ import { MailModule } from '@shared/infrastructure/email/mail.module';
 @Module({
   imports: [ConfigModule, MongoModule, BullModule, RedisModule, MailModule],
   providers: [{ provide: ID_GENERATOR_PORT, useClass: UUIDGenerator }],
-  exports: [ID_GENERATOR_PORT, ConfigModule, MailModule, RedisModule],
+  exports: [ID_GENERATOR_PORT, ConfigModule, MailModule, RedisModule, MongoModule],
 })
 export class SharedModule {}

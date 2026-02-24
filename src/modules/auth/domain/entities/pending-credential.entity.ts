@@ -5,6 +5,7 @@ export interface PendingCredentialFields {
   lastname: string | null;
   hashedPassword: string;
   emailVerificationToken: string;
+  tokenExpiresAt: Date;
   createdAt: Date;
 }
 
@@ -15,6 +16,7 @@ export class PendingCredential {
   private readonly _lastname: string | null;
   private readonly _hashedPassword: string;
   private readonly _emailVerificationToken: string;
+  private readonly _tokenExpiresAt: Date;
   private readonly _createdAt: Date;
 
   constructor({
@@ -24,6 +26,7 @@ export class PendingCredential {
     lastname,
     hashedPassword,
     emailVerificationToken,
+    tokenExpiresAt,
     createdAt,
   }: PendingCredentialFields) {
     this._id = id;
@@ -32,6 +35,7 @@ export class PendingCredential {
     this._lastname = lastname;
     this._hashedPassword = hashedPassword;
     this._emailVerificationToken = emailVerificationToken;
+    this._tokenExpiresAt = tokenExpiresAt;
     this._createdAt = createdAt;
   }
 
@@ -57,6 +61,14 @@ export class PendingCredential {
 
   get emailVerificationToken() {
     return this._emailVerificationToken;
+  }
+
+  get tokenExpiresAt() {
+    return this._tokenExpiresAt;
+  }
+
+  isTokenExpired(): boolean {
+    return new Date() > this._tokenExpiresAt;
   }
 
   get createdAt() {

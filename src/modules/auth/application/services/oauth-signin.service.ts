@@ -24,6 +24,10 @@ import {
   type IIDGenerator,
   ID_GENERATOR_PORT,
 } from '@shared/domain/ports/id-generator.port';
+import {
+  TRANSACTION_MANAGER_PORT,
+  type ITransactionManager,
+} from '@shared/domain/ports/transaction-manager.port';
 
 @Injectable()
 export class OAuthSigninService {
@@ -36,6 +40,8 @@ export class OAuthSigninService {
     @Inject(AUTH_REPO_PORT) private readonly authRepo: IAuthRepository,
     @Inject(ID_GENERATOR_PORT) private readonly idGenerator: IIDGenerator,
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
+    @Inject(TRANSACTION_MANAGER_PORT)
+    private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(profile: OAuthProfile): Promise<AuthTokens> {
@@ -46,34 +52,39 @@ export class OAuthSigninService {
     );
 
     if (!auth) {
-      // Check if user already exists (account merging by email)
-      let user: AuthUserView | null = await this.findUser.findByEmail(
-        profile.email,
-      );
-
-      if (!user) {
-        user = await this.createOAuthUser.execute(
+      auth = await this.txManager.withTransaction(async () => {
+        // Check if user already exists (account merging by email)
+        let user: AuthUserView | null = await this.findUser.findByEmail(
           profile.email,
-          profile.firstname,
-          profile.lastname,
         );
-        this.logger.log(`Created new OAuth user: ${profile.email}`);
-      }
 
-      // Create new auth record for this provider
-      const authId = this.idGenerator.generate();
-      const now = new Date();
-      auth = new Auth({
-        id: authId,
-        userId: user.id,
-        provider: profile.provider,
-        providerId: profile.providerId,
-        hashedPassword: null,
-        createdAt: now,
-        updatedAt: now,
+        if (!user) {
+          user = await this.createOAuthUser.execute(
+            profile.email,
+            profile.firstname,
+            profile.lastname,
+          );
+          this.logger.log(`Created new OAuth user: ${profile.email}`);
+        }
+
+        // Create new auth record for this provider
+        const authId = this.idGenerator.generate();
+        const now = new Date();
+        const newAuth = new Auth({
+          id: authId,
+          userId: user.id,
+          provider: profile.provider,
+          providerId: profile.providerId,
+          hashedPassword: null,
+          createdAt: now,
+          updatedAt: now,
+        });
+        await this.authRepo.create(newAuth);
+        this.logger.log(
+          `Created auth record for provider: ${profile.provider}`,
+        );
+        return newAuth;
       });
-      await this.authRepo.create(auth);
-      this.logger.log(`Created auth record for provider: ${profile.provider}`);
     }
 
     const user = await this.findUser.findById(auth.userId);

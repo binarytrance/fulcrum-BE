@@ -8,6 +8,7 @@ import { Model } from 'mongoose';
 import { Auth } from '@/modules/auth/domain/entities/auth.entity';
 import { AuthProviders } from '@/modules/auth/domain/types/auth.types';
 import { IAuthRepository } from '@auth/domain/ports/auth-repo.port';
+import { mongoSessionContext } from '@shared/infrastructure/persistence/mongo-session.context';
 
 @Injectable()
 export class AuthRepository implements IAuthRepository {
@@ -17,7 +18,8 @@ export class AuthRepository implements IAuthRepository {
   ) {}
 
   async create(credential: Auth): Promise<void> {
-    await this.authModel.create(this.toPersistence(credential));
+    const session = mongoSessionContext.getStore();
+    await this.authModel.create([this.toPersistence(credential)], { session });
   }
 
   async findByUserId(userId: string): Promise<Auth | null> {
@@ -58,9 +60,11 @@ export class AuthRepository implements IAuthRepository {
   }
 
   async update(credential: Auth): Promise<void> {
+    const session = mongoSessionContext.getStore();
     await this.authModel.updateOne(
       { _id: credential.id },
       { $set: this.toPersistence(credential) },
+      { session },
     );
   }
 

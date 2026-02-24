@@ -7,25 +7,31 @@ import {
   PendingCredential,
   PendingCredentialDocument,
 } from '@auth/infrastructure/persistence/pending-credential.schema';
+import { mongoSessionContext } from '@shared/infrastructure/persistence/mongo-session.context';
 
 @Injectable()
-export class PendingCredentialRepository
-  implements IPendingCredentialRepository
-{
+export class PendingCredentialRepository implements IPendingCredentialRepository {
   constructor(
     @InjectModel(PendingCredential.name)
     private readonly model: Model<PendingCredentialDocument>,
   ) {}
 
   async save(credential: PendingCredentialEntity): Promise<void> {
-    await this.model.create({
-      email: credential.email,
-      firstname: credential.firstname,
-      lastname: credential.lastname,
-      hashedPassword: credential.hashedPassword,
-      emailVerificationToken: credential.emailVerificationToken,
-      createdAt: credential.createdAt,
-    });
+    const session = mongoSessionContext.getStore();
+    await this.model.create(
+      [
+        {
+          email: credential.email,
+          firstname: credential.firstname,
+          lastname: credential.lastname,
+          hashedPassword: credential.hashedPassword,
+          emailVerificationToken: credential.emailVerificationToken,
+          tokenExpiresAt: credential.tokenExpiresAt,
+          createdAt: credential.createdAt,
+        },
+      ],
+      { session },
+    );
   }
 
   async findByEmail(email: string): Promise<PendingCredentialEntity | null> {
@@ -38,11 +44,13 @@ export class PendingCredentialRepository
       lastname: doc.lastname,
       hashedPassword: doc.hashedPassword,
       emailVerificationToken: doc.emailVerificationToken,
+      tokenExpiresAt: doc.tokenExpiresAt,
       createdAt: doc.createdAt,
     });
   }
 
   async deleteById(id: string): Promise<void> {
-    await this.model.deleteOne({ _id: id });
+    const session = mongoSessionContext.getStore();
+    await this.model.deleteOne({ _id: id }, { session });
   }
 }

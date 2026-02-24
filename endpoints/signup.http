@@ -7,7 +7,7 @@ POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
 Content-Type: application/json
 
 {
-  "email": "humberto.hills@ethereal.email",
+  "email": "jazmyn.kunze@ethereal.email",
   "password": "password123",
   "firstname": "John",
   "lastname": "Doe"

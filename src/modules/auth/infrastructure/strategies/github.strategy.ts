@@ -21,13 +21,14 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
     _refreshToken: string,
     profile: Profile,
   ): OAuthProfile {
-    const displayName = profile.displayName ?? '';
+    const displayName = profile.displayName?.trim() || profile.username || '';
     const [firstname, ...rest] = displayName.split(' ');
+
     return {
       provider: AuthProviders.GITHUB,
       providerId: profile.id,
       email: profile.emails![0].value,
-      firstname: firstname ?? displayName,
+      firstname: firstname || profile.username || 'Unknown',
       lastname: rest.length > 0 ? rest.join(' ') : null,
     };
   }

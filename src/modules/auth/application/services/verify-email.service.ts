@@ -22,6 +22,10 @@ import {
   CREATE_USER_PORT,
   type ICreateUserPort,
 } from '@auth/domain/ports/create-user.port';
+import {
+  TRANSACTION_MANAGER_PORT,
+  type ITransactionManager,
+} from '@shared/domain/ports/transaction-manager.port';
 import { Auth } from '@auth/domain/entities/auth.entity';
 import { AuthProviders } from '@auth/domain/types/auth.types';
 
@@ -34,14 +38,19 @@ export class VerifyEmailService {
     private readonly pendingCredentialRepo: IPendingCredentialRepository,
     @Inject(ID_GENERATOR_PORT) private readonly idGenerator: IIDGenerator,
     @Inject(CREATE_USER_PORT) private readonly createUserPort: ICreateUserPort,
+    @Inject(TRANSACTION_MANAGER_PORT)
+    private readonly txManager: ITransactionManager,
   ) {}
 
   async execute(email: string, token: string): Promise<AuthTokens> {
     const pending = await this.pendingCredentialRepo.findByEmail(email);
     if (!pending) throw new UnauthorizedException('Invalid credentials');
 
+    if (pending.isTokenExpired())
+      throw new UnauthorizedException('Verification token has expired');
+
     if (pending.emailVerificationToken !== token)
-      throw new UnauthorizedException('Invalid or expired verification token');
+      throw new UnauthorizedException('Invalid verification token');
 
     const existingAuth = await this.authRepo.findByProvider(
       AuthProviders.LOCAL,
@@ -50,26 +59,28 @@ export class VerifyEmailService {
     if (existingAuth)
       throw new BadRequestException('Email is already verified');
 
-    const newUser = await this.createUserPort.execute(
-      pending.email,
-      pending.firstname,
-      pending.lastname,
-    );
+    return this.txManager.withTransaction(async () => {
+      const newUser = await this.createUserPort.execute(
+        pending.email,
+        pending.firstname,
+        pending.lastname,
+      );
 
-    const now = new Date();
-    const auth = new Auth({
-      id: this.idGenerator.generate(),
-      userId: newUser.id,
-      hashedPassword: pending.hashedPassword,
-      provider: AuthProviders.LOCAL,
-      providerId: null,
-      createdAt: now,
-      updatedAt: now,
+      const now = new Date();
+      const auth = new Auth({
+        id: this.idGenerator.generate(),
+        userId: newUser.id,
+        hashedPassword: pending.hashedPassword,
+        provider: AuthProviders.LOCAL,
+        providerId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await this.authRepo.create(auth);
+      await this.pendingCredentialRepo.deleteById(pending.id);
+
+      return this.tokenService.generateTokens(newUser.id, pending.email);
     });
-
-    await this.authRepo.create(auth);
-    await this.pendingCredentialRepo.deleteById(pending.id);
-
-    return this.tokenService.generateTokens(newUser.id, pending.email);
   }
 }

@@ -53,7 +53,7 @@ export class AuthController {
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
   ) {}
 
-  // ─── Local Auth ───────────────────────────────────────────────────────────
+  // Local
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
@@ -87,13 +87,11 @@ export class AuthController {
     return ok('Email verified successfully. You are now signed in.', tokens);
   }
 
-  // ─── Google OAuth ─────────────────────────────────────────────────────────
+  // Google OAuth
 
   @Get('google')
   @UseGuards(GoogleAuthGuard)
-  googleLogin(): void {
-    // Redirected to Google by Passport
-  }
+  googleLogin(): void {}
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
@@ -104,13 +102,11 @@ export class AuthController {
     return ok('Signed in with Google successfully.', tokens);
   }
 
-  // ─── GitHub OAuth ─────────────────────────────────────────────────────────
+  // Github OAuth
 
   @Get('github')
   @UseGuards(GithubAuthGuard)
-  githubLogin(): void {
-    // Redirected to GitHub by Passport
-  }
+  githubLogin(): void {}
 
   @Get('github/callback')
   @UseGuards(GithubAuthGuard)
@@ -121,7 +117,7 @@ export class AuthController {
     return ok('Signed in with GitHub successfully.', tokens);
   }
 
-  // ─── Token Management ─────────────────────────────────────────────────────
+  // Refresh token
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -134,6 +130,8 @@ export class AuthController {
     );
     return ok('Tokens refreshed successfully.', tokens);
   }
+
+  // signout
 
   @Post('signout')
   @HttpCode(HttpStatus.OK)

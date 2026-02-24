@@ -19,6 +19,9 @@ export class PendingCredential {
   emailVerificationToken: string;
 
   @Prop({ type: Date, required: true })
+  tokenExpiresAt: Date;
+
+  @Prop({ type: Date, required: true })
   createdAt: Date;
 }
 

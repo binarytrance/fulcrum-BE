@@ -1,9 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 
 import {
   ID_GENERATOR_PORT,
   type IIDGenerator,
 } from '@shared/domain/ports/id-generator.port';
+
+const TOKEN_EXPIRY_MINUTES = 15;
 import { PendingCredential } from '@auth/domain/entities/pending-credential.entity';
 import { SignupEmailEvent } from '@auth/domain/events/signup-email.event';
 import {
@@ -40,7 +43,10 @@ export class SignupService {
     lastname: string,
   ) {
     const hashedPassword = await this.passwordHasher.hashPassword(password);
-    const emailVerificationToken = this.idGenerator.generate();
+    const emailVerificationToken = randomBytes(3).toString('hex'); // e.g. "a3f9c2"
+    const tokenExpiresAt = new Date(
+      Date.now() + TOKEN_EXPIRY_MINUTES * 60 * 1000,
+    );
 
     const pending = new PendingCredential({
       id: this.idGenerator.generate(),
@@ -49,6 +55,7 @@ export class SignupService {
       lastname,
       hashedPassword,
       emailVerificationToken,
+      tokenExpiresAt,
       createdAt: new Date(),
     });
 

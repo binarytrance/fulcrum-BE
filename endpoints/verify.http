@@ -7,6 +7,6 @@ POST {{baseURL}}/{{urlPath}}/{{authPath}}/verify-email
 Content-Type: application/json
 
 {
-  "email": "humberto.hills@ethereal.email",
-  "token": "23e06076-b97d-4d29-b2a8-7af3661398f6"
+  "email": "jazmyn.kunze@ethereal.email",
+  "token": "ffe173"
 }

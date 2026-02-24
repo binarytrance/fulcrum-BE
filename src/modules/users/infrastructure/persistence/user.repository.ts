@@ -9,6 +9,7 @@ import {
   UserDocument,
 } from '@users/infrastructure/persistence/user.schema';
 import { Model } from 'mongoose';
+import { mongoSessionContext } from '@shared/infrastructure/persistence/mongo-session.context';
 
 @Injectable()
 export class UserRepository implements IUserRepository {
@@ -18,7 +19,8 @@ export class UserRepository implements IUserRepository {
   ) {}
 
   async create(user: User): Promise<void> {
-    await this.userModel.create(this.toPersistence(user));
+    const session = mongoSessionContext.getStore();
+    await this.userModel.create([this.toPersistence(user)], { session });
   }
 
   async findById(id: string): Promise<User | null> {
@@ -54,9 +56,11 @@ export class UserRepository implements IUserRepository {
   }
 
   async update(user: User): Promise<void> {
+    const session = mongoSessionContext.getStore();
     await this.userModel.updateOne(
       { _id: user.id },
       { $set: this.toPersistence(user) },
+      { session },
     );
   }
 
