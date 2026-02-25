@@ -1,0 +1,180 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+@authPath = auth
+@goalsPath = goals
+
+# ─── Step 1: Sign in to get a token ────────────────────────────────────────────
+# Run this first, copy the accessToken from the response, paste it below.
+
+### Sign in
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signin
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "password123"
+}
+
+# ─── Paste your accessToken here ───────────────────────────────────────────────
+@token = PASTE_ACCESS_TOKEN_HERE
+
+# ─── Step 2: Create a top-level Goal (level 1) ─────────────────────────────────
+
+### Create Goal — "Read 10 books this year"
+# @name createGoal
+POST {{baseURL}}/{{urlPath}}/{{goalsPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Read 10 books this year",
+  "description": "Improve focus and knowledge through consistent reading.",
+  "category": "LEARNING",
+  "priority": "HIGH",
+  "deadline": "2026-12-31T23:59:59.000Z",
+  "estimatedHours": 100
+}
+
+# Copy the `id` from the response and paste below
+@goalId = PASTE_GOAL_ID_HERE
+
+# ─── Step 3: Create a Sub-Goal (level 2) ───────────────────────────────────────
+
+### Create Sub-Goal — "Read 3 books by March"
+# @name createSubGoal
+POST {{baseURL}}/{{urlPath}}/{{goalsPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Read 3 books by March",
+  "description": "Focus on short books first.",
+  "category": "LEARNING",
+  "priority": "HIGH",
+  "deadline": "2026-03-31T23:59:59.000Z",
+  "estimatedHours": 30,
+  "parentGoalId": "{{goalId}}"
+}
+
+# Copy sub-goal id for the next step
+@subGoalId = PASTE_SUB_GOAL_ID_HERE
+
+# ─── Step 4: Create a Sub-Sub-Goal (level 3 — deepest allowed) ─────────────────
+
+### Create Sub-Sub-Goal — "Finish Atomic Habits"
+POST {{baseURL}}/{{urlPath}}/{{goalsPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Finish Atomic Habits",
+  "category": "LEARNING",
+  "priority": "MEDIUM",
+  "deadline": "2026-02-28T23:59:59.000Z",
+  "estimatedHours": 8,
+  "parentGoalId": "{{subGoalId}}"
+}
+
+# ─── Step 5: Try to nest deeper than 3 levels (should fail with 400) ───────────
+@subSubGoalId = PASTE_SUB_SUB_GOAL_ID_HERE
+
+### ❌ Should return 400 — nesting limit exceeded
+POST {{baseURL}}/{{urlPath}}/{{goalsPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "This should be rejected",
+  "category": "LEARNING",
+  "parentGoalId": "{{subSubGoalId}}"
+}
+
+# ─── Step 6: Get full goal tree ─────────────────────────────────────────────────
+
+### GET goal tree (nested, Redis-cached after first call)
+GET {{baseURL}}/{{urlPath}}/{{goalsPath}}
+Authorization: Bearer {{token}}
+
+# ─── Step 7: Get single goal ────────────────────────────────────────────────────
+
+### GET single goal
+GET {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Authorization: Bearer {{token}}
+
+# ─── Step 8: Update goal (valid status transition) ──────────────────────────────
+
+### PATCH — Pause goal (ACTIVE → PAUSED ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "PAUSED"
+}
+
+### PATCH — Resume goal (PAUSED → ACTIVE ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "ACTIVE"
+}
+
+### PATCH — Complete goal (ACTIVE → COMPLETED ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "COMPLETED"
+}
+
+### PATCH — Reactivate completed goal (COMPLETED → ACTIVE ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "ACTIVE"
+}
+
+### ❌ PATCH — Invalid transition (ACTIVE → ABANDONED, then ABANDONED → PAUSED should fail)
+# First abandon it:
+PATCH {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "ABANDONED"
+}
+
+# ─── Step 9: Update deadline (triggers async pacing job) ───────────────────────
+
+### PATCH — Change deadline (queues goals.recalculate-pacing job)
+PATCH {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{subGoalId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "deadline": "2026-04-15T23:59:59.000Z"
+}
+
+# ─── Step 10: Soft-delete ───────────────────────────────────────────────────────
+
+### DELETE — Soft-deletes goal + all descendants (sets deletedAt, never removes)
+DELETE {{baseURL}}/{{urlPath}}/{{goalsPath}}/{{goalId}}
+Authorization: Bearer {{token}}
+
+### GET tree after delete — should be empty (or only non-deleted goals)
+GET {{baseURL}}/{{urlPath}}/{{goalsPath}}
+Authorization: Bearer {{token}}
+
+# ─── Step 11: Access control ────────────────────────────────────────────────────
+
+### ❌ GET without token — should return 401
+GET {{baseURL}}/{{urlPath}}/{{goalsPath}}
+
+### ❌ GET deleted/non-existent goal — should return 404
+GET {{baseURL}}/{{urlPath}}/{{goalsPath}}/000000000000000000000000
+Authorization: Bearer {{token}}

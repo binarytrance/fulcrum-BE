@@ -1,0 +1,101 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+@authPath = auth
+
+# ─── Step 1: Sign up ────────────────────────────────────────────────────────────
+# Creates an account and sends a 6-char hex verification token to the email.
+
+### Signup
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "password123",
+  "firstname": "John",
+  "lastname": "Doe"
+}
+
+# ─── Step 2: Verify email ────────────────────────────────────────────────────────
+# Check inbox (Ethereal: https://ethereal.email) for the token, paste it below.
+
+### Verify email
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/verify-email
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "token": "ffe173"
+}
+
+# ─── Step 3: Sign in ─────────────────────────────────────────────────────────────
+# Returns accessToken + refreshToken. Copy them into the variables below.
+
+### Signin
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signin
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "password123"
+}
+
+@accessToken = PASTE_ACCESS_TOKEN_HERE
+@refreshToken = PASTE_REFRESH_TOKEN_HERE
+
+# ─── Step 4: Refresh tokens ──────────────────────────────────────────────────────
+# Use the refreshToken in the Authorization header to get a new pair.
+
+### Refresh tokens
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/refresh
+Authorization: Bearer {{refreshToken}}
+
+# ─── Step 5: Sign out ────────────────────────────────────────────────────────────
+# Revokes the stored refresh token. Subsequent refresh calls will return 401.
+
+### Signout
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signout
+Authorization: Bearer {{accessToken}}
+
+# ─── Error cases ─────────────────────────────────────────────────────────────────
+
+### ❌ Signup — email already registered (409)
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "password123",
+  "firstname": "John",
+  "lastname": "Doe"
+}
+
+### ❌ Signin — wrong password (401)
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/signin
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "wrongpassword"
+}
+
+### ❌ Verify email — invalid token (401)
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/verify-email
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "token": "000000"
+}
+
+### ❌ Refresh — after signout (401)
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/refresh
+Authorization: Bearer {{refreshToken}}
+
+# ─── OAuth (open these in a browser, not REST client) ────────────────────────────
+
+### Google OAuth — open in browser
+GET {{baseURL}}/{{urlPath}}/{{authPath}}/google
+
+### GitHub OAuth — open in browser
+GET {{baseURL}}/{{urlPath}}/{{authPath}}/github
