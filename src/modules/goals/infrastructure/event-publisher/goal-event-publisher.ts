@@ -12,7 +12,7 @@ import { GoalJobs } from '@goals/domain/types/goal-jobs.types';
 export const GOALS_QUEUE_NAME = 'goals';
 
 @Injectable()
-export class GoalQueueAdapter implements IGoalEventPublisher {
+export class GoalEventPublisher implements IGoalEventPublisher {
   private readonly logger = new Logger('GoalEventPublisher');
 
   constructor(@InjectQueue(GOALS_QUEUE_NAME) private readonly queue: Queue) {}

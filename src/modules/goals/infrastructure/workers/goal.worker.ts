@@ -1,7 +1,7 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { GOALS_QUEUE_NAME } from '@goals/infrastructure/queue/goal-queue.adapter';
+import { GOALS_QUEUE_NAME } from '@goals/infrastructure/event-publisher/goal-event-publisher';
 import { GoalJobPayloads, GoalJobs } from '@goals/domain/types/goal-jobs.types';
 
 type GoalJobUnion =

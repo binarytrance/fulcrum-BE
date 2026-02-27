@@ -10,7 +10,6 @@ import {
   Post,
   Req,
   UseGuards,
-  UsePipes,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -106,7 +105,6 @@ export class GoalsController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  @UsePipes(new ZodValidationPipe(CreateGoalSchema))
   @ApiOperation({
     summary: 'Create a goal or sub-goal (provide parentGoalId for sub-goals)',
   })
@@ -118,7 +116,7 @@ export class GoalsController {
   @ApiResponse({ status: 404, description: 'Parent goal not found.' })
   async create(
     @Req() req: Request,
-    @Body() dto: CreateGoalDto,
+    @Body(new ZodValidationPipe(CreateGoalSchema)) dto: CreateGoalDto,
   ): Promise<ApiResponseType<GoalResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const goal = await this.createGoalService.execute({ userId, ...dto });
@@ -164,7 +162,6 @@ export class GoalsController {
 
   @Patch(':id')
   @HttpCode(HttpStatus.OK)
-  @UsePipes(new ZodValidationPipe(UpdateGoalSchema))
   @ApiOperation({
     summary: 'Update a goal',
     description:
@@ -180,7 +177,7 @@ export class GoalsController {
   async update(
     @Req() req: Request,
     @Param('id') id: string,
-    @Body() dto: UpdateGoalDto,
+    @Body(new ZodValidationPipe(UpdateGoalSchema)) dto: UpdateGoalDto,
   ): Promise<ApiResponseType<GoalResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const goal = await this.updateGoalService.execute(id, userId, dto);

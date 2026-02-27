@@ -5,18 +5,8 @@
 
 # ─── Step 1: Sign in to get a token ────────────────────────────────────────────
 # Run this first, copy the accessToken from the response, paste it below.
-
-### Sign in
-POST {{baseURL}}/{{urlPath}}/{{authPath}}/signin
-Content-Type: application/json
-
-{
-  "email": "jazmyn.kunze@ethereal.email",
-  "password": "password123"
-}
-
 # ─── Paste your accessToken here ───────────────────────────────────────────────
-@token = PASTE_ACCESS_TOKEN_HERE
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMjhhNDkxNC1kMDExLTQwYzItYTA3NS00NDQzMjc1MzQyZWUiLCJlbWFpbCI6InNhbWJpdGZvcmV2ZXIyNDc5NUBnbWFpbC5jb20iLCJpYXQiOjE3NzIxNzA3MzcsImV4cCI6MTc3MjE3MTYzN30.sA0-jIgcxmuAELvjIizQ7HCJPMNK9KYGfpiVs5g8ZBE
 
 # ─── Step 2: Create a top-level Goal (level 1) ─────────────────────────────────
 
@@ -35,8 +25,9 @@ Authorization: Bearer {{token}}
   "estimatedHours": 100
 }
 
+###
 # Copy the `id` from the response and paste below
-@goalId = PASTE_GOAL_ID_HERE
+@goalId = 69a060973ae496ea90ec94e9
 
 # ─── Step 3: Create a Sub-Goal (level 2) ───────────────────────────────────────
 
@@ -56,8 +47,9 @@ Authorization: Bearer {{token}}
   "parentGoalId": "{{goalId}}"
 }
 
+###
 # Copy sub-goal id for the next step
-@subGoalId = PASTE_SUB_GOAL_ID_HERE
+@subGoalId = 69a060f63ae496ea90ec94ec
 
 # ─── Step 4: Create a Sub-Sub-Goal (level 3 — deepest allowed) ─────────────────
 
@@ -75,8 +67,9 @@ Authorization: Bearer {{token}}
   "parentGoalId": "{{subGoalId}}"
 }
 
+###
 # ─── Step 5: Try to nest deeper than 3 levels (should fail with 400) ───────────
-@subSubGoalId = PASTE_SUB_SUB_GOAL_ID_HERE
+@subSubGoalId = 69a0613c3ae496ea90ec94ef
 
 ### ❌ Should return 400 — nesting limit exceeded
 POST {{baseURL}}/{{urlPath}}/{{goalsPath}}

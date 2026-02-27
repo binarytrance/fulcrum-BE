@@ -4,9 +4,9 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { GoalWorker } from '@goals/infrastructure/workers/goal.worker';
 import {
-  GoalQueueAdapter,
+  GoalEventPublisher,
   GOALS_QUEUE_NAME,
-} from '@goals/infrastructure/queue/goal-queue.adapter';
+} from '@goals/infrastructure/event-publisher/goal-event-publisher';
 import { GOAL_EVENT_PUBLISHER_PORT } from '@goals/domain/ports/goal-event-publisher.port';
 
 @Module({
@@ -19,8 +19,8 @@ import { GOAL_EVENT_PUBLISHER_PORT } from '@goals/domain/ports/goal-event-publis
   ],
   providers: [
     GoalWorker,
-    GoalQueueAdapter,
-    { provide: GOAL_EVENT_PUBLISHER_PORT, useExisting: GoalQueueAdapter },
+    GoalEventPublisher,
+    { provide: GOAL_EVENT_PUBLISHER_PORT, useExisting: GoalEventPublisher },
   ],
   exports: [BullModule, GOAL_EVENT_PUBLISHER_PORT],
 })
