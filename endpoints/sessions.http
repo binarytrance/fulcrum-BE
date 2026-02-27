@@ -1,0 +1,103 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+@sessionsPath = sessions
+
+# ─── Paste your tokens/IDs here ────────────────────────────────────────────────
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjE5Njk2NywiZXhwIjoxNzcyMTk3ODY3fQ.vKyLUUQBMAKckYuMlI07dUtVWiDW4UzQwnCaVgr7m0I
+@taskId = 9596000b-3dd1-4f88-a4fd-55b4946eeb8a
+@sessionId = fd371479-2ac5-4096-b194-b45a5c4db7fc
+
+# ───────────────────────────────────────────────────────────────────────────────
+# WebSocket (Socket.io) — cannot be tested with REST Client.
+# Connect to:  ws://localhost:6969/sessions
+#
+# Handshake authentication — pass JWT in the auth object:
+#   { auth: { token: "<accessToken>" } }
+#
+# On connect the server automatically emits sessionResume if a session is
+# in-flight in Redis (crash recovery).
+#
+# Client → Server events:
+#
+#   startSession      { taskId: string }
+#   heartbeat         { sessionId: string }          ← emit every 30s
+#   logDistraction    { sessionId, reason, estimatedMinutes }
+#   stopSession       { sessionId: string }
+#
+# Server → Client events:
+#
+#   sessionStarted    { sessionId, serverStartedAt, taskEstimatedDurationMinutes }
+#   heartbeatAck      { elapsedMs, plantGrowthPercent }
+#   distractionLogged { distractions[], plantStatus }
+#   sessionStopped    { sessionId, durationMinutes, netFocusMinutes,
+#                       distractionCount, plantStatus, plantGrowthPercent, completedAt }
+#   sessionResume     { sessionId, elapsedMs, taskId,
+#                       taskEstimatedDurationMinutes, plantGrowthPercent }
+#   error             { message }
+# ───────────────────────────────────────────────────────────────────────────────
+
+# ─── REST: Manual time entry ────────────────────────────────────────────────────
+
+### POST — log manual session (no timer, no WebSocket)
+# @name manualSession
+POST {{baseURL}}/{{urlPath}}/{{sessionsPath}}/manual
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "taskId": "{{taskId}}",
+  "durationMinutes": 45,
+  "startedAt": "2026-02-27T09:00:00.000Z",
+  "note": "Deep work on algorithm design"
+}
+
+###
+@manualSessionId = PASTE_MANUAL_SESSION_ID_HERE
+
+# ─── REST: Session history ──────────────────────────────────────────────────────
+
+### GET all sessions for a task
+GET {{baseURL}}/{{urlPath}}/{{sessionsPath}}/task/{{taskId}}
+Authorization: Bearer {{token}}
+
+###
+
+### GET single session by ID
+GET {{baseURL}}/{{urlPath}}/{{sessionsPath}}/{{sessionId}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── Error cases ────────────────────────────────────────────────────────────────
+
+### ❌ POST manual — missing durationMinutes (should return 400)
+POST {{baseURL}}/{{urlPath}}/{{sessionsPath}}/manual
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "taskId": "{{taskId}}"
+}
+
+###
+
+### ❌ POST manual — invalid taskId (should return 404)
+POST {{baseURL}}/{{urlPath}}/{{sessionsPath}}/manual
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "taskId": "000000000000000000000000",
+  "durationMinutes": 30
+}
+
+###
+
+### ❌ GET session without token (should return 401)
+GET {{baseURL}}/{{urlPath}}/{{sessionsPath}}/{{sessionId}}
+
+###
+
+### ❌ GET non-existent session (should return 404)
+GET {{baseURL}}/{{urlPath}}/{{sessionsPath}}/nonexistent-id
+Authorization: Bearer {{token}}

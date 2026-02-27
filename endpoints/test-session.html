@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Session Tester</title>
+    <style>
+      body {
+        font-family: monospace;
+        background: #0d1117;
+        color: #e6edf3;
+        padding: 24px;
+        margin: 0;
+      }
+      h2 {
+        color: #58a6ff;
+        margin-bottom: 4px;
+      }
+      .subtitle {
+        color: #8b949e;
+        font-size: 12px;
+        margin-bottom: 24px;
+      }
+      .config {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .config label {
+        color: #8b949e;
+        font-size: 12px;
+        display: block;
+        margin-bottom: 4px;
+      }
+      .config input {
+        width: 100%;
+        background: #0d1117;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        color: #e6edf3;
+        padding: 6px 10px;
+        font-family: monospace;
+        font-size: 13px;
+        box-sizing: border-box;
+      }
+      .config input:focus {
+        outline: none;
+        border-color: #58a6ff;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 20px;
+      }
+      button {
+        padding: 8px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: monospace;
+        font-size: 13px;
+        font-weight: bold;
+        transition: opacity 0.15s;
+      }
+      button:hover {
+        opacity: 0.85;
+      }
+      button:disabled {
+        opacity: 0.35;
+        cursor: not-allowed;
+      }
+      #btn-connect    { background: #238636; color: #fff; }
+      #btn-disconnect { background: #da3633; color: #fff; }
+      #btn-start      { background: #1f6feb; color: #fff; }
+      #btn-beat       { background: #388bfd; color: #fff; }
+      #btn-distract   { background: #d29922; color: #000; }
+      #btn-stop       { background: #8957e5; color: #fff; }
+      .distract-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+      }
+      .distract-row input {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 4px;
+        color: #e6edf3;
+        padding: 6px 10px;
+        font-family: monospace;
+        font-size: 13px;
+      }
+      .status-bar {
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 24px;
+        flex-wrap: wrap;
+        font-size: 13px;
+      }
+      .status-bar span { color: #8b949e; }
+      .status-bar b    { color: #e6edf3; }
+      #status-dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #da3633;
+        margin-right: 6px;
+        vertical-align: middle;
+      }
+      #status-dot.connected { background: #2ea043; }
+      #log-container {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 12px 16px;
+        height: 400px;
+        overflow-y: auto;
+        font-size: 12px;
+        line-height: 1.7;
+      }
+      .log-line { display: flex; gap: 10px; }
+      .log-time  { color: #484f58; flex-shrink: 0; }
+      .log-icon  { flex-shrink: 0; width: 20px; }
+      .log-text  { color: #e6edf3; white-space: pre-wrap; word-break: break-all; }
+      .log-text.green  { color: #3fb950; }
+      .log-text.red    { color: #f85149; }
+      .log-text.blue   { color: #58a6ff; }
+      .log-text.yellow { color: #d29922; }
+      .log-text.purple { color: #bc8cff; }
+      .log-footer {
+        margin-top: 8px;
+        font-size: 11px;
+        color: #484f58;
+      }
+      .plant {
+        font-size: 28px;
+        line-height: 1;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>🌱 Session Tester</h2>
+    <p class="subtitle">WebSocket client for testing the /sessions gateway — ws://localhost:6969/sessions</p>
+
+    <!-- Config -->
+    <div class="config">
+      <div>
+        <label>Access Token (JWT)</label>
+        <input id="inp-token" type="text" placeholder="eyJhbGci..." />
+      </div>
+      <div>
+        <label>Task ID</label>
+        <input id="inp-taskid" type="text" placeholder="uuid of the task" />
+      </div>
+    </div>
+
+    <!-- Connection controls -->
+    <div class="controls">
+      <button id="btn-connect">Connect</button>
+      <button id="btn-disconnect" disabled>Disconnect</button>
+      <button id="btn-start" disabled>▶ Start Session</button>
+      <button id="btn-beat" disabled>💓 Heartbeat</button>
+      <button id="btn-stop" disabled>⏹ Stop Session</button>
+    </div>
+
+    <!-- Distraction row -->
+    <div class="distract-row">
+      <input id="inp-reason" type="text" placeholder="Distraction reason" value="Phone notification" style="width:260px" />
+      <input id="inp-mins" type="number" placeholder="mins" value="5" style="width:70px" />
+      <button id="btn-distract" disabled>😵 Log Distraction</button>
+    </div>
+
+    <!-- Live status -->
+    <div class="status-bar">
+      <div><span id="status-dot"></span><span>Status: </span><b id="stat-conn">Disconnected</b></div>
+      <div><span>Session: </span><b id="stat-session">—</b></div>
+      <div><span>Elapsed: </span><b id="stat-elapsed">—</b></div>
+      <div><span>Plant: </span><b id="stat-plant">—</b> <span id="plant-icon" class="plant"></span></div>
+    </div>
+
+    <!-- Log -->
+    <div id="log-container"></div>
+    <p class="log-footer">Scroll to follow — newest entries at bottom.</p>
+
+    <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+    <script>
+      let socket = null;
+      let sessionId = null;
+      let heartbeatTimer = null;
+
+      // ─── DOM refs ─────────────────────────────────────────────────────────────
+      const $ = (id) => document.getElementById(id);
+      const logEl = $('log-container');
+
+      // ─── Logging ──────────────────────────────────────────────────────────────
+      function log(icon, text, colorClass = '') {
+        const now = new Date().toISOString().slice(11, 23);
+        const line = document.createElement('div');
+        line.className = 'log-line';
+        line.innerHTML =
+          `<span class="log-time">${now}</span>` +
+          `<span class="log-icon">${icon}</span>` +
+          `<span class="log-text ${colorClass}">${typeof text === 'string' ? text : JSON.stringify(text, null, 2)}</span>`;
+        logEl.appendChild(line);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+
+      // ─── Status bar helpers ───────────────────────────────────────────────────
+      function setConnected(yes) {
+        $('status-dot').className = yes ? 'connected' : '';
+        $('stat-conn').textContent = yes ? 'Connected' : 'Disconnected';
+        $('btn-connect').disabled    = yes;
+        $('btn-disconnect').disabled = !yes;
+        $('btn-start').disabled      = !yes || !!sessionId;
+      }
+
+      function setSession(id) {
+        sessionId = id;
+        $('stat-session').textContent = id ? id.slice(0, 12) + '…' : '—';
+        $('btn-start').disabled    = !!id;
+        $('btn-beat').disabled     = !id;
+        $('btn-distract').disabled = !id;
+        $('btn-stop').disabled     = !id;
+      }
+
+      function setElapsed(ms) {
+        if (ms == null) { $('stat-elapsed').textContent = '—'; return; }
+        const s = Math.round(ms / 1000);
+        $('stat-elapsed').textContent = `${Math.floor(s / 60)}m ${s % 60}s`;
+      }
+
+      const PLANT_ICONS = { HEALTHY: '🌱', WILTING: '🥀', WILTED: '💀' };
+      function setPlant(status, percent) {
+        $('stat-plant').textContent = percent != null ? `${percent}%` : '—';
+        $('plant-icon').textContent = PLANT_ICONS[status] ?? '';
+      }
+
+      // ─── Connect ──────────────────────────────────────────────────────────────
+      $('btn-connect').addEventListener('click', () => {
+        const token  = $('inp-token').value.trim();
+        if (!token) { log('⚠️', 'Paste an access token first.', 'yellow'); return; }
+
+        socket = io('http://localhost:6969/sessions', {
+          auth: { token },
+          transports: ['websocket'],
+        });
+
+        socket.on('connect', () => {
+          log('✅', `Connected — socket.id = ${socket.id}`, 'green');
+          setConnected(true);
+        });
+
+        socket.on('disconnect', (reason) => {
+          log('❌', `Disconnected: ${reason}`, 'red');
+          setConnected(false);
+          clearInterval(heartbeatTimer);
+          setSession(null);
+          setElapsed(null);
+        });
+
+        socket.on('connect_error', (err) => {
+          log('🔴', `Connection error: ${err.message}`, 'red');
+        });
+
+        socket.on('error', (e) => {
+          log('🔴', `Server error: ${JSON.stringify(e)}`, 'red');
+        });
+
+        socket.on('sessionResume', (d) => {
+          log('🔄', `Crash recovery — resuming session ${d.sessionId}, elapsed ${Math.round(d.elapsedMs/1000)}s`, 'blue');
+          setSession(d.sessionId);
+          setElapsed(d.elapsedMs);
+          setPlant(null, d.plantGrowthPercent);
+        });
+
+        socket.on('sessionStarted', (d) => {
+          log('▶️', `Session started:\n${JSON.stringify(d, null, 2)}`, 'green');
+          setSession(d.sessionId);
+          setElapsed(0);
+          setPlant('HEALTHY', 0);
+          // Auto heartbeat every 30s
+          heartbeatTimer = setInterval(() => {
+            if (sessionId) socket.emit('heartbeat', { sessionId });
+          }, 30_000);
+        });
+
+        socket.on('heartbeatAck', (d) => {
+          log('💓', `Heartbeat — elapsed ${Math.round(d.elapsedMs/1000)}s, plant ${d.plantGrowthPercent}%`);
+          setElapsed(d.elapsedMs);
+          setPlant(null, d.plantGrowthPercent);
+        });
+
+        socket.on('distractionLogged', (d) => {
+          log('😵', `Distraction logged — plant: ${d.plantStatus}\n${JSON.stringify(d.distractions, null, 2)}`, 'yellow');
+          setPlant(d.plantStatus, null);
+        });
+
+        socket.on('sessionStopped', (d) => {
+          log('⏹️', `Session stopped:\n${JSON.stringify(d, null, 2)}`, 'purple');
+          clearInterval(heartbeatTimer);
+          setSession(null);
+          setElapsed(null);
+          setPlant(d.plantStatus, d.plantGrowthPercent);
+        });
+      });
+
+      // ─── Disconnect ───────────────────────────────────────────────────────────
+      $('btn-disconnect').addEventListener('click', () => {
+        socket?.disconnect();
+      });
+
+      // ─── Start Session ────────────────────────────────────────────────────────
+      $('btn-start').addEventListener('click', () => {
+        const taskId = $('inp-taskid').value.trim();
+        if (!taskId) { log('⚠️', 'Paste a task ID first.', 'yellow'); return; }
+        log('➡️', `Emitting startSession { taskId: ${taskId} }`);
+        socket.emit('startSession', { taskId });
+      });
+
+      // ─── Heartbeat ────────────────────────────────────────────────────────────
+      $('btn-beat').addEventListener('click', () => {
+        if (!sessionId) return;
+        log('➡️', `Emitting heartbeat { sessionId: ${sessionId} }`);
+        socket.emit('heartbeat', { sessionId });
+      });
+
+      // ─── Log Distraction ─────────────────────────────────────────────────────
+      $('btn-distract').addEventListener('click', () => {
+        if (!sessionId) return;
+        const reason = $('inp-reason').value.trim() || 'Distraction';
+        const mins   = parseInt($('inp-mins').value) || 5;
+        log('➡️', `Emitting logDistraction { reason: "${reason}", estimatedMinutes: ${mins} }`);
+        socket.emit('logDistraction', { sessionId, reason, estimatedMinutes: mins });
+      });
+
+      // ─── Stop Session ─────────────────────────────────────────────────────────
+      $('btn-stop').addEventListener('click', () => {
+        if (!sessionId) return;
+        log('➡️', `Emitting stopSession { sessionId: ${sessionId} }`);
+        socket.emit('stopSession', { sessionId });
+      });
+    </script>
+  </body>
+</html>

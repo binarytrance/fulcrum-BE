@@ -28,6 +28,7 @@
       "@shared/*": ["src/shared/*"],
       "@goals/*": ["src/modules/goals/*"],
       "@tasks/*": ["src/modules/tasks/*"],
+      "@sessions/*": ["src/modules/sessions/*"]
     }
   }
 }
