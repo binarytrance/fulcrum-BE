@@ -70,6 +70,7 @@ export class AuthRepository implements IAuthRepository {
 
   public toPersistence(auth: Auth) {
     return {
+      _id: auth.id,
       userId: auth.userId,
       providerId: auth.providerId,
       provider: auth.provider,

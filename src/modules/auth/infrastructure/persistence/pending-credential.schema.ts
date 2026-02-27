@@ -3,6 +3,9 @@ import { HydratedDocument } from 'mongoose';
 
 @Schema({ timestamps: false, versionKey: false })
 export class PendingCredential {
+  @Prop({ type: String })
+  _id: string;
+
   @Prop({ type: String, required: true, unique: true, index: true })
   email: string;
 

@@ -107,6 +107,7 @@ export class GoalRepository implements IGoalRepository {
 
   private toPersistence(goal: Goal) {
     return {
+      _id: goal.id,
       userId: goal.userId,
       parentGoalId: goal.parentGoalId ?? null,
       title: goal.title,

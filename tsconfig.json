@@ -27,6 +27,7 @@
       "@auth/*": ["src/modules/auth/*"],
       "@shared/*": ["src/shared/*"],
       "@goals/*": ["src/modules/goals/*"],
+      "@tasks/*": ["src/modules/tasks/*"],
     }
   }
 }

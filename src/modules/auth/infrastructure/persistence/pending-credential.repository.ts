@@ -21,6 +21,7 @@ export class PendingCredentialRepository implements IPendingCredentialRepository
     await this.model.create(
       [
         {
+          _id: credential.id,
           email: credential.email,
           firstname: credential.firstname,
           lastname: credential.lastname,

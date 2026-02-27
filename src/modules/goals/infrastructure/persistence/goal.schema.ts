@@ -19,6 +19,9 @@ export class GoalProgressSchema {
 
 @Schema({ timestamps: true, versionKey: false })
 export class Goal {
+  @Prop({ type: String })
+  _id: string;
+
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 

@@ -6,7 +6,7 @@
 # ─── Step 1: Sign in to get a token ────────────────────────────────────────────
 # Run this first, copy the accessToken from the response, paste it below.
 # ─── Paste your accessToken here ───────────────────────────────────────────────
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiMjhhNDkxNC1kMDExLTQwYzItYTA3NS00NDQzMjc1MzQyZWUiLCJlbWFpbCI6InNhbWJpdGZvcmV2ZXIyNDc5NUBnbWFpbC5jb20iLCJpYXQiOjE3NzIxNzA3MzcsImV4cCI6MTc3MjE3MTYzN30.sA0-jIgcxmuAELvjIizQ7HCJPMNK9KYGfpiVs5g8ZBE
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjE4MDA4MywiZXhwIjoxNzcyMTgwOTgzfQ.oiMJFmxdlN2pQIYzN0YRFIE6I1piMmSVpKLWlJjQM-Y
 
 # ─── Step 2: Create a top-level Goal (level 1) ─────────────────────────────────
 
@@ -17,8 +17,8 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "title": "Read 10 books this year",
-  "description": "Improve focus and knowledge through consistent reading.",
+  "title": "Be a drunk",
+  "description": "Improve focus and knowledge through consistent drinking.",
   "category": "LEARNING",
   "priority": "HIGH",
   "deadline": "2026-12-31T23:59:59.000Z",
@@ -27,7 +27,7 @@ Authorization: Bearer {{token}}
 
 ###
 # Copy the `id` from the response and paste below
-@goalId = 69a060973ae496ea90ec94e9
+@goalId = 36e777cd-a752-4636-8ea4-1df66c79cfc8
 
 # ─── Step 3: Create a Sub-Goal (level 2) ───────────────────────────────────────
 
@@ -38,8 +38,8 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "title": "Read 3 books by March",
-  "description": "Focus on short books first.",
+  "title": "Be a half drunk by March",
+  "description": "Focus on going to bars on weekdays.",
   "category": "LEARNING",
   "priority": "HIGH",
   "deadline": "2026-03-31T23:59:59.000Z",
@@ -69,7 +69,7 @@ Authorization: Bearer {{token}}
 
 ###
 # ─── Step 5: Try to nest deeper than 3 levels (should fail with 400) ───────────
-@subSubGoalId = 69a0613c3ae496ea90ec94ef
+@subSubGoalId = 69a149b2c62855f3104e2115
 
 ### ❌ Should return 400 — nesting limit exceeded
 POST {{baseURL}}/{{urlPath}}/{{goalsPath}}

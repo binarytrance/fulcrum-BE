@@ -1,0 +1,225 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+@tasksPath = tasks
+
+# ─── Paste your accessToken and IDs here after running each step ───────────────
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjE4OTA5OSwiZXhwIjoxNzcyMTg5OTk5fQ.tWNKwGGhAB2OLKoPF1hPHQgXf3THq2YqDkYXP2JwetA
+@goalId = 36e777cd-a752-4636-8ea4-1df66c79cfc8
+
+# ─── Step 1: Create a planned task (linked to a goal) ──────────────────────────
+
+### Create planned task — linked to goal
+# @name createTask
+POST {{baseURL}}/{{urlPath}}/{{tasksPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Drink on wednesday",
+  "description": "Weekday vodka sessions",
+  "priority": "HIGH",
+  "type": "PLANNED",
+  "scheduledFor": "2026-02-27T09:00:00.000Z",
+  "estimatedDuration": 45,
+  "goalId": "{{goalId}}"
+}
+
+###
+@taskId = 9596000b-3dd1-4f88-a4fd-55b4946eeb8a
+
+# ─── Step 2: Create a standalone unplanned task (no goal, no scheduledFor) ─────
+
+### Create unplanned task
+POST {{baseURL}}/{{urlPath}}/{{tasksPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Have to day drink today",
+  "priority": "HIGH",
+  "type": "UNPLANNED",
+  "estimatedDuration": 60
+}
+
+###
+@unplannedTaskId = 6926fc98-6f7e-40e9-9759-1bddda989860
+
+# ─── Step 3: Create a task scheduled for today (daily planner) ─────────────────
+
+### Create task for today
+POST {{baseURL}}/{{urlPath}}/{{tasksPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "beer for breakfast",
+  "priority": "MEDIUM",
+  "scheduledFor": "2026-02-27T14:00:00.000Z",
+  "estimatedDuration": 30
+}
+
+# ─── Step 4: Daily planner query ────────────────────────────────────────────────
+
+### GET tasks for a specific date (hot path — trimmed DTO, Redis-cached)
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?date=2026-02-27
+Authorization: Bearer {{token}}
+
+# ─── Step 4b: Filter queries (full DTO, not cached) ─────────────────────────────
+
+### GET all unplanned tasks (inbox)
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?type=UNPLANNED
+Authorization: Bearer {{token}}
+
+### GET all pending unplanned tasks
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?type=UNPLANNED&status=PENDING
+Authorization: Bearer {{token}}
+
+### GET all planned tasks linked to a specific goal
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?type=PLANNED&goalId={{goalId}}
+Authorization: Bearer {{token}}
+
+### GET all in-progress tasks
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?status=IN_PROGRESS
+Authorization: Bearer {{token}}
+
+# ─── Step 5: Get single task (full detail) ──────────────────────────────────────
+
+### GET single task
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Authorization: Bearer {{token}}
+
+# ─── Step 6: Partial update ─────────────────────────────────────────────────────
+
+### PATCH — update title and priority
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "drink on Thursday",
+  "priority": "MEDIUM"
+}
+
+### PATCH — start task (PENDING → IN_PROGRESS ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "IN_PROGRESS"
+}
+
+### PATCH — pause back (IN_PROGRESS → PENDING ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "PENDING"
+}
+
+### ❌ PATCH — try to complete via update (should fail with 400)
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "COMPLETED"
+}
+
+### PATCH — cancel task (PENDING → CANCELLED ✅)
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{unplannedTaskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "CANCELLED"
+}
+
+### ❌ PATCH — transition from CANCELLED (should fail with 400)
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{unplannedTaskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "PENDING"
+}
+
+# ─── Step 7: Reschedule (invalidates old + new date cache) ─────────────────────
+
+### PATCH — reschedule to a different date
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "scheduledFor": "2026-02-28T10:00:00.000Z"
+}
+
+# ─── Step 8: Complete task ───────────────────────────────────────────────────────
+# Computes efficiencyScore = round((estimatedDuration / actualDuration) * 100)
+# Queues tasks.recompute-goal-progress job if task is linked to a goal
+
+### PATCH /complete — with actualDuration provided
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "actualDuration": 55
+}
+
+### PATCH /complete — without actualDuration (falls back to estimatedDuration)
+POST {{baseURL}}/{{urlPath}}/{{tasksPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Quick standup",
+  "scheduledFor": "2026-02-27T09:00:00.000Z",
+  "estimatedDuration": 15
+}
+
+###
+@quickTaskId = 6926fc98-6f7e-40e9-9759-1bddda989860
+
+### Complete without actualDuration — efficiencyScore will be 100
+PATCH {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{quickTaskId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{}
+
+# ─── Step 9: Soft-delete ────────────────────────────────────────────────────────
+
+### DELETE — soft-deletes (sets deletedAt, never removes from DB)
+DELETE {{baseURL}}/{{urlPath}}/{{tasksPath}}/{{taskId}}
+Authorization: Bearer {{token}}
+
+### GET daily tasks after delete — deleted task should not appear
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?date=2026-02-28
+Authorization: Bearer {{token}}
+
+# ─── Step 10: Error / access-control cases ──────────────────────────────────────
+
+### ❌ GET without token — should return 401
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?date=2026-02-27
+
+### ❌ GET non-existent task — should return 404
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}/000000000000000000000000
+Authorization: Bearer {{token}}
+
+### ❌ Create task with invalid goalId — should return 404
+POST {{baseURL}}/{{urlPath}}/{{tasksPath}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Task with bad goalId",
+  "estimatedDuration": 30,
+  "goalId": "000000000000000000000000"
+}
+
+### ❌ GET daily tasks — invalid date format — should return 400
+GET {{baseURL}}/{{urlPath}}/{{tasksPath}}?date=not-a-date
+Authorization: Bearer {{token}}
