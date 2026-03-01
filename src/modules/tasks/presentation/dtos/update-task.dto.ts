@@ -12,7 +12,9 @@ export const UpdateTaskSchema = z
       .optional(),
     scheduledFor: z
       .string()
-      .datetime({ message: 'scheduledFor must be a valid ISO date-time string.' })
+      .datetime({
+        message: 'scheduledFor must be a valid ISO date-time string.',
+      })
       .transform((v) => new Date(v))
       .nullable()
       .optional(),

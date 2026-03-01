@@ -62,6 +62,10 @@ export class Task {
   @Prop({ type: Date, default: null, index: true })
   deletedAt: Date | null;
 
+  /** (Phase 5: Habits) — links this task to a recurring habit occurrence */
+  @Prop({ type: String, default: null, index: true })
+  habitId: string | null;
+
   createdAt: Date;
   updatedAt: Date;
 }

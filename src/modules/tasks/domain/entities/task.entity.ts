@@ -20,6 +20,7 @@ export class Task {
   private readonly _efficiencyScore: TaskFields['efficiencyScore'];
   private readonly _completedAt: TaskFields['completedAt'];
   private readonly _deletedAt: TaskFields['deletedAt'];
+  private readonly _habitId: string | null;
   private readonly _createdAt: TaskFields['createdAt'];
   private readonly _updatedAt: TaskFields['updatedAt'];
 
@@ -38,6 +39,7 @@ export class Task {
     this._efficiencyScore = fields.efficiencyScore;
     this._completedAt = fields.completedAt;
     this._deletedAt = fields.deletedAt;
+    this._habitId = fields.habitId ?? null;
     this._createdAt = fields.createdAt;
     this._updatedAt = fields.updatedAt;
   }
@@ -84,6 +86,9 @@ export class Task {
   get deletedAt() {
     return this._deletedAt;
   }
+  get habitId() {
+    return this._habitId;
+  }
   get createdAt() {
     return this._createdAt;
   }
@@ -107,6 +112,7 @@ export class Task {
       efficiencyScore: this._efficiencyScore,
       completedAt: this._completedAt,
       deletedAt: this._deletedAt,
+      habitId: this._habitId,
       createdAt: this._createdAt,
       updatedAt: this._updatedAt,
     };

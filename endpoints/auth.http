@@ -10,7 +10,7 @@ POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
 Content-Type: application/json
 
 {
-  "email": "jazmyn.kunze@ethereal.email",
+  "email": "rhoda56@ethereal.email",
   "password": "password123",
   "firstname": "John",
   "lastname": "Doe"
@@ -24,8 +24,8 @@ POST {{baseURL}}/{{urlPath}}/{{authPath}}/verify-email
 Content-Type: application/json
 
 {
-  "email": "jazmyn.kunze@ethereal.email",
-  "token": "ffe173"
+  "email": "rhoda56@ethereal.email",
+  "token": "83bfcb"
 }
 
 # ─── Step 3: Sign in ─────────────────────────────────────────────────────────────

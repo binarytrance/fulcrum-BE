@@ -8,9 +8,14 @@ import {
   TASKS_QUEUE_NAME,
 } from '@tasks/infrastructure/event-publisher/task-event-publisher';
 import { TASK_EVENT_PUBLISHER_PORT } from '@tasks/domain/ports/task-event-publisher.port';
+import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
+// HabitMongoModule registers HabitOccurrence model used by the MARK_HABIT_OCCURRENCE handler.
+import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 
 @Module({
   imports: [
+    TaskMongoModule,
+    HabitMongoModule,
     BullModule.registerQueue({ name: TASKS_QUEUE_NAME }),
     BullBoardModule.forFeature({
       name: TASKS_QUEUE_NAME,

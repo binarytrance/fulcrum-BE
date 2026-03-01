@@ -51,7 +51,7 @@ export class CompleteTaskService {
 
     // Fire-and-forget: recompute goal progress asynchronously
     await this.taskEventPublisher.publish(
-      new TaskCompletedEvent(taskId, userId, task.goalId),
+      new TaskCompletedEvent(taskId, userId, task.goalId, task.habitId ?? null),
     );
 
     return completed;

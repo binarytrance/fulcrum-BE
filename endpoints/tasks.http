@@ -3,8 +3,8 @@
 @tasksPath = tasks
 
 # ─── Paste your accessToken and IDs here after running each step ───────────────
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjE5Njk2NywiZXhwIjoxNzcyMTk3ODY3fQ.vKyLUUQBMAKckYuMlI07dUtVWiDW4UzQwnCaVgr7m0I
-@goalId = 36e777cd-a752-4636-8ea4-1df66c79cfc8
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjIwMTU3NSwiZXhwIjoxNzcyMjAyNDc1fQ.aEGqOhYu4bDwwA--st-mL2zFd40CxNMItWlSNTqjVW0
+@goalId = 19d85849-a758-4ce8-bbd8-1a8b88aaa559
 
 # ─── Step 1: Create a planned task (linked to a goal) ──────────────────────────
 

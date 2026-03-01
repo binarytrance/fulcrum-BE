@@ -31,6 +31,7 @@ type TaskDocLean = {
   efficiencyScore?: number | null;
   completedAt?: Date | null;
   deletedAt?: Date | null;
+  habitId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -120,6 +121,7 @@ export class TaskRepository implements ITaskRepository {
       efficiencyScore: task.efficiencyScore,
       completedAt: task.completedAt,
       deletedAt: task.deletedAt,
+      habitId: task.habitId ?? null,
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
     };
@@ -141,6 +143,7 @@ export class TaskRepository implements ITaskRepository {
       efficiencyScore: doc.efficiencyScore ?? null,
       completedAt: doc.completedAt ?? null,
       deletedAt: doc.deletedAt ?? null,
+      habitId: doc.habitId ?? null,
       createdAt: doc.createdAt,
       updatedAt: doc.updatedAt,
     });

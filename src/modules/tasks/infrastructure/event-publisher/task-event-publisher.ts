@@ -31,7 +31,18 @@ export class TaskEventPublisher implements ITaskEventPublisher {
           },
         );
       }
-      // TODO (Phase: Habits) — queue MARK_HABIT_OCCURRENCE if task is linked to a habit
+      // (Phase 5: Habits) — queue MARK_HABIT_OCCURRENCE if task is linked to a habit
+      if (event.habitId) {
+        const today = new Date().toISOString().slice(0, 10);
+        await this.queue.add(
+          TaskJobs.MARK_HABIT_OCCURRENCE,
+          { taskId: event.taskId, userId: event.userId, date: today },
+          {
+            jobId: `habit-occurrence_${event.taskId}_${today}`,
+            removeOnComplete: { count: 10 },
+          },
+        );
+      }
     }
   }
 }

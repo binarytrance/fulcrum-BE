@@ -5,7 +5,9 @@ export const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(1000).optional(),
   priority: z
-    .nativeEnum(TaskPriority, { error: 'priority must be HIGH, MEDIUM, or LOW' })
+    .nativeEnum(TaskPriority, {
+      error: 'priority must be HIGH, MEDIUM, or LOW',
+    })
     .optional(),
   type: z
     .nativeEnum(TaskType, { error: 'type must be PLANNED or UNPLANNED' })

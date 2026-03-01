@@ -62,6 +62,11 @@ export interface TaskFields {
   efficiencyScore: number | null;
   completedAt: Date | null;
   deletedAt: Date | null;
+  /**
+   * (Phase 5: Habits) — ID of the habit this task is a recurring occurrence of.
+   * null = standalone task not linked to any habit.
+   */
+  habitId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

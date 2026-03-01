@@ -6,12 +6,7 @@
 # ─── Step 1: Sign in to get a token ────────────────────────────────────────────
 # Run this first, copy the accessToken from the response, paste it below.
 # ─── Paste your accessToken here ───────────────────────────────────────────────
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjE4MDA4MywiZXhwIjoxNzcyMTgwOTgzfQ.oiMJFmxdlN2pQIYzN0YRFIE6I1piMmSVpKLWlJjQM-Y
-
-# ─── Step 2: Create a top-level Goal (level 1) ─────────────────────────────────
-
-### Create Goal — "Read 10 books this year"
-# @name createGoal
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjIwMTU3NSwiZXhwIjoxNzcyMjAyNDc1fQ.aEGqOhYu4bDwwA--st-mL2zFd40CxNMItWlSNTqjVW0
 POST {{baseURL}}/{{urlPath}}/{{goalsPath}}
 Content-Type: application/json
 Authorization: Bearer {{token}}
@@ -27,7 +22,7 @@ Authorization: Bearer {{token}}
 
 ###
 # Copy the `id` from the response and paste below
-@goalId = 36e777cd-a752-4636-8ea4-1df66c79cfc8
+@goalId = 806f9ce8-593a-4478-98e1-29add4f8c9e6
 
 # ─── Step 3: Create a Sub-Goal (level 2) ───────────────────────────────────────
 
