@@ -53,6 +53,18 @@ export class ConfigService {
     };
   }
 
+  get auth() {
+    return {
+      frontendAllowedOrigins: this.get('FRONTEND_ALLOWED_ORIGINS'),
+      oauthStateSecret: this.get('OAUTH_STATE_SECRET'),
+      oauthErrorPath: this.get('OAUTH_ERROR_PATH'),
+      cookieDomain: this.get('AUTH_COOKIE_DOMAIN'),
+      cookieSecure: this.get('AUTH_COOKIE_SECURE') || this.isProd,
+      accessCookieMaxAgeSeconds: this.get('ACCESS_COOKIE_MAX_AGE_SECONDS'),
+      refreshCookieMaxAgeSeconds: this.get('REFRESH_COOKIE_MAX_AGE_SECONDS'),
+    };
+  }
+
   get github() {
     return {
       clientID: this.get('GITHUB_CLIENT_ID'),

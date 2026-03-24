@@ -22,6 +22,17 @@ export const envSchema = z.object({
   GOOGLE_CLIENT_SECRET: z.string(),
   GOOGLE_CALLBACK_URL: z.string(),
 
+  // OAuth Redirect/Cookies
+  FRONTEND_ALLOWED_ORIGINS: z.string(),
+  OAUTH_STATE_SECRET: z.string(),
+  OAUTH_ERROR_PATH: z.string().default('/signup/google/callback'),
+  AUTH_COOKIE_DOMAIN: z.string().optional(),
+  AUTH_COOKIE_SECURE: z.coerce.boolean().default(false),
+  ACCESS_COOKIE_MAX_AGE_SECONDS: z.coerce.number().default(15 * 60),
+  REFRESH_COOKIE_MAX_AGE_SECONDS: z.coerce
+    .number()
+    .default(30 * 24 * 60 * 60),
+
   // GIthub
   GITHUB_CLIENT_ID: z.string(),
   GITHUB_CLIENT_SECRET: z.string(),

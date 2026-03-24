@@ -6,7 +6,7 @@
 # ─── Step 1: Sign in to get a token ────────────────────────────────────────────
 # Run this first, copy the accessToken from the response, paste it below.
 # ─── Paste your accessToken here ───────────────────────────────────────────────
-@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmZjYyOTRkMS00ODg5LTQzY2YtOWEyNi1kOGFlYzg2NGQ1NjIiLCJlbWFpbCI6InNhbWJpdG5heWFrY3NlQGdtYWlsLmNvbSIsImlhdCI6MTc3MjE4MDA4MywiZXhwIjoxNzcyMTgwOTgzfQ.oiMJFmxdlN2pQIYzN0YRFIE6I1piMmSVpKLWlJjQM-Y
+@token = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJjMTFkM2MwOC1jZDBhLTQ0ZGItYjM5Yy03MTI4M2VmYzFhZDEiLCJlbWFpbCI6ImdhbmVzaGFuLmRhc2hAZ21haWwuY29tIiwiaWF0IjoxNzcyMjgzNDI5LCJleHAiOjE3NzIyODQzMjl9.Ykh5EOA43UkG_tDpA6uRFKLzRQYEsOVhE-1GwJp4waY
 
 # ─── Step 2: Create a top-level Goal (level 1) ─────────────────────────────────
 
@@ -17,7 +17,7 @@ Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
-  "title": "Be a drunk",
+  "title": "Be the king of drunks",
   "description": "Improve focus and knowledge through consistent drinking.",
   "category": "LEARNING",
   "priority": "HIGH",

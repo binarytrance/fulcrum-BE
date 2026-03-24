@@ -10,7 +10,7 @@ POST {{baseURL}}/{{urlPath}}/{{authPath}}/signup
 Content-Type: application/json
 
 {
-  "email": "jazmyn.kunze@ethereal.email",
+  "email": "cora.conroy@ethereal.email",
   "password": "password123",
   "firstname": "John",
   "lastname": "Doe"
@@ -24,8 +24,8 @@ POST {{baseURL}}/{{urlPath}}/{{authPath}}/verify-email
 Content-Type: application/json
 
 {
-  "email": "jazmyn.kunze@ethereal.email",
-  "token": "ffe173"
+  "email": "william.bosco@ethereal.email",
+  "token": "dc1020"
 }
 
 # ─── Step 3: Sign in ─────────────────────────────────────────────────────────────
@@ -95,7 +95,13 @@ Authorization: Bearer {{refreshToken}}
 # ─── OAuth (open these in a browser, not REST client) ────────────────────────────
 
 ### Google OAuth — open in browser
-GET {{baseURL}}/{{urlPath}}/{{authPath}}/google
+GET {{baseURL}}/{{urlPath}}/{{authPath}}/google?redirect_uri=http://localhost:3000/signup/google/callback
 
 ### GitHub OAuth — open in browser
 GET {{baseURL}}/{{urlPath}}/{{authPath}}/github
+
+### Cookie session info (after Google OAuth redirect flow)
+GET {{baseURL}}/{{urlPath}}/{{authPath}}/me
+
+### Logout (clears auth cookies)
+POST {{baseURL}}/{{urlPath}}/{{authPath}}/logout

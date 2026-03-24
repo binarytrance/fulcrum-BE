@@ -30,6 +30,8 @@ import { PendingCredentialRepository } from '@auth/infrastructure/persistence/pe
 import { VerifyEmailService } from '@auth/application/services/verify-email.service';
 import { SignupEmailEventPublisher } from '@auth/infrastructure/event-publisher/signup-email.event-publisher';
 import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
+import { OauthStateService } from '@auth/application/services/oauth-state.service';
+import { GoogleOAuthRedirectService } from '@auth/application/services/google-oauth-redirect.service';
 
 @Module({
   imports: [
@@ -61,6 +63,8 @@ import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
     LocalSigninService,
     OAuthSigninService,
     VerifyEmailService,
+    OauthStateService,
+    GoogleOAuthRedirectService,
 
     // Passport strategies
     GoogleStrategy,
