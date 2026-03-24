@@ -6,6 +6,27 @@ import { ConfigService } from '@shared/config/config.service';
 import { type ITokenService, TOKEN_PORT } from '@auth/domain/ports/token.port';
 import { TokenPayload } from '@auth/domain/types/token.types';
 
+function getCookieValue(req: Request, name: string): string | null {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+
+  const target = `${name}=`;
+  for (const part of cookieHeader.split(';')) {
+    const trimmed = part.trim();
+    if (!trimmed.startsWith(target)) continue;
+    return decodeURIComponent(trimmed.slice(target.length));
+  }
+  return null;
+}
+
+function getBearerToken(req: Request): string | null {
+  const raw = req.headers.authorization;
+  if (!raw) return null;
+  const [scheme, token] = raw.split(' ');
+  if (scheme?.toLowerCase() !== 'bearer') return null;
+  return token || null;
+}
+
 @Injectable()
 export class JwtRefreshStrategy extends PassportStrategy(
   Strategy,
@@ -16,14 +37,17 @@ export class JwtRefreshStrategy extends PassportStrategy(
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromAuthHeaderAsBearerToken(),
+        (req: Request) => getCookieValue(req, 'refreshToken'),
+      ]),
       secretOrKey: configService.tokenSecrets.jwtRefreshSecret,
       passReqToCallback: true,
     });
   }
 
   async validate(req: Request, payload: TokenPayload): Promise<TokenPayload> {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = getBearerToken(req) ?? getCookieValue(req, 'refreshToken');
     if (!token) throw new UnauthorizedException('No refresh token provided');
 
     const isValid = await this.tokenService.isRefreshTokenValid(

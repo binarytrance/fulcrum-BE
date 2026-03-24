@@ -57,6 +57,50 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Google OAuth Redirect Flow (Cookie-based)
+
+This backend supports redirect-based Google auth where the frontend starts OAuth and receives a redirect after success/failure.
+
+### Required environment variables
+
+```bash
+# Existing Google OAuth
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GOOGLE_CALLBACK_URL=http://localhost:6969/api/v1/auth/google/callback
+
+# OAuth redirect/state security
+FRONTEND_ALLOWED_ORIGINS=http://localhost:3000
+OAUTH_STATE_SECRET=replace-with-long-random-secret
+OAUTH_ERROR_PATH=/signup/google/callback
+
+# Auth cookies
+AUTH_COOKIE_DOMAIN=
+AUTH_COOKIE_SECURE=false
+ACCESS_COOKIE_MAX_AGE_SECONDS=900
+REFRESH_COOKIE_MAX_AGE_SECONDS=2592000
+```
+
+### OAuth endpoints
+
+- Start Google OAuth:
+  `GET /api/v1/auth/google?redirect_uri=http://localhost:3000/signup/google/callback`
+- Callback from Google:
+  `GET /api/v1/auth/google/callback`
+
+On success, backend sets `HttpOnly` cookies (`accessToken`, `refreshToken`) and responds with `302`:
+
+`http://localhost:3000/signup/google/callback?status=success`
+
+On callback error, backend redirects with:
+
+`?status=error&message=<urlencoded message>`
+
+### Session routes for cookie auth
+
+- `GET /api/v1/auth/me` - validates `accessToken` cookie and returns session info.
+- `POST /api/v1/auth/logout` - clears auth cookies and revokes refresh token (if valid).
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
