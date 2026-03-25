@@ -8,38 +8,121 @@
 # SETUP:
 #   1. Start the server:           npm run start:dev
 #   2. Run the seed script:        node scripts/seed.mjs --userId=<your-uuid>
-#   3. Sign in (auth.http) to get an accessToken, paste it below.
+#   3. Complete § 0 (Auth) to get tokens, paste them in VARIABLES below.
 #   4. Paste the IDs printed by the seed script into the VARIABLES section.
 #   5. Run each request top-to-bottom.
 #
 # SECTIONS:
+#   § 0  Auth        — signup → verify-email → signin → refresh → signout
 #   § 1  Goals       — CRUD + goal tree + nesting limits
-#   § 2  Tasks       — CRUD + daily planner + completion
-#   § 3  Sessions    — manual entry + history queries
-#   § 4  Habits      — CRUD + due-today + occurrences
+#   § 2  Tasks       — CRUD + daily planner + status transitions + completion
+#   § 3  Sessions    — manual entry + history queries  (WS notes included)
+#   § 4  Habits      — CRUD + pause/resume + due-today + occurrences + analytics
 #   § 5  Analytics   — dashboard + daily + weekly + goals + estimation
-#   § 6  Error cases — one expected 4xx per module
+#   § 6  Error cases — expected 4xx per module
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ── VARIABLES — fill these in before running ──────────────────────────────────
-@token       = PASTE_ACCESS_TOKEN_HERE
+@token        = PASTE_ACCESS_TOKEN_HERE
+@refreshToken = PASTE_REFRESH_TOKEN_HERE
 
 # IDs printed by seed.mjs:
-@g1Id        = PASTE_G1_ID_HERE
-@g2Id        = PASTE_G2_ID_HERE
-@g3Id        = PASTE_G3_ID_HERE
-@g4Id        = PASTE_G4_ID_HERE
-@h1Id        = PASTE_H1_ID_HERE
-@h2Id        = PASTE_H2_ID_HERE
-@taskToday1  = PASTE_TPENDING0_ID_HERE
-@taskToday2  = PASTE_TPENDING1_ID_HERE
-@taskInbox   = PASTE_TPENDING2_ID_HERE
+@g1Id        = 6376f043-e4c0-48fd-a30c-d8e1f48338dc
+@g2Id        = 96d75773-c232-41c7-abb8-8e156210fece
+@g3Id        = bf28f03b-d9a9-42d1-8f67-1d8e04b37246
+@g4Id        = 469b4143-51ce-4170-890f-da69335b42fa
+
+@h1Id        = 3df5dafc-aa8f-48e9-869f-a63613cb7ecc
+@h2Id        = d3fffdad-24ad-4848-a7fb-fc5e706304a2
+
+@taskToday1  = 7be67d51-6c94-4113-80b6-2183fe7e2878
+@taskToday2  = ccca6bc4-f5ba-4e19-acc4-a44dc6f5fc3b
+@taskInbox   = 193a8bbb-d643-400f-8619-93c52ac1fc4c
 
 # Filled in as you run through the steps:
-@newGoalId    = REPLACE_AFTER_STEP_1_1
-@newTaskId    = REPLACE_AFTER_STEP_2_1
-@sessionId    = REPLACE_AFTER_STEP_3_1
+@newGoalId        = REPLACE_AFTER_STEP_1_1
+@newTaskId        = REPLACE_AFTER_STEP_2_1
+@sessionId        = REPLACE_AFTER_STEP_3_1
+@newHabitId       = REPLACE_AFTER_STEP_4_6
+@occurrenceId     = REPLACE_AFTER_STEP_4_5a
 # ──────────────────────────────────────────────────────────────────────────────
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 0  AUTH
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# NOTE: OAuth flows (Google / GitHub) must be opened in a browser — they are
+#       redirect-based and cannot be driven from a REST client.
+#       GET {{baseURL}}/{{urlPath}}/auth/google
+#       GET {{baseURL}}/{{urlPath}}/auth/github
+
+# ─── 0.1  Sign up ─────────────────────────────────────────────────────────────
+# Creates an account and sends a 6-char hex verification token to the email.
+# Check your inbox (or Ethereal: https://ethereal.email) for the token.
+
+### [0.1] POST auth/signup — register a new user
+POST {{baseURL}}/{{urlPath}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "jane.doe@ethereal.email",
+  "password": "password123",
+  "firstname": "Jane",
+  "lastname": "Doe"
+}
+
+###
+
+# ─── 0.2  Verify email ────────────────────────────────────────────────────────
+# Paste the 6-char token from the verification email into "token" below.
+# On success you receive accessToken + refreshToken (you are now signed in).
+
+### [0.2] POST auth/verify-email — confirm email address
+POST {{baseURL}}/{{urlPath}}/auth/verify-email
+Content-Type: application/json
+
+{
+  "email": "jane.doe@ethereal.email",
+  "token": "PASTE_6_CHAR_TOKEN"
+}
+
+###
+
+# ─── 0.3  Sign in ─────────────────────────────────────────────────────────────
+# Returns accessToken + refreshToken.
+# Copy accessToken → @token above.
+# Copy refreshToken → @refreshToken above.
+
+### [0.3] POST auth/signin — local email + password
+POST {{baseURL}}/{{urlPath}}/auth/signin
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "password123"
+}
+
+###
+
+# ─── 0.4  Refresh tokens ──────────────────────────────────────────────────────
+# Uses the refresh token to issue a new access+refresh pair.
+# Send the refreshToken (not the accessToken) in the Authorization header.
+
+### [0.4] POST auth/refresh — rotate token pair
+POST {{baseURL}}/{{urlPath}}/auth/refresh
+Authorization: Bearer {{refreshToken}}
+
+###
+
+# ─── 0.5  Sign out ────────────────────────────────────────────────────────────
+# Revokes the stored refresh token.  Subsequent refresh calls will 401.
+
+### [0.5] POST auth/signout — invalidate session
+POST {{baseURL}}/{{urlPath}}/auth/signout
+Authorization: Bearer {{token}}
+
+###
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -83,9 +166,11 @@ Authorization: Bearer {{token}}
 ###
 
 # ─── 1.3  Get full goal tree ─────────────────────────────────────────────────
+# NOTE: the tree is served at GET /goals (not /goals/tree).
+# Each node includes a `children` array. Results are Redis-cached (30 s TTL).
 
-### [1.3] GET goals/tree — full hierarchy for the authenticated user
-GET {{baseURL}}/{{urlPath}}/goals/tree
+### [1.3] GET goals — full hierarchy for the authenticated user
+GET {{baseURL}}/{{urlPath}}/goals
 Authorization: Bearer {{token}}
 
 ###
@@ -152,7 +237,7 @@ Authorization: Bearer {{token}}
 
 # ─── 1.8  Soft-delete a goal ─────────────────────────────────────────────────
 
-### [1.8] DELETE goals/:id — soft delete the goal we just created in 1.1
+### [1.8] DELETE goals/:id — soft-delete the goal created in 1.1
 DELETE {{baseURL}}/{{urlPath}}/goals/{{newGoalId}}
 Authorization: Bearer {{token}}
 
@@ -247,13 +332,48 @@ Authorization: Bearer {{token}}
 
 ###
 
-# ─── 2.6  Complete a task (triggers analytics + habit workers) ───────────────
-# This fires:  COMPUTE_DAILY + COMPUTE_GOAL + UPDATE_ESTIMATION (analytics queue)
-#              RECOMPUTE_GOAL_PROGRESS (goals queue)
-#              MARK_HABIT_OCCURRENCE  (if habitId is set on the task)
+# ─── 2.6  Status transitions ─────────────────────────────────────────────────
 
-### [2.6] POST tasks/:id/complete — mark as COMPLETED with actual duration
-POST {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}/complete
+### [2.6a] PATCH tasks/:id — PENDING → IN_PROGRESS (start working on it)
+PATCH {{baseURL}}/{{urlPath}}/tasks/{{newTaskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "IN_PROGRESS"
+}
+
+###
+
+### [2.6b] PATCH tasks/:id — IN_PROGRESS → PENDING (pause / back to queue)
+PATCH {{baseURL}}/{{urlPath}}/tasks/{{newTaskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "PENDING"
+}
+
+###
+
+### [2.6c] PATCH tasks/:id — PENDING → CANCELLED
+PATCH {{baseURL}}/{{urlPath}}/tasks/{{taskInbox}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "CANCELLED"
+}
+
+###
+
+# ─── 2.7  Complete a task (triggers analytics + habit workers) ───────────────
+# Fires:  COMPUTE_DAILY + COMPUTE_GOAL + UPDATE_ESTIMATION (analytics queue)
+#         RECOMPUTE_GOAL_PROGRESS (goals queue)
+#         MARK_HABIT_OCCURRENCE  (if habitId is set on the task)
+
+### [2.7] PATCH tasks/:id/complete — mark as COMPLETED with actual duration
+PATCH {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}/complete
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
@@ -263,9 +383,9 @@ Authorization: Bearer {{token}}
 
 ###
 
-# ─── 2.7  Delete a task ──────────────────────────────────────────────────────
+# ─── 2.8  Delete a task ──────────────────────────────────────────────────────
 
-### [2.7] DELETE tasks/:id — soft delete the task created in 2.1
+### [2.8] DELETE tasks/:id — soft-delete the task created in 2.1
 DELETE {{baseURL}}/{{urlPath}}/tasks/{{newTaskId}}
 Authorization: Bearer {{token}}
 
@@ -273,14 +393,31 @@ Authorization: Bearer {{token}}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# § 3  SESSIONS (REST/manual — WebSocket is in test-session.html)
+# § 3  SESSIONS (REST/manual — WebSocket events documented below)
 # ══════════════════════════════════════════════════════════════════════════════
-# WebSocket events:  ws://localhost:6969/sessions
-#   Auth:  { auth: { token: "<accessToken>" } }
-#   startSession      { taskId }
-#   heartbeat         { sessionId }   ← every 30s
-#   logDistraction    { sessionId, reason, estimatedMinutes }
-#   stopSession       { sessionId }   ← triggers analytics workers
+#
+# WebSocket namespace:  ws://localhost:6969/sessions
+#
+# 1. Connect:
+#      { auth: { token: "<accessToken>" } }
+#    On success the server emits `sessionResume` if an in-flight session exists.
+#
+# 2. Start a session:
+#      emit  → "startSession"     { taskId: "<uuid>" }
+#      recv  ← "sessionStarted"   { sessionId, taskId, startedAt, ... }
+#
+# 3. Keep-alive (every 30 s):
+#      emit  → "heartbeat"        { sessionId: "<uuid>" }
+#      recv  ← "heartbeatAck"     { sessionId, elapsedMs, plantGrowthPercent }
+#
+# 4. Log a distraction:
+#      emit  → "logDistraction"   { sessionId, reason, estimatedMinutes }
+#      recv  ← "distractionLogged" { distractions, plantStatus }
+#
+# 5. Stop a session (triggers analytics workers):
+#      emit  → "stopSession"      { sessionId: "<uuid>" }
+#      recv  ← "sessionStopped"   { sessionId, durationMinutes, netFocusMinutes,
+#                                   distractionCount, plantStatus, plantGrowthPercent }
 
 # ─── 3.1  Log a manual session ───────────────────────────────────────────────
 # Copy the returned `id` → paste into @sessionId above.
@@ -375,6 +512,7 @@ Authorization: Bearer {{token}}
 ###
 
 # ─── 4.5  Occurrence history for a habit ──────────────────────────────────────
+# Copy an occurrence `id` from the response → paste into @occurrenceId above.
 
 ### [4.5a] GET habits/:id/occurrences — all occurrences (seeded)
 GET {{baseURL}}/{{urlPath}}/habits/{{h1Id}}/occurrences
@@ -395,6 +533,7 @@ Authorization: Bearer {{token}}
 ###
 
 # ─── 4.6  Create a new habit ─────────────────────────────────────────────────
+# Copy the returned `id` → paste into @newHabitId above.
 
 ### [4.6] POST habits — weekend reading habit
 POST {{baseURL}}/{{urlPath}}/habits
@@ -426,13 +565,60 @@ Authorization: Bearer {{token}}
 
 ###
 
-# ─── 4.8  Delete a habit ─────────────────────────────────────────────────────
-# (soft-delete — sets deletedAt, hides from future due-today queries)
+# ─── 4.8  Pause and resume a habit ───────────────────────────────────────────
+# Pausing stops new occurrences from being generated.
+# Resuming re-activates the habit.
 
-### [4.8] DELETE habits/:id — delete the weekend reading habit from 4.6
-# Copy the id returned in step 4.6, then uncomment the line below.
-# DELETE {{baseURL}}/{{urlPath}}/habits/PASTE_NEW_HABIT_ID_HERE
-# Authorization: Bearer {{token}}
+### [4.8a] PATCH habits/:id/pause — pause the new weekend habit
+PATCH {{baseURL}}/{{urlPath}}/habits/{{newHabitId}}/pause
+Authorization: Bearer {{token}}
+
+###
+
+### [4.8b] PATCH habits/:id/resume — resume it again
+PATCH {{baseURL}}/{{urlPath}}/habits/{{newHabitId}}/resume
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.9  Complete an occurrence ─────────────────────────────────────────────
+# durationMinutes must be >= targetDuration * 0.8 (20% grace window).
+# Triggers async streak recalculation.
+
+### [4.9] PATCH habits/:id/occurrences/:occurrenceId/complete
+PATCH {{baseURL}}/{{urlPath}}/habits/{{h1Id}}/occurrences/{{occurrenceId}}/complete
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "durationMinutes": 62,
+  "note": "Felt really focused today."
+}
+
+###
+
+# ─── 4.10  Skip an occurrence ────────────────────────────────────────────────
+# Skipped occurrences do NOT break the streak.
+
+### [4.10] PATCH habits/:id/occurrences/:occurrenceId/skip
+PATCH {{baseURL}}/{{urlPath}}/habits/{{h2Id}}/occurrences/{{occurrenceId}}/skip
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.11  Habit-specific analytics ──────────────────────────────────────────
+# Returns completion rate, average duration, streaks, and day-of-week miss
+# patterns over the last 30 days.
+
+### [4.11] GET habits/:id/analytics — analytics for daily habit
+GET {{baseURL}}/{{urlPath}}/habits/{{h1Id}}/analytics
+Authorization: Bearer {{token}}
+
+###
+
+### [4.12] DELETE habits/:id — archive (soft-delete) the weekend habit
+DELETE {{baseURL}}/{{urlPath}}/habits/{{newHabitId}}
+Authorization: Bearer {{token}}
 
 ###
 
@@ -444,7 +630,7 @@ Authorization: Bearer {{token}}
 # should return data immediately.
 #
 # Analytics are ALSO recomputed automatically when:
-#   • A session ends  → COMPUTE_DAILY + COMPUTE_GOAL
+#   • A session ends   → COMPUTE_DAILY + COMPUTE_GOAL
 #   • A task completes → COMPUTE_DAILY + COMPUTE_GOAL + UPDATE_ESTIMATION
 #   • Every Sunday 23:00 UTC → COMPUTE_WEEKLY_ALL (fan-out)
 
@@ -536,7 +722,7 @@ Authorization: Bearer {{token}}
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# § 6  ERROR CASES  (each should return the stated status code)
+# § 6  ERROR CASES  (each should return the stated HTTP status code)
 # ══════════════════════════════════════════════════════════════════════════════
 
 # ─── 401 — missing / invalid token ───────────────────────────────────────────
@@ -588,21 +774,27 @@ Authorization: Bearer {{token}}
 
 ###
 
+### [6.6] ❌ 400 — GET tasks — no query params at all (requires at least one)
+GET {{baseURL}}/{{urlPath}}/tasks
+Authorization: Bearer {{token}}
+
+###
+
 # ─── 404 — not found ─────────────────────────────────────────────────────────
 
-### [6.6] ❌ 404 — GET goals/:id — non-existent ID
+### [6.7] ❌ 404 — GET goals/:id — non-existent ID
 GET {{baseURL}}/{{urlPath}}/goals/00000000-0000-0000-0000-000000000000
 Authorization: Bearer {{token}}
 
 ###
 
-### [6.7] ❌ 404 — GET analytics/daily — date with no activity
+### [6.8] ❌ 404 — GET analytics/daily — date with no activity
 GET {{baseURL}}/{{urlPath}}/analytics/daily?date=2000-01-01
 Authorization: Bearer {{token}}
 
 ###
 
-### [6.8] ❌ 404 — GET sessions/:id — non-existent session
+### [6.9] ❌ 404 — GET sessions/:id — non-existent session
 GET {{baseURL}}/{{urlPath}}/sessions/00000000-0000-0000-0000-000000000000
 Authorization: Bearer {{token}}
 
@@ -610,7 +802,7 @@ Authorization: Bearer {{token}}
 
 # ─── 409 / 400 — domain rule violations ──────────────────────────────────────
 
-### [6.9] ❌ 400 — POST goals — nesting depth > 3 levels
+### [6.10] ❌ 400 — POST goals — nesting depth > 3 levels
 # g3 is already level 3; nesting under it must be rejected
 POST {{baseURL}}/{{urlPath}}/goals
 Content-Type: application/json
@@ -624,13 +816,54 @@ Authorization: Bearer {{token}}
 
 ###
 
-### [6.10] ❌ 400 — POST tasks/:id/complete — task is already COMPLETED
-POST {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}/complete
+### [6.11] ❌ 400 — PATCH tasks/:id/complete — task is already COMPLETED
+PATCH {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}/complete
 Content-Type: application/json
 Authorization: Bearer {{token}}
 
 {
   "actualDuration": 30
 }
+
+###
+
+### [6.12] ❌ 409 — POST auth/signup — email already registered
+POST {{baseURL}}/{{urlPath}}/auth/signup
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "password123",
+  "firstname": "John",
+  "lastname": "Doe"
+}
+
+###
+
+### [6.13] ❌ 401 — POST auth/signin — wrong password
+POST {{baseURL}}/{{urlPath}}/auth/signin
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "password": "wrongpassword"
+}
+
+###
+
+### [6.14] ❌ 401 — POST auth/verify-email — invalid token
+POST {{baseURL}}/{{urlPath}}/auth/verify-email
+Content-Type: application/json
+
+{
+  "email": "jazmyn.kunze@ethereal.email",
+  "token": "000000"
+}
+
+###
+
+### [6.15] ❌ 401 — POST auth/refresh — after signout (revoked token)
+POST {{baseURL}}/{{urlPath}}/auth/refresh
+Authorization: Bearer {{refreshToken}}
 
 ###
