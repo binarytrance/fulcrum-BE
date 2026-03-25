@@ -12,7 +12,10 @@ import {
   HABIT_OCCURRENCE_REPO_PORT,
   type IHabitOccurrenceRepository,
 } from '@habits/domain/ports/habit-occurrence-repo.port';
-import { HabitStreakCache } from '@habits/infrastructure/cache/habit-streak.cache';
+import {
+  HABIT_STREAK_CACHE_PORT,
+  type IHabitStreakCachePort,
+} from '@habits/domain/ports/habit-streak-cache.port';
 import { OccurrenceStatus } from '@habits/domain/types/habit.types';
 
 export interface HabitAnalytics {
@@ -39,7 +42,8 @@ export class GetAnalyticsService {
     @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
     @Inject(HABIT_OCCURRENCE_REPO_PORT)
     private readonly occurrenceRepo: IHabitOccurrenceRepository,
-    private readonly streakCache: HabitStreakCache,
+    @Inject(HABIT_STREAK_CACHE_PORT)
+    private readonly streakCache: IHabitStreakCachePort,
   ) {}
 
   async execute(habitId: string, userId: string): Promise<HabitAnalytics> {

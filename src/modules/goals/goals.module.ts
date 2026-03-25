@@ -6,6 +6,7 @@ import { UpdateGoalService } from '@goals/application/services/update-goal.servi
 import { DeleteGoalService } from '@goals/application/services/delete-goal.service';
 import { GetGoalsService } from '@goals/application/services/get-goals.service';
 import { GOAL_REPO_PORT } from '@goals/domain/ports/goal-repo.port';
+import { GOAL_CACHE_PORT } from '@goals/domain/ports/goal-cache.port';
 import { GoalRepository } from '@goals/infrastructure/persistence/goal.repository';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 import { GoalWorkersModule } from '@goals/infrastructure/workers/goal-workers.module';
@@ -17,6 +18,7 @@ import { GoalCacheService } from '@goals/infrastructure/cache/goal-cache.service
   providers: [
     { provide: GOAL_REPO_PORT, useClass: GoalRepository },
     GoalCacheService,
+    { provide: GOAL_CACHE_PORT, useExisting: GoalCacheService },
     CreateGoalService,
     UpdateGoalService,
     DeleteGoalService,

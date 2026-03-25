@@ -19,7 +19,10 @@ import {
   GoalPriority,
   GoalStatus,
 } from '@goals/domain/types/goal.types';
-import { GoalCacheService } from '@goals/infrastructure/cache/goal-cache.service';
+import {
+  GOAL_CACHE_PORT,
+  type IGoalCachePort,
+} from '@goals/domain/ports/goal-cache.port';
 
 export interface UpdateGoalInput {
   title?: string;
@@ -38,7 +41,8 @@ export class UpdateGoalService {
     private readonly goalRepo: IGoalRepository,
     @Inject(GOAL_EVENT_PUBLISHER_PORT)
     private readonly goalEventPublisher: IGoalEventPublisher,
-    private readonly goalCache: GoalCacheService,
+    @Inject(GOAL_CACHE_PORT)
+    private readonly goalCache: IGoalCachePort,
   ) {}
 
   async execute(

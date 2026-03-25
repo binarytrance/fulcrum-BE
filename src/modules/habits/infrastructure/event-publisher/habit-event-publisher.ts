@@ -5,10 +5,9 @@ import type { IHabitEventPublisher } from '@habits/domain/ports/habit-event-publ
 import type { HabitOccurrenceCompletedEvent } from '@habits/domain/events/habit-occurrence-completed.event';
 import {
   HabitJobName,
+  HABITS_QUEUE_NAME,
   type HabitJobPayloads,
 } from '@habits/domain/types/habit-jobs.types';
-
-export const HABITS_QUEUE_NAME = 'habits';
 
 @Injectable()
 export class HabitEventPublisher implements IHabitEventPublisher {

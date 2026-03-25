@@ -14,7 +14,10 @@ import {
   type ITaskEventPublisher,
 } from '@tasks/domain/ports/task-event-publisher.port';
 import { TaskCompletedEvent } from '@tasks/domain/events/task-completed.event';
-import { TaskCacheService } from '@tasks/infrastructure/cache/task-cache.service';
+import {
+  TASK_CACHE_PORT,
+  type ITaskCachePort,
+} from '@tasks/domain/ports/task-cache.port';
 
 @Injectable()
 export class CompleteTaskService {
@@ -23,7 +26,8 @@ export class CompleteTaskService {
     private readonly taskRepo: ITaskRepository,
     @Inject(TASK_EVENT_PUBLISHER_PORT)
     private readonly taskEventPublisher: ITaskEventPublisher,
-    private readonly taskCache: TaskCacheService,
+    @Inject(TASK_CACHE_PORT)
+    private readonly taskCache: ITaskCachePort,
   ) {}
 
   /**

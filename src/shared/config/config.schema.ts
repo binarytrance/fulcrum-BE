@@ -27,6 +27,9 @@ export const envSchema = z.object({
   GITHUB_CLIENT_SECRET: z.string(),
   GITHUB_CALLBACK_URL: z.string(),
 
+  // Frontend
+  FRONTEND_URL: z.string().default('http://localhost:3000'),
+
   // Jwt
   JWT_ACCESS_SECRET: z.string(),
   JWT_REFRESH_SECRET: z.string(),

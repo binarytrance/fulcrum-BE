@@ -10,7 +10,10 @@ import {
   type ITaskRepository,
 } from '@tasks/domain/ports/task-repo.port';
 import { TaskPriority, TaskStatus } from '@tasks/domain/types/task.types';
-import { TaskCacheService } from '@tasks/infrastructure/cache/task-cache.service';
+import {
+  TASK_CACHE_PORT,
+  type ITaskCachePort,
+} from '@tasks/domain/ports/task-cache.port';
 
 export interface UpdateTaskInput {
   title?: string;
@@ -26,7 +29,8 @@ export class UpdateTaskService {
   constructor(
     @Inject(TASK_REPO_PORT)
     private readonly taskRepo: ITaskRepository,
-    private readonly taskCache: TaskCacheService,
+    @Inject(TASK_CACHE_PORT)
+    private readonly taskCache: ITaskCachePort,
   ) {}
 
   async execute(

@@ -29,7 +29,8 @@
       "@goals/*": ["src/modules/goals/*"],
       "@tasks/*": ["src/modules/tasks/*"],
       "@sessions/*": ["src/modules/sessions/*"],
-      "@habits/*": ["src/modules/habits/*"]
+      "@habits/*": ["src/modules/habits/*"],
+      "@analytics/*": ["src/modules/analytics/*"]
     }
   }
 }

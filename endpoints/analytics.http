@@ -1,0 +1,143 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+@analyticsPath = analytics
+
+# ─── Prerequisites ─────────────────────────────────────────────────────────────
+# Analytics are computed async via BullMQ workers.  Before running these
+# requests you must have already:
+#   1. Created a goal        (goals.http)
+#   2. Created a task        (tasks.http)
+#   3. Completed a session   (sessions.http — WebSocket stopSession or manual)
+#   4. Completed a task      (tasks.http — PATCH /:id  { "status": "COMPLETED" })
+#
+# After each of those actions the workers will run within a few seconds.
+# You may hit the endpoints immediately; if data is not yet computed they will
+# return 404 (no analytics yet) — just retry.
+# ───────────────────────────────────────────────────────────────────────────────
+
+@token = PASTE_ACCESS_TOKEN_HERE
+@goalId = PASTE_GOAL_ID_HERE
+@today  = 2026-03-01
+@weekStart = 2026-02-23
+
+# ─── Dashboard (composite) ─────────────────────────────────────────────────────
+# Returns today + this week + all goals + estimation profile in a single call.
+# Any section not yet computed is returned as null / [].
+
+### GET dashboard
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/dashboard
+Authorization: Bearer {{token}}
+
+###
+
+# ─── Daily analytics ───────────────────────────────────────────────────────────
+# Computed after every session.complete / task.complete event.
+# data.timeLeaks[] — detected focus gaps > 30 min on that day.
+
+### GET daily — today
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/daily?date={{today}}
+Authorization: Bearer {{token}}
+
+###
+
+### GET daily — specific past date
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/daily?date=2026-02-27
+Authorization: Bearer {{token}}
+
+###
+
+### GET daily range (heatmap / trend chart)
+# Returns an array of daily docs for each day that had activity in the range.
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/daily/range?startDate=2026-02-01&endDate={{today}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── Weekly analytics ──────────────────────────────────────────────────────────
+# Computed every Sunday at 23:00 UTC by the cron fan-out (COMPUTE_WEEKLY_ALL).
+# weekStart must be the Monday of the desired week.
+
+### GET weekly — a specific week (give the Monday date)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/weekly?weekStart={{weekStart}}
+Authorization: Bearer {{token}}
+
+###
+
+### GET recent weeks (default 8 — ~2 months, newest first)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/weekly/recent
+Authorization: Bearer {{token}}
+
+###
+
+### GET recent weeks — custom limit
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/weekly/recent?limit=4
+Authorization: Bearer {{token}}
+
+###
+
+# ─── Goal analytics ────────────────────────────────────────────────────────────
+# Computed when a session or task for that goal is completed.
+# Includes: totalLoggedMinutes, completionPercent, consistencyScore (% of
+#           last 12 ISO weeks with ≥1 session), projectedCompletionDate, isOnTrack.
+
+### GET analytics for all goals
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/goals
+Authorization: Bearer {{token}}
+
+###
+
+### GET analytics for a specific goal
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/goals/{{goalId}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── Estimation profile ────────────────────────────────────────────────────────
+# Updated when a task is marked COMPLETED (if it had an estimatedDuration).
+# rollingAverage > 100 → finishing faster than estimated
+# rollingAverage < 100 → consistently over-running
+# trend: IMPROVING | DECLINING | STABLE  (compares latest 15 vs oldest 15)
+
+### GET estimation accuracy profile
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/estimation
+Authorization: Bearer {{token}}
+
+###
+
+# ─── Error cases ───────────────────────────────────────────────────────────────
+
+### ❌ GET daily — missing date param (should return 400)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/daily
+Authorization: Bearer {{token}}
+
+###
+
+### ❌ GET daily — bad date format (should return 400)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/daily?date=01-03-2026
+Authorization: Bearer {{token}}
+
+###
+
+### ❌ GET daily — date with no activity (should return 404)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/daily?date=2000-01-01
+Authorization: Bearer {{token}}
+
+###
+
+### ❌ GET goal analytics — non-existent goal (should return 404)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/goals/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+###
+
+### ❌ GET estimation — no tasks completed yet (should return 404)
+# Only fires 404 when the profile has never been written for this user.
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/estimation
+Authorization: Bearer {{token}}
+
+###
+
+### ❌ GET any analytics endpoint without token (should return 401)
+GET {{baseURL}}/{{urlPath}}/{{analyticsPath}}/dashboard
+
+###

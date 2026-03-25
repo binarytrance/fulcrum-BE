@@ -1,0 +1,636 @@
+@baseURL = http://localhost:6969
+@urlPath = api/v1
+
+# ══════════════════════════════════════════════════════════════════════════════
+# FULL FEATURE WALKTHROUGH
+# ══════════════════════════════════════════════════════════════════════════════
+#
+# SETUP:
+#   1. Start the server:           npm run start:dev
+#   2. Run the seed script:        node scripts/seed.mjs --userId=<your-uuid>
+#   3. Sign in (auth.http) to get an accessToken, paste it below.
+#   4. Paste the IDs printed by the seed script into the VARIABLES section.
+#   5. Run each request top-to-bottom.
+#
+# SECTIONS:
+#   § 1  Goals       — CRUD + goal tree + nesting limits
+#   § 2  Tasks       — CRUD + daily planner + completion
+#   § 3  Sessions    — manual entry + history queries
+#   § 4  Habits      — CRUD + due-today + occurrences
+#   § 5  Analytics   — dashboard + daily + weekly + goals + estimation
+#   § 6  Error cases — one expected 4xx per module
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ── VARIABLES — fill these in before running ──────────────────────────────────
+@token       = PASTE_ACCESS_TOKEN_HERE
+
+# IDs printed by seed.mjs:
+@g1Id        = PASTE_G1_ID_HERE
+@g2Id        = PASTE_G2_ID_HERE
+@g3Id        = PASTE_G3_ID_HERE
+@g4Id        = PASTE_G4_ID_HERE
+@h1Id        = PASTE_H1_ID_HERE
+@h2Id        = PASTE_H2_ID_HERE
+@taskToday1  = PASTE_TPENDING0_ID_HERE
+@taskToday2  = PASTE_TPENDING1_ID_HERE
+@taskInbox   = PASTE_TPENDING2_ID_HERE
+
+# Filled in as you run through the steps:
+@newGoalId    = REPLACE_AFTER_STEP_1_1
+@newTaskId    = REPLACE_AFTER_STEP_2_1
+@sessionId    = REPLACE_AFTER_STEP_3_1
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 1  GOALS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ─── 1.1  Create a new top-level goal ────────────────────────────────────────
+# Copy the returned `id` → paste into @newGoalId above.
+
+### [1.1] POST goals — create top-level goal
+POST {{baseURL}}/{{urlPath}}/goals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Ship a SaaS MVP",
+  "description": "Complete the backend and a minimal frontend for a productivity app.",
+  "category": "CAREER",
+  "priority": "HIGH",
+  "deadline": "2026-12-31T23:59:59.000Z",
+  "estimatedHours": 300
+}
+
+###
+
+# ─── 1.2  Create a sub-goal under the seeded top-level goal ──────────────────
+
+### [1.2] POST goals — create sub-goal (level 2 under g1)
+POST {{baseURL}}/{{urlPath}}/goals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Study Advanced TypeScript Patterns",
+  "category": "LEARNING",
+  "priority": "MEDIUM",
+  "estimatedHours": 20,
+  "parentGoalId": "{{g1Id}}"
+}
+
+###
+
+# ─── 1.3  Get full goal tree ─────────────────────────────────────────────────
+
+### [1.3] GET goals/tree — full hierarchy for the authenticated user
+GET {{baseURL}}/{{urlPath}}/goals/tree
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 1.4  List goals with filters ────────────────────────────────────────────
+
+### [1.4a] GET goals — ACTIVE goals only
+GET {{baseURL}}/{{urlPath}}/goals?status=ACTIVE
+Authorization: Bearer {{token}}
+
+###
+
+### [1.4b] GET goals — LEARNING category
+GET {{baseURL}}/{{urlPath}}/goals?category=LEARNING
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 1.5  Get a single goal ──────────────────────────────────────────────────
+
+### [1.5] GET goals/:id
+GET {{baseURL}}/{{urlPath}}/goals/{{g2Id}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 1.6  Update a goal ──────────────────────────────────────────────────────
+
+### [1.6] PATCH goals/:id — update estimatedHours + description
+PATCH {{baseURL}}/{{urlPath}}/goals/{{g2Id}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "estimatedHours": 50,
+  "description": "Cover every page of the official NestJS documentation with working examples."
+}
+
+###
+
+# ─── 1.7  Pause then reactivate a goal ───────────────────────────────────────
+
+### [1.7a] PATCH goals/:id — pause
+PATCH {{baseURL}}/{{urlPath}}/goals/{{g4Id}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "PAUSED"
+}
+
+###
+
+### [1.7b] PATCH goals/:id — reactivate
+PATCH {{baseURL}}/{{urlPath}}/goals/{{g4Id}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "status": "ACTIVE"
+}
+
+###
+
+# ─── 1.8  Soft-delete a goal ─────────────────────────────────────────────────
+
+### [1.8] DELETE goals/:id — soft delete the goal we just created in 1.1
+DELETE {{baseURL}}/{{urlPath}}/goals/{{newGoalId}}
+Authorization: Bearer {{token}}
+
+###
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 2  TASKS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ─── 2.1  Create a new task ───────────────────────────────────────────────────
+# Copy the returned `id` → paste into @newTaskId above.
+
+### [2.1] POST tasks — PLANNED task linked to a goal
+POST {{baseURL}}/{{urlPath}}/tasks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Build the analytics controller",
+  "description": "Implement all 9 endpoints per the spec.",
+  "priority": "HIGH",
+  "type": "PLANNED",
+  "scheduledFor": "2026-03-01T09:00:00.000Z",
+  "estimatedDuration": 90,
+  "goalId": "{{g2Id}}"
+}
+
+###
+
+# ─── 2.2  Create an unplanned (inbox) task ───────────────────────────────────
+
+### [2.2] POST tasks — UNPLANNED task (no scheduledFor, no goal)
+POST {{baseURL}}/{{urlPath}}/tasks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "Reply to design feedback email",
+  "priority": "MEDIUM",
+  "type": "UNPLANNED",
+  "estimatedDuration": 15
+}
+
+###
+
+# ─── 2.3  Daily planner queries ──────────────────────────────────────────────
+
+### [2.3a] GET tasks?date=today — today's planned tasks (Redis-cached)
+GET {{baseURL}}/{{urlPath}}/tasks?date=2026-03-01
+Authorization: Bearer {{token}}
+
+###
+
+### [2.3b] GET tasks?type=UNPLANNED — inbox / unplanned tasks
+GET {{baseURL}}/{{urlPath}}/tasks?type=UNPLANNED
+Authorization: Bearer {{token}}
+
+###
+
+### [2.3c] GET tasks?type=PLANNED&goalId=… — all planned tasks under a goal
+GET {{baseURL}}/{{urlPath}}/tasks?type=PLANNED&goalId={{g2Id}}
+Authorization: Bearer {{token}}
+
+###
+
+### [2.3d] GET tasks?type=UNPLANNED&status=PENDING — pending inbox items
+GET {{baseURL}}/{{urlPath}}/tasks?type=UNPLANNED&status=PENDING
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 2.4  Get a single task ──────────────────────────────────────────────────
+
+### [2.4] GET tasks/:id
+GET {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 2.5  Update a task ──────────────────────────────────────────────────────
+
+### [2.5] PATCH tasks/:id — reschedule + change estimatedDuration
+PATCH {{baseURL}}/{{urlPath}}/tasks/{{newTaskId}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "estimatedDuration": 120,
+  "scheduledFor": "2026-03-02T09:00:00.000Z"
+}
+
+###
+
+# ─── 2.6  Complete a task (triggers analytics + habit workers) ───────────────
+# This fires:  COMPUTE_DAILY + COMPUTE_GOAL + UPDATE_ESTIMATION (analytics queue)
+#              RECOMPUTE_GOAL_PROGRESS (goals queue)
+#              MARK_HABIT_OCCURRENCE  (if habitId is set on the task)
+
+### [2.6] POST tasks/:id/complete — mark as COMPLETED with actual duration
+POST {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}/complete
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "actualDuration": 65
+}
+
+###
+
+# ─── 2.7  Delete a task ──────────────────────────────────────────────────────
+
+### [2.7] DELETE tasks/:id — soft delete the task created in 2.1
+DELETE {{baseURL}}/{{urlPath}}/tasks/{{newTaskId}}
+Authorization: Bearer {{token}}
+
+###
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 3  SESSIONS (REST/manual — WebSocket is in test-session.html)
+# ══════════════════════════════════════════════════════════════════════════════
+# WebSocket events:  ws://localhost:6969/sessions
+#   Auth:  { auth: { token: "<accessToken>" } }
+#   startSession      { taskId }
+#   heartbeat         { sessionId }   ← every 30s
+#   logDistraction    { sessionId, reason, estimatedMinutes }
+#   stopSession       { sessionId }   ← triggers analytics workers
+
+# ─── 3.1  Log a manual session ───────────────────────────────────────────────
+# Copy the returned `id` → paste into @sessionId above.
+
+### [3.1] POST sessions/manual — log a past focus block
+POST {{baseURL}}/{{urlPath}}/sessions/manual
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "taskId": "{{taskToday2}}",
+  "durationMinutes": 32,
+  "startedAt": "2026-02-28T07:00:00.000Z",
+  "note": "Morning run before breakfast"
+}
+
+###
+
+# ─── 3.2  List sessions for a task ───────────────────────────────────────────
+
+### [3.2] GET sessions/task/:taskId — all sessions for a given task
+GET {{baseURL}}/{{urlPath}}/sessions/task/{{taskToday2}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 3.3  Get a single session ───────────────────────────────────────────────
+
+### [3.3] GET sessions/:id
+GET {{baseURL}}/{{urlPath}}/sessions/{{sessionId}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 3.4  Log another manual session to build daily analytics data ───────────
+
+### [3.4] POST sessions/manual — second session today → creates time-leak data
+POST {{baseURL}}/{{urlPath}}/sessions/manual
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "taskId": "{{taskToday1}}",
+  "durationMinutes": 60,
+  "startedAt": "2026-03-01T09:00:00.000Z",
+  "note": "Deep NestJS study block"
+}
+
+###
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 4  HABITS
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ─── 4.1  List all habits ─────────────────────────────────────────────────────
+
+### [4.1] GET habits — all habits for the user
+GET {{baseURL}}/{{urlPath}}/habits
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.2  Filter habits by goal ──────────────────────────────────────────────
+
+### [4.2] GET habits?goalId=… — habits under a specific goal
+GET {{baseURL}}/{{urlPath}}/habits?goalId={{g4Id}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.3  Get a single habit ─────────────────────────────────────────────────
+
+### [4.3a] GET habits/:id — daily habit
+GET {{baseURL}}/{{urlPath}}/habits/{{h1Id}}
+Authorization: Bearer {{token}}
+
+###
+
+### [4.3b] GET habits/:id — specific-days habit
+GET {{baseURL}}/{{urlPath}}/habits/{{h2Id}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.4  Today's due habits (daily planner feed) ────────────────────────────
+
+### [4.4] GET habits/due-today — occurrences due on today's date
+GET {{baseURL}}/{{urlPath}}/habits/due-today
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.5  Occurrence history for a habit ──────────────────────────────────────
+
+### [4.5a] GET habits/:id/occurrences — all occurrences (seeded)
+GET {{baseURL}}/{{urlPath}}/habits/{{h1Id}}/occurrences
+Authorization: Bearer {{token}}
+
+###
+
+### [4.5b] GET habits/:id/occurrences?status=COMPLETED — only completed
+GET {{baseURL}}/{{urlPath}}/habits/{{h1Id}}/occurrences?status=COMPLETED
+Authorization: Bearer {{token}}
+
+###
+
+### [4.5c] GET habits/:id/occurrences?status=PENDING — today's pending
+GET {{baseURL}}/{{urlPath}}/habits/{{h1Id}}/occurrences?status=PENDING
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 4.6  Create a new habit ─────────────────────────────────────────────────
+
+### [4.6] POST habits — weekend reading habit
+POST {{baseURL}}/{{urlPath}}/habits
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "goalId": "{{g2Id}}",
+  "title": "Weekend reading — tech articles",
+  "description": "1 hour of reading Hacker News / dev blogs.",
+  "frequency": "specific_days",
+  "daysOfWeek": [0, 6],
+  "targetDuration": 60
+}
+
+###
+
+# ─── 4.7  Update a habit ─────────────────────────────────────────────────────
+
+### [4.7] PATCH habits/:id — increase targetDuration for daily habit
+PATCH {{baseURL}}/{{urlPath}}/habits/{{h1Id}}
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "targetDuration": 75,
+  "description": "75 min focused NestJS / TS study block."
+}
+
+###
+
+# ─── 4.8  Delete a habit ─────────────────────────────────────────────────────
+# (soft-delete — sets deletedAt, hides from future due-today queries)
+
+### [4.8] DELETE habits/:id — delete the weekend reading habit from 4.6
+# Copy the id returned in step 4.6, then uncomment the line below.
+# DELETE {{baseURL}}/{{urlPath}}/habits/PASTE_NEW_HABIT_ID_HERE
+# Authorization: Bearer {{token}}
+
+###
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 5  ANALYTICS
+# ══════════════════════════════════════════════════════════════════════════════
+# The seed script pre-computes all analytics documents, so every endpoint
+# should return data immediately.
+#
+# Analytics are ALSO recomputed automatically when:
+#   • A session ends  → COMPUTE_DAILY + COMPUTE_GOAL
+#   • A task completes → COMPUTE_DAILY + COMPUTE_GOAL + UPDATE_ESTIMATION
+#   • Every Sunday 23:00 UTC → COMPUTE_WEEKLY_ALL (fan-out)
+
+# ─── 5.1  Dashboard (composite — all in one call) ────────────────────────────
+
+### [5.1] GET analytics/dashboard — today + this week + all goals + estimation
+GET {{baseURL}}/{{urlPath}}/analytics/dashboard
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 5.2  Daily analytics ────────────────────────────────────────────────────
+
+### [5.2a] GET analytics/daily?date=today
+GET {{baseURL}}/{{urlPath}}/analytics/daily?date=2026-03-01
+Authorization: Bearer {{token}}
+
+###
+
+### [5.2b] GET analytics/daily?date= — a past day with a time leak
+# Day 12 ago had two sessions with a break > 30 min
+GET {{baseURL}}/{{urlPath}}/analytics/daily?date=2026-02-17
+Authorization: Bearer {{token}}
+
+###
+
+### [5.2c] GET analytics/daily/range — full February heatmap data
+GET {{baseURL}}/{{urlPath}}/analytics/daily/range?startDate=2026-02-01&endDate=2026-03-01
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 5.3  Weekly analytics ───────────────────────────────────────────────────
+
+### [5.3a] GET analytics/weekly?weekStart= — this week (Mon Feb 23)
+GET {{baseURL}}/{{urlPath}}/analytics/weekly?weekStart=2026-02-23
+Authorization: Bearer {{token}}
+
+###
+
+### [5.3b] GET analytics/weekly?weekStart= — last week (Mon Feb 16)
+GET {{baseURL}}/{{urlPath}}/analytics/weekly?weekStart=2026-02-16
+Authorization: Bearer {{token}}
+
+###
+
+### [5.3c] GET analytics/weekly/recent — last 4 weeks
+GET {{baseURL}}/{{urlPath}}/analytics/weekly/recent?limit=4
+Authorization: Bearer {{token}}
+
+###
+
+### [5.3d] GET analytics/weekly/recent — default 8 weeks
+GET {{baseURL}}/{{urlPath}}/analytics/weekly/recent
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 5.4  Goal analytics ─────────────────────────────────────────────────────
+
+### [5.4a] GET analytics/goals — all goals (seeded: 4 documents)
+GET {{baseURL}}/{{urlPath}}/analytics/goals
+Authorization: Bearer {{token}}
+
+###
+
+### [5.4b] GET analytics/goals/:goalId — top-level NestJS goal (logged the most minutes)
+GET {{baseURL}}/{{urlPath}}/analytics/goals/{{g2Id}}
+Authorization: Bearer {{token}}
+
+###
+
+### [5.4c] GET analytics/goals/:goalId — health goal
+GET {{baseURL}}/{{urlPath}}/analytics/goals/{{g4Id}}
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 5.5  Estimation profile ─────────────────────────────────────────────────
+# rollingAverage > 100 → finishing faster than estimated
+# rollingAverage < 100 → consistently over-running
+# trend: IMPROVING | DECLINING | STABLE
+
+### [5.5] GET analytics/estimation — rolling 30-task accuracy profile
+GET {{baseURL}}/{{urlPath}}/analytics/estimation
+Authorization: Bearer {{token}}
+
+###
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# § 6  ERROR CASES  (each should return the stated status code)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ─── 401 — missing / invalid token ───────────────────────────────────────────
+
+### [6.1] ❌ 401 — GET goals without token
+GET {{baseURL}}/{{urlPath}}/goals
+
+###
+
+# ─── 400 — validation failures ───────────────────────────────────────────────
+
+### [6.2] ❌ 400 — POST goals — missing required 'category'
+POST {{baseURL}}/{{urlPath}}/goals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "This is missing category"
+}
+
+###
+
+### [6.3] ❌ 400 — POST tasks — missing required 'estimatedDuration'
+POST {{baseURL}}/{{urlPath}}/tasks
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "No duration set",
+  "type": "PLANNED"
+}
+
+###
+
+### [6.4] ❌ 400 — GET analytics/daily — bad date format (DD-MM-YYYY instead of YYYY-MM-DD)
+GET {{baseURL}}/{{urlPath}}/analytics/daily?date=01-03-2026
+Authorization: Bearer {{token}}
+
+###
+
+### [6.5] ❌ 400 — POST sessions/manual — missing durationMinutes
+POST {{baseURL}}/{{urlPath}}/sessions/manual
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "taskId": "{{taskToday2}}"
+}
+
+###
+
+# ─── 404 — not found ─────────────────────────────────────────────────────────
+
+### [6.6] ❌ 404 — GET goals/:id — non-existent ID
+GET {{baseURL}}/{{urlPath}}/goals/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+###
+
+### [6.7] ❌ 404 — GET analytics/daily — date with no activity
+GET {{baseURL}}/{{urlPath}}/analytics/daily?date=2000-01-01
+Authorization: Bearer {{token}}
+
+###
+
+### [6.8] ❌ 404 — GET sessions/:id — non-existent session
+GET {{baseURL}}/{{urlPath}}/sessions/00000000-0000-0000-0000-000000000000
+Authorization: Bearer {{token}}
+
+###
+
+# ─── 409 / 400 — domain rule violations ──────────────────────────────────────
+
+### [6.9] ❌ 400 — POST goals — nesting depth > 3 levels
+# g3 is already level 3; nesting under it must be rejected
+POST {{baseURL}}/{{urlPath}}/goals
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "title": "This should be rejected — level 4",
+  "category": "LEARNING",
+  "parentGoalId": "{{g3Id}}"
+}
+
+###
+
+### [6.10] ❌ 400 — POST tasks/:id/complete — task is already COMPLETED
+POST {{baseURL}}/{{urlPath}}/tasks/{{taskToday1}}/complete
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "actualDuration": 30
+}
+
+###

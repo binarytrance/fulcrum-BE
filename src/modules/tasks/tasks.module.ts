@@ -11,6 +11,7 @@ import { GetTasksService } from '@tasks/application/services/get-tasks.service';
 
 import { TASK_REPO_PORT } from '@tasks/domain/ports/task-repo.port';
 import { GOAL_OWNERSHIP_PORT } from '@tasks/domain/ports/goal-ownership.port';
+import { TASK_CACHE_PORT } from '@tasks/domain/ports/task-cache.port';
 import { TaskRepository } from '@tasks/infrastructure/persistence/task.repository';
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { TaskWorkersModule } from '@tasks/infrastructure/workers/task-workers.module';
@@ -28,6 +29,7 @@ import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.mo
     { provide: TASK_REPO_PORT, useClass: TaskRepository },
     { provide: GOAL_OWNERSHIP_PORT, useClass: GoalOwnershipAdapter },
     TaskCacheService,
+    { provide: TASK_CACHE_PORT, useExisting: TaskCacheService },
     CreateTaskService,
     UpdateTaskService,
     CompleteTaskService,

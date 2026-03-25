@@ -14,17 +14,16 @@ import { RecoverSessionService } from '@sessions/application/services/recover-se
 
 import { SESSION_REPO_PORT } from '@sessions/domain/ports/session-repo.port';
 import { SESSION_TIMER_PORT } from '@sessions/domain/ports/session-timer.port';
-import { SESSION_EVENT_PUBLISHER_PORT } from '@sessions/domain/ports/session-event-publisher.port';
 import { TASK_ACCESS_PORT } from '@sessions/domain/ports/task-access.port';
 
 import { SessionRepository } from '@sessions/infrastructure/persistence/session.repository';
 import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
 import { SessionTimerAdapter } from '@sessions/infrastructure/timer/session-timer.adapter';
-import { SessionEventPublisher } from '@sessions/infrastructure/event-publisher/session-event-publisher';
 import { SessionWorkersModule } from '@sessions/infrastructure/workers/session-workers.module';
 import { TaskAccessAdapter } from '@sessions/infrastructure/adapters/task-access.adapter';
 
-// TaskMongoModule registers the 'Task' model needed by TaskAccessAdapter and SessionWorker.
+// TaskMongoModule registers the 'Task' model needed by TaskAccessAdapter.
+// SessionWorker also needs it — but that is already imported inside SessionWorkersModule.
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 
 @Module({
@@ -40,7 +39,7 @@ import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.mo
     // Port bindings
     { provide: SESSION_REPO_PORT, useClass: SessionRepository },
     { provide: SESSION_TIMER_PORT, useClass: SessionTimerAdapter },
-    { provide: SESSION_EVENT_PUBLISHER_PORT, useClass: SessionEventPublisher },
+    // SESSION_EVENT_PUBLISHER_PORT is provided and exported by SessionWorkersModule
     { provide: TASK_ACCESS_PORT, useClass: TaskAccessAdapter },
 
     // Application services

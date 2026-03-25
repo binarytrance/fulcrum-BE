@@ -7,9 +7,7 @@ import type {
 } from '@goals/domain/ports/goal-event-publisher.port';
 import { GoalDeadlineChangedEvent } from '@goals/domain/events/goal-deadline-changed.event';
 import { GoalProgressRecomputeEvent } from '@goals/domain/events/goal-progress-recompute.event';
-import { GoalJobs } from '@goals/domain/types/goal-jobs.types';
-
-export const GOALS_QUEUE_NAME = 'goals';
+import { GoalJobs, GOALS_QUEUE_NAME } from '@goals/domain/types/goal-jobs.types';
 
 @Injectable()
 export class GoalEventPublisher implements IGoalEventPublisher {

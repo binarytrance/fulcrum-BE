@@ -1,12 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '@shared/infrastructure/redis/redis.provider';
+import type { ITaskCachePort } from '@tasks/domain/ports/task-cache.port';
 
 /** TTL for the daily task list cache per user+date (seconds) */
 const DAILY_TTL_SECONDS = 60;
 
 @Injectable()
-export class TaskCacheService {
+export class TaskCacheService implements ITaskCachePort {
   private readonly logger = new Logger(TaskCacheService.name);
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}

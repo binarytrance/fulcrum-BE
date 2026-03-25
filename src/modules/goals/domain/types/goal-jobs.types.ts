@@ -1,3 +1,5 @@
+export const GOALS_QUEUE_NAME = 'goals';
+
 export enum GoalJobs {
   RECALCULATE_PACING = 'goals.recalculate-pacing',
   RECOMPUTE_PROGRESS = 'goals.recompute-progress',

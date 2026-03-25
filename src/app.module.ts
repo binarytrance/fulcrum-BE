@@ -7,8 +7,18 @@ import { GoalsModule } from '@goals/goals.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
 import { SessionsModule } from '@/modules/sessions/sessions.module';
 import { HabitsModule } from '@/modules/habits/habits.module';
+import { AnalyticsModule } from '@/modules/analytics/analytics.module';
 
 @Module({
-  imports: [SharedModule, UsersModule, AuthModule, GoalsModule, TasksModule, SessionsModule, HabitsModule],
+  imports: [
+    SharedModule,
+    UsersModule,
+    AuthModule,
+    GoalsModule,
+    TasksModule,
+    SessionsModule,
+    HabitsModule,
+    AnalyticsModule,
+  ],
 })
 export class AppModule {}

@@ -18,7 +18,10 @@ import {
   ID_GENERATOR_PORT,
   type IIDGenerator,
 } from '@shared/domain/ports/id-generator.port';
-import { GoalCacheService } from '@goals/infrastructure/cache/goal-cache.service';
+import {
+  GOAL_CACHE_PORT,
+  type IGoalCachePort,
+} from '@goals/domain/ports/goal-cache.port';
 
 export interface CreateGoalInput {
   userId: string;
@@ -39,7 +42,8 @@ export class CreateGoalService {
     private readonly goalRepo: IGoalRepository,
     @Inject(ID_GENERATOR_PORT)
     private readonly idGenerator: IIDGenerator,
-    private readonly goalCache: GoalCacheService,
+    @Inject(GOAL_CACHE_PORT)
+    private readonly goalCache: IGoalCachePort,
   ) {}
 
   async execute(input: CreateGoalInput): Promise<Goal> {

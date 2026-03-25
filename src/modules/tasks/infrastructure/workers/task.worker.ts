@@ -3,8 +3,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { TASKS_QUEUE_NAME } from '@tasks/infrastructure/event-publisher/task-event-publisher';
-import { TaskJobPayloads, TaskJobs } from '@tasks/domain/types/task-jobs.types';
+import { TASKS_QUEUE_NAME, TaskJobPayloads, TaskJobs } from '@tasks/domain/types/task-jobs.types';
 import { OccurrenceStatus } from '@habits/domain/types/habit.types';
 
 // Narrow lean types — avoids unsafe-any lint errors

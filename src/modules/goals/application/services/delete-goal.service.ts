@@ -8,14 +8,18 @@ import {
   GOAL_REPO_PORT,
   type IGoalRepository,
 } from '@goals/domain/ports/goal-repo.port';
-import { GoalCacheService } from '@goals/infrastructure/cache/goal-cache.service';
+import {
+  GOAL_CACHE_PORT,
+  type IGoalCachePort,
+} from '@goals/domain/ports/goal-cache.port';
 
 @Injectable()
 export class DeleteGoalService {
   constructor(
     @Inject(GOAL_REPO_PORT)
     private readonly goalRepo: IGoalRepository,
-    private readonly goalCache: GoalCacheService,
+    @Inject(GOAL_CACHE_PORT)
+    private readonly goalCache: IGoalCachePort,
   ) {}
 
   /**

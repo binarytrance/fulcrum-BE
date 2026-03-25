@@ -9,7 +9,10 @@ import {
   TASK_REPO_PORT,
   type ITaskRepository,
 } from '@tasks/domain/ports/task-repo.port';
-import { TaskCacheService } from '@tasks/infrastructure/cache/task-cache.service';
+import {
+  TASK_CACHE_PORT,
+  type ITaskCachePort,
+} from '@tasks/domain/ports/task-cache.port';
 import {
   TaskPriority,
   TaskStatus,
@@ -44,7 +47,8 @@ export class GetTasksService {
   constructor(
     @Inject(TASK_REPO_PORT)
     private readonly taskRepo: ITaskRepository,
-    private readonly taskCache: TaskCacheService,
+    @Inject(TASK_CACHE_PORT)
+    private readonly taskCache: ITaskCachePort,
   ) {}
 
   /**

@@ -13,7 +13,10 @@ import {
   TaskStatus,
   TaskType,
 } from '@tasks/domain/types/task.types';
-import { TaskCacheService } from '@tasks/infrastructure/cache/task-cache.service';
+import {
+  TASK_CACHE_PORT,
+  type ITaskCachePort,
+} from '@tasks/domain/ports/task-cache.port';
 import {
   ID_GENERATOR_PORT,
   type IIDGenerator,
@@ -39,7 +42,8 @@ export class CreateTaskService {
     private readonly goalOwnership: IGoalOwnershipVerifier,
     @Inject(ID_GENERATOR_PORT)
     private readonly idGenerator: IIDGenerator,
-    private readonly taskCache: TaskCacheService,
+    @Inject(TASK_CACHE_PORT)
+    private readonly taskCache: ITaskCachePort,
   ) {}
 
   async execute(input: CreateTaskInput): Promise<Task> {

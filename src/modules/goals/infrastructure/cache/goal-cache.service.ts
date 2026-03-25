@@ -1,12 +1,13 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import Redis from 'ioredis';
 import { REDIS_CLIENT } from '@shared/infrastructure/redis/redis.provider';
+import type { IGoalCachePort } from '@goals/domain/ports/goal-cache.port';
 
 /** TTL for the goal tree cache per user (seconds) */
 const TREE_TTL_SECONDS = 30;
 
 @Injectable()
-export class GoalCacheService {
+export class GoalCacheService implements IGoalCachePort {
   private readonly logger = new Logger(GoalCacheService.name);
 
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}

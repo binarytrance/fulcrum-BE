@@ -1,3 +1,5 @@
+export const HABITS_QUEUE_NAME = 'habits';
+
 export enum HabitJobName {
   /**
    * Runs nightly (00:00 UTC):

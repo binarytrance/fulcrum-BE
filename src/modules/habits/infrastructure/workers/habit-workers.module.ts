@@ -6,17 +6,19 @@ import { Queue } from 'bullmq';
 import { SharedModule } from '@shared/shared.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 import { HabitWorker } from '@habits/infrastructure/workers/habit.worker';
+import { HabitEventPublisher } from '@habits/infrastructure/event-publisher/habit-event-publisher';
 import {
-  HabitEventPublisher,
   HABITS_QUEUE_NAME,
-} from '@habits/infrastructure/event-publisher/habit-event-publisher';
+  HabitJobName,
+} from '@habits/domain/types/habit-jobs.types';
 import { HabitStreakCache } from '@habits/infrastructure/cache/habit-streak.cache';
 import { HABIT_REPO_PORT } from '@habits/domain/ports/habit-repo.port';
 import { HABIT_EVENT_PUBLISHER_PORT } from '@habits/domain/ports/habit-event-publisher.port';
+import { HABIT_STREAK_CACHE_PORT } from '@habits/domain/ports/habit-streak-cache.port';
 import { HABIT_OCCURRENCE_REPO_PORT } from '@habits/domain/ports/habit-occurrence-repo.port';
 import { HabitRepository } from '@habits/infrastructure/persistence/habit.repository';
 import { HabitOccurrenceRepository } from '@habits/infrastructure/persistence/habit-occurrence.repository';
-import { HabitJobName } from '@habits/domain/types/habit-jobs.types';
+
 
 @Module({
   imports: [
@@ -38,8 +40,9 @@ import { HabitJobName } from '@habits/domain/types/habit-jobs.types';
     HabitStreakCache,
     HabitEventPublisher,
     { provide: HABIT_EVENT_PUBLISHER_PORT, useExisting: HabitEventPublisher },
+    { provide: HABIT_STREAK_CACHE_PORT, useExisting: HabitStreakCache },
   ],
-  exports: [BullModule, HABIT_EVENT_PUBLISHER_PORT, HabitStreakCache],
+  exports: [BullModule, HABIT_EVENT_PUBLISHER_PORT, HABIT_STREAK_CACHE_PORT],
 })
 export class HabitWorkersModule implements OnModuleInit {
   constructor(@InjectQueue(HABITS_QUEUE_NAME) private readonly queue: Queue) {}

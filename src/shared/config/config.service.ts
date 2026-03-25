@@ -61,6 +61,10 @@ export class ConfigService {
     };
   }
 
+  get frontendUrl() {
+    return this.get('FRONTEND_URL');
+  }
+
   get redis() {
     return {
       host: this.get('REDIS_HOST'),

@@ -2,8 +2,8 @@ import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { randomUUID } from 'node:crypto';
-import { HABITS_QUEUE_NAME } from '@habits/infrastructure/event-publisher/habit-event-publisher';
 import {
+  HABITS_QUEUE_NAME,
   HabitJobName,
   type HabitJobPayloads,
 } from '@habits/domain/types/habit-jobs.types';
@@ -15,7 +15,10 @@ import {
   HABIT_OCCURRENCE_REPO_PORT,
   type IHabitOccurrenceRepository,
 } from '@habits/domain/ports/habit-occurrence-repo.port';
-import { HabitStreakCache } from '@habits/infrastructure/cache/habit-streak.cache';
+import {
+  HABIT_STREAK_CACHE_PORT,
+  type IHabitStreakCachePort,
+} from '@habits/domain/ports/habit-streak-cache.port';
 import {
   OccurrenceStatus,
   OCCURRENCE_LOOKAHEAD_DAYS,
@@ -49,7 +52,8 @@ export class HabitWorker extends WorkerHost {
     @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
     @Inject(HABIT_OCCURRENCE_REPO_PORT)
     private readonly occurrenceRepo: IHabitOccurrenceRepository,
-    private readonly streakCache: HabitStreakCache,
+    @Inject(HABIT_STREAK_CACHE_PORT)
+    private readonly streakCache: IHabitStreakCachePort,
   ) {
     super();
   }

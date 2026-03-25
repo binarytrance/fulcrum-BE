@@ -1,3 +1,5 @@
+export const TASKS_QUEUE_NAME = 'tasks';
+
 export enum TaskJobs {
   /** Recompute the linked goal's progress after a task is completed */
   RECOMPUTE_GOAL_PROGRESS = 'tasks.recompute-goal-progress',

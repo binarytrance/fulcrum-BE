@@ -17,7 +17,9 @@ export const createRedisConfig = (config: ConfigService): RedisOptions => {
     connectTimeout: 10000,
     commandTimeout: 5000,
     keepAlive: 10000,
-    tls: config.isProd ? {} : undefined,
+    tls: !['localhost', '127.0.0.1'].includes(config.redis.host)
+      ? {}
+      : undefined,
     enableReadyCheck: true,
     enableOfflineQueue: false,
   };

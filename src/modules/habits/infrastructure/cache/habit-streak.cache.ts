@@ -2,9 +2,10 @@ import { Inject, Injectable } from '@nestjs/common';
 import type { Redis } from 'ioredis';
 import { REDIS_CLIENT } from '@shared/infrastructure/redis/redis.provider';
 import { STREAK_CACHE_TTL_SECONDS } from '@habits/domain/types/habit.types';
+import type { IHabitStreakCachePort } from '@habits/domain/ports/habit-streak-cache.port';
 
 @Injectable()
-export class HabitStreakCache {
+export class HabitStreakCache implements IHabitStreakCachePort {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
   private static key(habitId: string): string {
