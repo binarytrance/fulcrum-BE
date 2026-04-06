@@ -34,8 +34,8 @@ export class CompleteTaskService {
    * Marks a task as completed.
    *
    * @param actualDuration - Duration in minutes. Optional: if omitted, falls back
-   *   to estimatedDuration as a placeholder until Phase 4 (Sessions) computes
-   *   the real value from the sum of session durations.
+   *   to task.actualDuration (already backfilled by session worker) and then to
+   *   estimatedDuration as a last resort.
    */
   async execute(
     taskId: string,
@@ -46,8 +46,9 @@ export class CompleteTaskService {
     if (!task) throw new NotFoundException('Task not found.');
     if (task.userId !== userId) throw new ForbiddenException('Access denied.');
 
-    // Fall back to estimatedDuration until sessions module computes the real value
-    const duration = actualDuration ?? task.estimatedDuration;
+    // Priority: explicit body value → session-backfilled value → estimatedDuration fallback
+    const duration =
+      actualDuration ?? task.actualDuration ?? task.estimatedDuration;
 
     const completed = task.complete(duration);
     await this.taskRepo.update(completed);

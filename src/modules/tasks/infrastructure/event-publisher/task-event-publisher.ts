@@ -37,7 +37,7 @@ export class TaskEventPublisher implements ITaskEventPublisher {
           TaskJobs.RECOMPUTE_GOAL_PROGRESS,
           { taskId: event.taskId, goalId: event.goalId, userId: event.userId },
           {
-            jobId: `goal-progress:${event.taskId}`,
+            jobId: `goal-progress_${event.taskId}`,
             removeOnComplete: { count: 10 },
           },
         );

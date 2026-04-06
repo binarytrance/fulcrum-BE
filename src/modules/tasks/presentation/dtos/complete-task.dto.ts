@@ -1,12 +1,15 @@
 import { z } from 'zod';
 
-export const CompleteTaskSchema = z.object({
-  /**
-   * Actual duration in minutes.
-   * Optional — if omitted, falls back to estimatedDuration as a placeholder
-   * until Phase 4 (Sessions) computes the real value from the sum of session durations.
-   */
-  actualDuration: z.number().int().positive().optional(),
-});
+export const CompleteTaskSchema = z
+  .object({
+    /**
+     * Actual duration in minutes.
+     * Optional — if omitted, falls back to task.actualDuration (session-backfilled)
+     * and then to estimatedDuration as a last resort.
+     */
+    actualDuration: z.number().int().positive().optional(),
+  })
+  .optional()
+  .default({});
 
 export type CompleteTaskDto = z.infer<typeof CompleteTaskSchema>;

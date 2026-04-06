@@ -23,7 +23,7 @@ export class GoalEventPublisher implements IGoalEventPublisher {
       await this.queue.add(
         GoalJobs.RECALCULATE_PACING,
         { goalId: event.goalId, userId: event.userId },
-        { jobId: `pacing:${event.goalId}`, removeOnComplete: { count: 10 } },
+        { jobId: `pacing_${event.goalId}`, removeOnComplete: { count: 10 } },
       );
     }
 
@@ -35,7 +35,7 @@ export class GoalEventPublisher implements IGoalEventPublisher {
         GoalJobs.RECOMPUTE_PROGRESS,
         { goalId: event.goalId, userId: event.userId },
         {
-          jobId: `progress:${event.goalId}`,
+          jobId: `progress_${event.goalId}`,
           removeOnComplete: { count: 10 },
         },
       );
