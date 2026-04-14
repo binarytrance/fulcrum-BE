@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { TaskPriority, TaskType } from '@tasks/domain/types/task.types';
+import {
+  TaskPriority,
+  TaskType,
+  MAX_TASK_DURATION_MS,
+} from '@tasks/domain/types/task.types';
 
 export const CreateTaskSchema = z.object({
   title: z.string().min(1).max(200),
@@ -18,11 +22,14 @@ export const CreateTaskSchema = z.object({
     .datetime({ message: 'scheduledFor must be a valid ISO date-time string.' })
     .transform((v) => new Date(v))
     .optional(),
-  /** Time-box in milliseconds — required at creation */
+  /** Time-box in milliseconds — required at creation; max 24 hours (86_400_000 ms) */
   estimatedDuration: z
     .number({ error: 'estimatedDuration is required and must be a number' })
     .int()
-    .positive(),
+    .positive()
+    .max(MAX_TASK_DURATION_MS, {
+      message: 'estimatedDuration cannot exceed 24 hours (86400000 ms).',
+    }),
   estimatedEndDate: z
     .string()
     .datetime({

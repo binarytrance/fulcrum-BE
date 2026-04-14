@@ -1,5 +1,9 @@
 import { z } from 'zod';
-import { TaskPriority, TaskStatus } from '@tasks/domain/types/task.types';
+import {
+  TaskPriority,
+  TaskStatus,
+  MAX_TASK_DURATION_MS,
+} from '@tasks/domain/types/task.types';
 
 export const UpdateTaskSchema = z
   .object({
@@ -32,8 +36,15 @@ export const UpdateTaskSchema = z
       .transform((v) => new Date(v))
       .nullable()
       .optional(),
-    /** Time-box in milliseconds */
-    estimatedDuration: z.number().int().positive().optional(),
+    /** Time-box in milliseconds; max 24 hours (86_400_000 ms) */
+    estimatedDuration: z
+      .number()
+      .int()
+      .positive()
+      .max(MAX_TASK_DURATION_MS, {
+        message: 'estimatedDuration cannot exceed 24 hours (86400000 ms).',
+      })
+      .optional(),
     /**
      * Status transitions: PENDING ↔ IN_PROGRESS, either → CANCELLED.
      * To complete a task use the dedicated PATCH /tasks/:id/complete endpoint.

@@ -1,3 +1,6 @@
+/** Maximum allowed estimatedDuration for a task: 24 hours in milliseconds */
+export const MAX_TASK_DURATION_MS = 24 * 60 * 60 * 1000; // 86_400_000
+
 export enum TaskStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
