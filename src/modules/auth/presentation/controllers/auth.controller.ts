@@ -18,6 +18,7 @@ import {
   ApiBody,
   ApiResponse,
   ApiBearerAuth,
+  ApiCookieAuth,
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
@@ -39,7 +40,6 @@ import { JwtAuthGuard } from '@auth/presentation/guards/jwt-auth.guard';
 import { JwtRefreshGuard } from '@auth/presentation/guards/jwt-refresh.guard';
 import type {
   OAuthProfile,
-  AuthTokens,
   TokenPayload,
 } from '@auth/domain/types/token.types';
 import { type ITokenService, TOKEN_PORT } from '@auth/domain/ports/token.port';
@@ -54,17 +54,16 @@ import {
 } from '@shared/presentation/responses/api-response';
 import { ConfigService } from '@shared/config/config.service';
 import {
-  USER_REPO_PORT,
-  type IUserRepository,
-} from '@users/domain/ports/user-rep.port';
+  type IFindUserPort,
+  FIND_USER_PORT,
+} from '@auth/domain/ports/find-user.port';
 
 // ─── Swagger schema helpers ───────────────────────────────────────────────────
 
-const AuthTokensSchema = {
+const AccessTokenSchema = {
   type: 'object',
   properties: {
     accessToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5...' },
-    refreshToken: { type: 'string', example: 'eyJhbGciOiJIUzI1NiIsInR5...' },
   },
 };
 
@@ -77,6 +76,11 @@ const ApiSuccessSchema = (dataSchema?: object) => ({
   },
 });
 
+// ─── Cookie config ────────────────────────────────────────────────────────────
+
+const REFRESH_COOKIE = 'refresh_token';
+const REFRESH_COOKIE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
 // ─── Controller ───────────────────────────────────────────────────────────────
 
 @ApiTags('Auth')
@@ -88,9 +92,30 @@ export class AuthController {
     private readonly oAuthSigninService: OAuthSigninService,
     private readonly verifyEmailService: VerifyEmailService,
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
-    @Inject(USER_REPO_PORT) private readonly userRepo: IUserRepository,
+    @Inject(FIND_USER_PORT) private readonly findUser: IFindUserPort,
     private readonly configService: ConfigService,
   ) {}
+
+  // ── Cookie helpers ───────────────────────────────────────────────────────────
+
+  private setRefreshCookie(res: Response, token: string): void {
+    res.cookie(REFRESH_COOKIE, token, {
+      httpOnly: true,
+      secure: this.configService.isProd,
+      sameSite: 'lax',
+      path: '/',
+      maxAge: REFRESH_COOKIE_TTL_MS,
+    });
+  }
+
+  private clearRefreshCookie(res: Response): void {
+    res.clearCookie(REFRESH_COOKIE, {
+      httpOnly: true,
+      secure: this.configService.isProd,
+      sameSite: 'lax',
+      path: '/',
+    });
+  }
 
   // ── Local auth ──────────────────────────────────────────────────────────────
 
@@ -140,18 +165,21 @@ export class AuthController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Signed in successfully.',
-    schema: ApiSuccessSchema(AuthTokensSchema),
+    description:
+      'Signed in successfully. Refresh token set as HttpOnly cookie.',
+    schema: ApiSuccessSchema(AccessTokenSchema),
   })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
   async signin(
     @Body() signinDto: SigninDto,
-  ): Promise<ApiResponseType<AuthTokens>> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ApiResponseType<{ accessToken: string }>> {
     const tokens = await this.localSigninService.execute(
       signinDto.email,
       signinDto.password,
     );
-    return ok('Signed in successfully.', tokens);
+    this.setRefreshCookie(res, tokens.refreshToken);
+    return ok('Signed in successfully.', { accessToken: tokens.accessToken });
   }
 
   @Post('verify-email')
@@ -170,15 +198,20 @@ export class AuthController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Email verified. Returns auth tokens.',
-    schema: ApiSuccessSchema(AuthTokensSchema),
+    description:
+      'Email verified. Returns access token; refresh token set as HttpOnly cookie.',
+    schema: ApiSuccessSchema(AccessTokenSchema),
   })
   @ApiResponse({ status: 401, description: 'Invalid or expired token.' })
   async verifyEmail(
     @Body() dto: VerifyEmailDto,
-  ): Promise<ApiResponseType<AuthTokens>> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ApiResponseType<{ accessToken: string }>> {
     const tokens = await this.verifyEmailService.execute(dto.email, dto.token);
-    return ok('Email verified successfully. You are now signed in.', tokens);
+    this.setRefreshCookie(res, tokens.refreshToken);
+    return ok('Email verified successfully. You are now signed in.', {
+      accessToken: tokens.accessToken,
+    });
   }
 
   // ── Current user profile ────────────────────────────────────────────────────
@@ -193,25 +226,30 @@ export class AuthController {
     schema: ApiSuccessSchema({
       type: 'object',
       properties: {
-        id:        { type: 'string' },
-        email:     { type: 'string' },
+        id: { type: 'string' },
+        email: { type: 'string' },
         firstname: { type: 'string' },
-        lastname:  { type: 'string', nullable: true },
+        lastname: { type: 'string', nullable: true },
       },
     }),
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async me(
-    @Req() req: Request,
-  ): Promise<ApiResponseType<{ id: string; email: string; firstname: string; lastname: string | null }>> {
+  async me(@Req() req: Request): Promise<
+    ApiResponseType<{
+      id: string;
+      email: string;
+      firstname: string;
+      lastname: string | null;
+    }>
+  > {
     const payload = req.user as TokenPayload;
-    const user = await this.userRepo.findById(payload.sub);
+    const user = await this.findUser.findById(payload.sub);
     if (!user) throw new UnauthorizedException('User not found');
     return ok('User profile retrieved.', {
-      id:        user.id,
-      email:     user.email,
+      id: user.id,
+      email: user.email,
       firstname: user.firstname,
-      lastname:  user.lastname,
+      lastname: user.lastname,
     });
   }
 
@@ -234,10 +272,8 @@ export class AuthController {
       const tokens = await this.oAuthSigninService.execute(
         req.user as OAuthProfile,
       );
-      const params = new URLSearchParams({
-        accessToken:  tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      });
+      this.setRefreshCookie(res, tokens.refreshToken);
+      const params = new URLSearchParams({ accessToken: tokens.accessToken });
       res.redirect(
         `${this.configService.frontendUrl}/signin/google/callback?${params.toString()}`,
       );
@@ -267,10 +303,8 @@ export class AuthController {
       const tokens = await this.oAuthSigninService.execute(
         req.user as OAuthProfile,
       );
-      const params = new URLSearchParams({
-        accessToken:  tokens.accessToken,
-        refreshToken: tokens.refreshToken,
-      });
+      this.setRefreshCookie(res, tokens.refreshToken);
+      const params = new URLSearchParams({ accessToken: tokens.accessToken });
       res.redirect(
         `${this.configService.frontendUrl}/signin/github/callback?${params.toString()}`,
       );
@@ -286,40 +320,53 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtRefreshGuard)
-  @ApiBearerAuth('refresh-token')
-  @ApiOperation({ summary: 'Refresh access and refresh tokens' })
+  @ApiCookieAuth('refresh-token-cookie')
+  @ApiOperation({
+    summary: 'Rotate refresh token cookie, return new access token',
+  })
   @ApiResponse({
     status: 200,
-    description: 'Tokens refreshed.',
-    schema: ApiSuccessSchema(AuthTokensSchema),
+    description:
+      'Tokens rotated. New refresh token set as HttpOnly cookie; access token returned in body.',
+    schema: ApiSuccessSchema(AccessTokenSchema),
   })
   @ApiResponse({
     status: 401,
-    description: 'Invalid or revoked refresh token.',
+    description: 'Invalid or revoked refresh token cookie.',
   })
-  async refresh(@Req() req: Request): Promise<ApiResponseType<AuthTokens>> {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ApiResponseType<{ accessToken: string }>> {
     const payload = req.user as TokenPayload;
     const tokens = await this.tokenService.generateTokens(
       payload.sub,
       payload.email,
     );
-    return ok('Tokens refreshed successfully.', tokens);
+    this.setRefreshCookie(res, tokens.refreshToken);
+    return ok('Tokens refreshed successfully.', {
+      accessToken: tokens.accessToken,
+    });
   }
 
   @Post('signout')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('access-token')
-  @ApiOperation({ summary: 'Sign out and revoke refresh token' })
+  @ApiOperation({ summary: 'Sign out: revoke refresh token and clear cookie' })
   @ApiResponse({
     status: 200,
     description: 'Signed out successfully.',
     schema: ApiSuccessSchema(),
   })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  async signout(@Req() req: Request): Promise<ApiResponseType> {
+  async signout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<ApiResponseType> {
     const payload = req.user as TokenPayload;
     await this.tokenService.revokeRefreshToken(payload.sub);
+    this.clearRefreshCookie(res);
     return ok('Signed out successfully.');
   }
 }

@@ -16,14 +16,17 @@ export class JwtRefreshStrategy extends PassportStrategy(
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
   ) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        (req: Request): string | null =>
+          (req?.cookies?.refresh_token as string | undefined) ?? null,
+      ]),
       secretOrKey: configService.tokenSecrets.jwtRefreshSecret,
       passReqToCallback: true,
     });
   }
 
   async validate(req: Request, payload: TokenPayload): Promise<TokenPayload> {
-    const token = req.headers.authorization?.split(' ')[1];
+    const token = req.cookies?.refresh_token as string | undefined;
     if (!token) throw new UnauthorizedException('No refresh token provided');
 
     const isValid = await this.tokenService.isRefreshTokenValid(

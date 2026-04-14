@@ -3,10 +3,13 @@ import { AppModule } from './app.module';
 import { ConfigService } from './shared/config/config.service';
 import { VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import cookieParser from 'cookie-parser';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const config = app.get(ConfigService);
+
+  app.use(cookieParser());
 
   app.enableCors({
     origin: config.frontendUrl,
@@ -29,9 +32,10 @@ async function bootstrap() {
       { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
       'access-token',
     )
-    .addBearerAuth(
-      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT', in: 'header' },
-      'refresh-token',
+    .addCookieAuth(
+      'refresh_token',
+      { type: 'apiKey', in: 'cookie' },
+      'refresh-token-cookie',
     )
     .build();
 
