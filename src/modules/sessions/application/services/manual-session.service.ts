@@ -27,7 +27,7 @@ import type { Distraction } from '@sessions/domain/entities/session.entity';
 export interface ManualSessionInput {
   userId: string;
   taskId: string;
-  durationMinutes: number;
+  durationMs: number;
   /** ISO string of when the work was done. Defaults to now. */
   startedAt?: string;
   note?: string;
@@ -48,21 +48,23 @@ export class ManualSessionService {
 
   async execute(input: ManualSessionInput): Promise<Session> {
     await this.taskAccess.verifyOwnership(input.taskId, input.userId);
-    const estimatedDurationMinutes = await this.taskAccess.getEstimatedDuration(
-      input.taskId,
-      input.userId,
-    );
+    const estimatedDurationMs =
+      (await this.taskAccess.getEstimatedDuration(input.taskId, input.userId)) *
+      60_000;
 
     const now = new Date();
     const startedAt = input.startedAt ? new Date(input.startedAt) : now;
     const sessionId = this.idGenerator.generate();
 
-    const netFocusMinutes = input.durationMinutes;
+    const netFocusMs = input.durationMs;
+    const previousNetFocusMsForTask =
+      await this.sessionRepo.sumNetFocusMsByTaskId(input.taskId);
+    const cumulativeNetFocusMs = previousNetFocusMsForTask + netFocusMs;
     const plantGrowthPercent =
-      estimatedDurationMinutes > 0
+      estimatedDurationMs > 0
         ? Math.min(
             100,
-            Math.round((netFocusMinutes / estimatedDurationMinutes) * 100),
+            Math.round((cumulativeNetFocusMs / estimatedDurationMs) * 100),
           )
         : 0;
 
@@ -76,8 +78,8 @@ export class ManualSessionService {
       source: SessionSource.MANUAL,
       startedAt,
       endedAt: now,
-      durationMinutes: input.durationMinutes,
-      netFocusMinutes,
+      durationMs: input.durationMs,
+      netFocusMs,
       distractions,
       plantStatus: PlantStatus.HEALTHY,
       plantGrowthPercent,
@@ -91,7 +93,7 @@ export class ManualSessionService {
         sessionId,
         input.userId,
         input.taskId,
-        input.durationMinutes,
+        input.durationMs,
       ),
     );
 

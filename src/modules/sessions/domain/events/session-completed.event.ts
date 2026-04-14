@@ -3,6 +3,6 @@ export class SessionCompletedEvent {
     public readonly sessionId: string,
     public readonly userId: string,
     public readonly taskId: string,
-    public readonly durationMinutes: number,
+    public readonly durationMs: number,
   ) {}
 }

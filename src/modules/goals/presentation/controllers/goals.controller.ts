@@ -62,8 +62,18 @@ interface GoalResponse {
   category: GoalCategory;
   status: GoalStatus;
   priority: GoalPriority;
-  deadline: Date | null;
-  estimatedHours: number | null;
+  /** Planned end date for the goal; null = no deadline set */
+  estimatedEndDate: Date | null;
+  /** Estimated duration to complete this goal in milliseconds; null = not set */
+  estimatedDuration: number | null;
+  /** When the user plans to start the goal; null = not set */
+  estimatedStartDate: Date | null;
+  /** Actual date the goal was started; null = not yet started */
+  actualStartDate: Date | null;
+  /** Date the goal was completed or abandoned; null = still in progress */
+  actualEndDate: Date | null;
+  /** True when the goal is active and all tasks are complete (score >= 100) */
+  isReadyToComplete: boolean;
   level: number;
   progress: GoalProgress;
   createdAt: Date;
@@ -80,8 +90,13 @@ function toGoalResponse(goal: Goal): GoalResponse {
     category: goal.category,
     status: goal.status,
     priority: goal.priority,
-    deadline: goal.deadline,
-    estimatedHours: goal.estimatedHours,
+    estimatedEndDate: goal.estimatedEndDate,
+    estimatedDuration: goal.estimatedDuration,
+    estimatedStartDate: goal.estimatedStartDate,
+    actualStartDate: goal.actualStartDate,
+    actualEndDate: goal.actualEndDate,
+    isReadyToComplete:
+      goal.progress.score >= 100 && goal.status === GoalStatus.ACTIVE,
     level: goal.level,
     progress: goal.progress,
     createdAt: goal.createdAt,
@@ -167,7 +182,7 @@ export class GoalsController {
     description:
       'Status transitions are enforced: ACTIVE→PAUSED|COMPLETED|ABANDONED, ' +
       'PAUSED→ACTIVE|ABANDONED, COMPLETED→ACTIVE, ABANDONED→∅. ' +
-      'Changing the deadline queues an async AI pacing recalculation.',
+      'Changing the estimatedEndDate queues an async AI pacing recalculation.',
   })
   @ApiParam({ name: 'id', description: 'Goal ID' })
   @ApiResponse({ status: 200, description: 'Goal updated.' })

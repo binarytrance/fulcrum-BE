@@ -15,6 +15,9 @@ export class Task {
   private readonly _priority: TaskFields['priority'];
   private readonly _type: TaskFields['type'];
   private readonly _scheduledFor: TaskFields['scheduledFor'];
+  private readonly _estimatedEndDate: TaskFields['estimatedEndDate'];
+  private readonly _startDate: TaskFields['startDate'];
+  private readonly _actualEndDate: TaskFields['actualEndDate'];
   private readonly _estimatedDuration: TaskFields['estimatedDuration'];
   private readonly _actualDuration: TaskFields['actualDuration'];
   private readonly _efficiencyScore: TaskFields['efficiencyScore'];
@@ -34,6 +37,9 @@ export class Task {
     this._priority = fields.priority;
     this._type = fields.type;
     this._scheduledFor = fields.scheduledFor;
+    this._estimatedEndDate = fields.estimatedEndDate;
+    this._startDate = fields.startDate;
+    this._actualEndDate = fields.actualEndDate;
     this._estimatedDuration = fields.estimatedDuration;
     this._actualDuration = fields.actualDuration;
     this._efficiencyScore = fields.efficiencyScore;
@@ -71,6 +77,15 @@ export class Task {
   get scheduledFor() {
     return this._scheduledFor;
   }
+  get estimatedEndDate() {
+    return this._estimatedEndDate;
+  }
+  get startDate() {
+    return this._startDate;
+  }
+  get actualEndDate() {
+    return this._actualEndDate;
+  }
   get estimatedDuration() {
     return this._estimatedDuration;
   }
@@ -107,6 +122,9 @@ export class Task {
       priority: this._priority,
       type: this._type,
       scheduledFor: this._scheduledFor,
+      estimatedEndDate: this._estimatedEndDate,
+      startDate: this._startDate,
+      actualEndDate: this._actualEndDate,
       estimatedDuration: this._estimatedDuration,
       actualDuration: this._actualDuration,
       efficiencyScore: this._efficiencyScore,
@@ -130,6 +148,8 @@ export class Task {
         | 'description'
         | 'priority'
         | 'scheduledFor'
+        | 'estimatedEndDate'
+        | 'startDate'
         | 'estimatedDuration'
         | 'status'
       >
@@ -153,6 +173,7 @@ export class Task {
 
   /**
    * Marks the task as completed.
+   * @param actualDuration — actual time spent, in milliseconds.
    * Computes efficiencyScore = round((estimatedDuration / actualDuration) * 100).
    * A score > 100 means the user finished faster than estimated.
    */
@@ -173,15 +194,18 @@ export class Task {
       actualDuration,
       efficiencyScore,
       completedAt: now,
+      actualEndDate: now,
       updatedAt: now,
     });
   }
 
   softDelete(): Task {
+    const now = new Date();
     return new Task({
       ...this.toFields(),
-      deletedAt: new Date(),
-      updatedAt: new Date(),
+      deletedAt: now,
+      actualEndDate: now,
+      updatedAt: now,
     });
   }
 
@@ -194,6 +218,8 @@ export class Task {
       | 'efficiencyScore'
       | 'completedAt'
       | 'deletedAt'
+      | 'startDate'
+      | 'actualEndDate'
     >,
   ): Task {
     const now = new Date();
@@ -203,6 +229,8 @@ export class Task {
       efficiencyScore: null,
       completedAt: null,
       deletedAt: null,
+      startDate: null,
+      actualEndDate: null,
       createdAt: now,
       updatedAt: now,
     });

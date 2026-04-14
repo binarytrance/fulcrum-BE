@@ -50,9 +50,15 @@ export interface TaskFields {
   type: TaskType;
   /** Date on which the user plans to work on this task */
   scheduledFor: Date | null;
-  /** Time-box the user sets upfront, in minutes */
+  /** Planned end date for the task; null = no target date set */
+  estimatedEndDate: Date | null;
+  /** Actual date the user started working; null = not yet started */
+  startDate: Date | null;
+  /** Date the task was completed or cancelled; null = still in progress */
+  actualEndDate: Date | null;
+  /** Time-box the user sets upfront, in milliseconds */
   estimatedDuration: number;
-  /** Computed from sum of session durations on completion (Phase 4: sessions) */
+  /** In milliseconds, sum of session durations on completion (Phase 4: sessions) */
   actualDuration: number | null;
   /**
    * (estimatedDuration / actualDuration) * 100

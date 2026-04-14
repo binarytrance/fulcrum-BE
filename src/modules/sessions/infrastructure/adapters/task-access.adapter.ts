@@ -44,7 +44,8 @@ export class TaskAccessAdapter implements ITaskAccessPort {
     if (!task || task.userId.toString() !== userId) {
       throw new NotFoundException('Task not found.');
     }
-    return task.estimatedDuration;
+    // estimatedDuration is stored in ms — convert to minutes for session timer
+    return Math.round(task.estimatedDuration / 60_000);
   }
 
   async updateActualDuration(

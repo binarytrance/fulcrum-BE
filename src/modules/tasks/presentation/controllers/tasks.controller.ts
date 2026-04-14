@@ -70,7 +70,15 @@ interface TaskResponse {
   priority: TaskPriority;
   type: TaskType;
   scheduledFor: Date | null;
+  /** Planned end date for the task; null = no target date set */
+  estimatedEndDate: Date | null;
+  /** Actual date the user started working; null = not yet started */
+  startDate: Date | null;
+  /** Date the task was completed or cancelled; null = still in progress */
+  actualEndDate: Date | null;
+  /** Time-box the user set upfront, in milliseconds */
   estimatedDuration: number;
+  /** Actual time spent on the task, in milliseconds */
   actualDuration: number | null;
   efficiencyScore: number | null;
   completedAt: Date | null;
@@ -89,6 +97,9 @@ function toTaskResponse(task: Task): TaskResponse {
     priority: task.priority,
     type: task.type,
     scheduledFor: task.scheduledFor,
+    estimatedEndDate: task.estimatedEndDate,
+    startDate: task.startDate,
+    actualEndDate: task.actualEndDate,
     estimatedDuration: task.estimatedDuration,
     actualDuration: task.actualDuration,
     efficiencyScore: task.efficiencyScore,

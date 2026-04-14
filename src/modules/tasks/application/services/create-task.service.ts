@@ -29,6 +29,9 @@ export interface CreateTaskInput {
   priority?: TaskPriority;
   type?: TaskType;
   scheduledFor?: Date;
+  /** Planned end date for the task; null = no target date set */
+  estimatedEndDate?: Date;
+  /** Time-box the user sets upfront, in milliseconds */
   estimatedDuration: number;
   goalId?: string;
 }
@@ -52,9 +55,9 @@ export class CreateTaskService {
       await this.goalOwnership.verifyOwnership(input.goalId, input.userId);
     }
 
-    if (input.estimatedDuration < 1) {
+    if (input.estimatedDuration < 1000) {
       throw new BadRequestException(
-        'estimatedDuration must be at least 1 minute.',
+        'estimatedDuration must be at least 1000ms (1 second).',
       );
     }
 
@@ -75,6 +78,7 @@ export class CreateTaskService {
       priority: input.priority ?? TaskPriority.MEDIUM,
       type,
       scheduledFor: input.scheduledFor ?? null,
+      estimatedEndDate: input.estimatedEndDate ?? null,
       estimatedDuration: input.estimatedDuration,
     });
 

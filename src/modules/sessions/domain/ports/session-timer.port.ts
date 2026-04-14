@@ -12,7 +12,9 @@ export interface ActiveTimerState {
   /** Unix timestamp (ms) of the last heartbeat. Used for abandonment detection. */
   lastHeartbeatAt: number;
   /** Stored here so heartbeat can compute plantGrowthPercent without a DB lookup. */
-  taskEstimatedDurationMinutes: number;
+  taskEstimatedDurationMs: number;
+  /** Sum of netFocusMs from all previously COMPLETED sessions for this task. Used for cumulative growth. */
+  previousNetFocusMsForTask: number;
 }
 
 export const SESSION_TIMER_PORT = Symbol('SESSION_TIMER_PORT');
@@ -38,4 +40,13 @@ export interface ISessionTimerPort {
 
   /** Returns elapsed ms from startedAt. Returns null if timer missing. */
   getElapsedMs(sessionId: string): Promise<number | null>;
+
+  /**
+   * Increases taskEstimatedDurationMs by additionalMs and returns the updated state.
+   * Used by the extension feature.
+   */
+  extendTimer(
+    sessionId: string,
+    additionalMs: number,
+  ): Promise<ActiveTimerState>;
 }

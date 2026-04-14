@@ -9,12 +9,16 @@ import { TASK_EVENT_PUBLISHER_PORT } from '@tasks/domain/ports/task-event-publis
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 // HabitMongoModule registers HabitOccurrence model used by the MARK_HABIT_OCCURRENCE handler.
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
+import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
+import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
 import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
 
 @Module({
   imports: [
     TaskMongoModule,
     HabitMongoModule,
+    GoalMongoModule,
+    SessionMongoModule,
     AnalyticsWorkersModule,
     BullModule.registerQueue({ name: TASKS_QUEUE_NAME }),
     BullBoardModule.forFeature({

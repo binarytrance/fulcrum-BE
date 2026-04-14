@@ -18,11 +18,18 @@ export const CreateTaskSchema = z.object({
     .datetime({ message: 'scheduledFor must be a valid ISO date-time string.' })
     .transform((v) => new Date(v))
     .optional(),
-  /** Time-box in minutes — required at creation */
+  /** Time-box in milliseconds — required at creation */
   estimatedDuration: z
     .number({ error: 'estimatedDuration is required and must be a number' })
     .int()
     .positive(),
+  estimatedEndDate: z
+    .string()
+    .datetime({
+      message: 'estimatedEndDate must be a valid ISO date-time string.',
+    })
+    .transform((v) => new Date(v))
+    .optional(),
   goalId: z.string().optional(),
 });
 

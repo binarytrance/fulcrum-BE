@@ -9,7 +9,7 @@ import { HydratedDocument } from 'mongoose';
 @Schema({ _id: false })
 export class DistractionSchema {
   @Prop({ type: String, required: true }) reason: string;
-  @Prop({ type: Number, required: true, min: 0 }) estimatedMinutes: number;
+  @Prop({ type: Number, required: true, min: 0 }) estimatedMs: number;
   @Prop({ type: Date, required: true }) loggedAt: Date;
 }
 
@@ -42,16 +42,16 @@ export class SessionDoc {
   endedAt: Date | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  durationMinutes: number | null;
+  durationMs: number | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  netFocusMinutes: number | null;
+  netFocusMs: number | null;
 
   @Prop({
     type: [
       {
         reason: { type: String, required: true },
-        estimatedMinutes: { type: Number, required: true, min: 0 },
+        estimatedMs: { type: Number, required: true, min: 0 },
         loggedAt: { type: Date, required: true },
         _id: false,
       },

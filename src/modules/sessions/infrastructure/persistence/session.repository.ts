@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { PipelineStage } from 'mongoose';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import {
@@ -24,8 +25,8 @@ type SessionDocLean = {
   source: SessionSource;
   startedAt: Date;
   endedAt: Date | null;
-  durationMinutes: number | null;
-  netFocusMinutes: number | null;
+  durationMs: number | null;
+  netFocusMs: number | null;
   distractions: Distraction[];
   plantStatus: PlantStatus;
   plantGrowthPercent: number;
@@ -77,6 +78,23 @@ export class SessionRepository implements ISessionRepository {
     return docs.map((d) => this.toDomain(d));
   }
 
+  async sumNetFocusMsByTaskId(taskId: string): Promise<number> {
+    const pipeline: PipelineStage[] = [
+      {
+        $match: {
+          taskId,
+          status: SessionStatus.COMPLETED,
+          netFocusMs: { $ne: null },
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$netFocusMs' } } },
+    ];
+    const result = await this.sessionModel.aggregate<{ total: number }>(
+      pipeline,
+    );
+    return result[0]?.total ?? 0;
+  }
+
   private toPersistence(session: Session) {
     return {
       _id: session.id,
@@ -86,8 +104,8 @@ export class SessionRepository implements ISessionRepository {
       source: session.source,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
-      durationMinutes: session.durationMinutes,
-      netFocusMinutes: session.netFocusMinutes,
+      durationMs: session.durationMs,
+      netFocusMs: session.netFocusMs,
       distractions: session.distractions,
       plantStatus: session.plantStatus,
       plantGrowthPercent: session.plantGrowthPercent,
@@ -104,8 +122,8 @@ export class SessionRepository implements ISessionRepository {
       source: doc.source,
       startedAt: doc.startedAt,
       endedAt: doc.endedAt ?? null,
-      durationMinutes: doc.durationMinutes ?? null,
-      netFocusMinutes: doc.netFocusMinutes ?? null,
+      durationMs: doc.durationMs ?? null,
+      netFocusMs: doc.netFocusMs ?? null,
       distractions: doc.distractions ?? [],
       plantStatus: doc.plantStatus,
       plantGrowthPercent: doc.plantGrowthPercent ?? 0,

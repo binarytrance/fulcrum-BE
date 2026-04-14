@@ -6,9 +6,11 @@ import {
   Get,
   UseGuards,
   Req,
+  Res,
   HttpCode,
   HttpStatus,
   Inject,
+  UnauthorizedException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -18,7 +20,7 @@ import {
   ApiBearerAuth,
   ApiExcludeEndpoint,
 } from '@nestjs/swagger';
-import type { Request } from 'express';
+import type { Request, Response } from 'express';
 import { SignupService } from '@/modules/auth/application/services/signup.service';
 import { LocalSigninService } from '@auth/application/services/local-signin.service';
 import { OAuthSigninService } from '@auth/application/services/oauth-signin.service';
@@ -50,6 +52,13 @@ import {
   type ApiResponse as ApiResponseType,
   ok,
 } from '@shared/presentation/responses/api-response';
+import { ConfigService } from '@shared/config/config.service';
+import {
+  USER_REPO_PORT,
+  type IUserRepository,
+} from '@users/domain/ports/user-rep.port';
+
+// ─── Swagger schema helpers ───────────────────────────────────────────────────
 
 const AuthTokensSchema = {
   type: 'object',
@@ -68,6 +77,8 @@ const ApiSuccessSchema = (dataSchema?: object) => ({
   },
 });
 
+// ─── Controller ───────────────────────────────────────────────────────────────
+
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
@@ -77,9 +88,11 @@ export class AuthController {
     private readonly oAuthSigninService: OAuthSigninService,
     private readonly verifyEmailService: VerifyEmailService,
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
+    @Inject(USER_REPO_PORT) private readonly userRepo: IUserRepository,
+    private readonly configService: ConfigService,
   ) {}
 
-  // Local
+  // ── Local auth ──────────────────────────────────────────────────────────────
 
   @Post('signup')
   @HttpCode(HttpStatus.CREATED)
@@ -168,7 +181,41 @@ export class AuthController {
     return ok('Email verified successfully. You are now signed in.', tokens);
   }
 
-  // Google OAuth
+  // ── Current user profile ────────────────────────────────────────────────────
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('access-token')
+  @ApiOperation({ summary: 'Get the currently authenticated user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'User profile retrieved.',
+    schema: ApiSuccessSchema({
+      type: 'object',
+      properties: {
+        id:        { type: 'string' },
+        email:     { type: 'string' },
+        firstname: { type: 'string' },
+        lastname:  { type: 'string', nullable: true },
+      },
+    }),
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async me(
+    @Req() req: Request,
+  ): Promise<ApiResponseType<{ id: string; email: string; firstname: string; lastname: string | null }>> {
+    const payload = req.user as TokenPayload;
+    const user = await this.userRepo.findById(payload.sub);
+    if (!user) throw new UnauthorizedException('User not found');
+    return ok('User profile retrieved.', {
+      id:        user.id,
+      email:     user.email,
+      firstname: user.firstname,
+      lastname:  user.lastname,
+    });
+  }
+
+  // ── Google OAuth ─────────────────────────────────────────────────────────────
 
   @Get('google')
   @UseGuards(GoogleAuthGuard)
@@ -181,14 +228,27 @@ export class AuthController {
   @ApiExcludeEndpoint()
   async googleCallback(
     @Req() req: Request,
-  ): Promise<ApiResponseType<AuthTokens>> {
-    const tokens = await this.oAuthSigninService.execute(
-      req.user as OAuthProfile,
-    );
-    return ok('Signed in with Google successfully.', tokens);
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const tokens = await this.oAuthSigninService.execute(
+        req.user as OAuthProfile,
+      );
+      const params = new URLSearchParams({
+        accessToken:  tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
+      res.redirect(
+        `${this.configService.frontendUrl}/signin/google/callback?${params.toString()}`,
+      );
+    } catch {
+      res.redirect(
+        `${this.configService.frontendUrl}/signin?error=oauth_failed`,
+      );
+    }
   }
 
-  // Github OAuth
+  // ── GitHub OAuth ─────────────────────────────────────────────────────────────
 
   @Get('github')
   @UseGuards(GithubAuthGuard)
@@ -201,14 +261,27 @@ export class AuthController {
   @ApiExcludeEndpoint()
   async githubCallback(
     @Req() req: Request,
-  ): Promise<ApiResponseType<AuthTokens>> {
-    const tokens = await this.oAuthSigninService.execute(
-      req.user as OAuthProfile,
-    );
-    return ok('Signed in with GitHub successfully.', tokens);
+    @Res() res: Response,
+  ): Promise<void> {
+    try {
+      const tokens = await this.oAuthSigninService.execute(
+        req.user as OAuthProfile,
+      );
+      const params = new URLSearchParams({
+        accessToken:  tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
+      res.redirect(
+        `${this.configService.frontendUrl}/signin/github/callback?${params.toString()}`,
+      );
+    } catch {
+      res.redirect(
+        `${this.configService.frontendUrl}/signin?error=oauth_failed`,
+      );
+    }
   }
 
-  // Refresh token
+  // ── Token management ─────────────────────────────────────────────────────────
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
@@ -232,8 +305,6 @@ export class AuthController {
     );
     return ok('Tokens refreshed successfully.', tokens);
   }
-
-  // signout
 
   @Post('signout')
   @HttpCode(HttpStatus.OK)

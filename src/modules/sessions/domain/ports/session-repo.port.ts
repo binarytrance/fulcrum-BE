@@ -10,4 +10,9 @@ export interface ISessionRepository {
   /** Returns all ACTIVE sessions older than the given threshold date (for abandonment worker). */
   findStaleActive(olderThan: Date): Promise<Session[]>;
   findByTaskId(taskId: string): Promise<Session[]>;
+  /**
+   * Sums netFocusMs for all COMPLETED sessions belonging to a task.
+   * Used to compute cumulative plant growth across sessions.
+   */
+  sumNetFocusMsByTaskId(taskId: string): Promise<number>;
 }

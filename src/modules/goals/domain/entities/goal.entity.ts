@@ -18,8 +18,11 @@ export class Goal {
   private readonly _category: GoalFields['category'];
   private readonly _status: GoalFields['status'];
   private readonly _priority: GoalFields['priority'];
-  private readonly _deadline: GoalFields['deadline'];
-  private readonly _estimatedHours: GoalFields['estimatedHours'];
+  private readonly _estimatedEndDate: GoalFields['estimatedEndDate'];
+  private readonly _estimatedDuration: GoalFields['estimatedDuration'];
+  private readonly _estimatedStartDate: GoalFields['estimatedStartDate'];
+  private readonly _actualStartDate: GoalFields['actualStartDate'];
+  private readonly _actualEndDate: GoalFields['actualEndDate'];
   private readonly _level: GoalFields['level'];
   private readonly _progress: GoalFields['progress'];
   private readonly _deletedAt: GoalFields['deletedAt'];
@@ -35,8 +38,11 @@ export class Goal {
     this._category = fields.category;
     this._status = fields.status;
     this._priority = fields.priority;
-    this._deadline = fields.deadline;
-    this._estimatedHours = fields.estimatedHours;
+    this._estimatedEndDate = fields.estimatedEndDate;
+    this._estimatedDuration = fields.estimatedDuration;
+    this._estimatedStartDate = fields.estimatedStartDate;
+    this._actualStartDate = fields.actualStartDate;
+    this._actualEndDate = fields.actualEndDate;
     this._level = fields.level;
     this._progress = fields.progress;
     this._deletedAt = fields.deletedAt;
@@ -76,12 +82,24 @@ export class Goal {
     return this._priority;
   }
 
-  get deadline() {
-    return this._deadline;
+  get estimatedEndDate() {
+    return this._estimatedEndDate;
   }
 
-  get estimatedHours() {
-    return this._estimatedHours;
+  get estimatedDuration() {
+    return this._estimatedDuration;
+  }
+
+  get estimatedStartDate() {
+    return this._estimatedStartDate;
+  }
+
+  get actualStartDate() {
+    return this._actualStartDate;
+  }
+
+  get actualEndDate() {
+    return this._actualEndDate;
   }
 
   get level() {
@@ -107,6 +125,8 @@ export class Goal {
   /**
    * Returns a new Goal with the given scalar fields changed.
    * Status transitions are validated here — the domain enforces the state machine.
+   * Auto-sets actualStartDate when transitioning to ACTIVE (if not already set).
+   * Auto-sets actualEndDate when transitioning to COMPLETED or ABANDONED (if not already set).
    */
   update(
     fields: Partial<
@@ -117,8 +137,11 @@ export class Goal {
         | 'category'
         | 'status'
         | 'priority'
-        | 'deadline'
-        | 'estimatedHours'
+        | 'estimatedEndDate'
+        | 'estimatedDuration'
+        | 'estimatedStartDate'
+        | 'actualStartDate'
+        | 'actualEndDate'
       >
     >,
   ): Goal {
@@ -131,7 +154,31 @@ export class Goal {
         );
       }
     }
-    return new Goal({ ...this.toFields(), ...fields, updatedAt: new Date() });
+
+    const merged: GoalFields = {
+      ...this.toFields(),
+      ...fields,
+      updatedAt: new Date(),
+    };
+
+    // Auto-set actualStartDate when transitioning to ACTIVE
+    if (
+      fields.status === GoalStatus.ACTIVE &&
+      merged.actualStartDate === null
+    ) {
+      merged.actualStartDate = new Date();
+    }
+
+    // Auto-set actualEndDate when transitioning to COMPLETED or ABANDONED
+    if (
+      (fields.status === GoalStatus.COMPLETED ||
+        fields.status === GoalStatus.ABANDONED) &&
+      merged.actualEndDate === null
+    ) {
+      merged.actualEndDate = new Date();
+    }
+
+    return new Goal(merged);
   }
 
   /** Replace the stored progress snapshot (called by background worker). */
@@ -162,8 +209,11 @@ export class Goal {
       category: this._category,
       status: this._status,
       priority: this._priority,
-      deadline: this._deadline,
-      estimatedHours: this._estimatedHours,
+      estimatedEndDate: this._estimatedEndDate,
+      estimatedDuration: this._estimatedDuration,
+      estimatedStartDate: this._estimatedStartDate,
+      actualStartDate: this._actualStartDate,
+      actualEndDate: this._actualEndDate,
       level: this._level,
       progress: this._progress,
       deletedAt: this._deletedAt,

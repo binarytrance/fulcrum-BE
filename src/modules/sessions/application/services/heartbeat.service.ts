@@ -35,13 +35,14 @@ export class HeartbeatService {
       throw new NotFoundException('Timer expired or missing.');
     }
 
-    const elapsedMinutes = elapsedMs / 60_000;
     const plantGrowthPercent =
-      timer.taskEstimatedDurationMinutes > 0
+      timer.taskEstimatedDurationMs > 0
         ? Math.min(
             100,
             Math.round(
-              (elapsedMinutes / timer.taskEstimatedDurationMinutes) * 100,
+              ((elapsedMs + timer.previousNetFocusMsForTask) /
+                timer.taskEstimatedDurationMs) *
+                100,
             ),
           )
         : 0;

@@ -4,14 +4,14 @@ import {
   SessionSource,
   SessionStatus,
   WILTED_DISTRACTION_COUNT,
-  WILTED_DISTRACTION_MINUTES,
+  WILTED_DISTRACTION_MS,
   WILTING_DISTRACTION_COUNT,
-  WILTING_DISTRACTION_MINUTES,
+  WILTING_DISTRACTION_MS,
 } from '@sessions/domain/types/session.types';
 
 export interface Distraction {
   reason: string;
-  estimatedMinutes: number;
+  estimatedMs: number;
   loggedAt: Date;
 }
 
@@ -23,8 +23,8 @@ export interface SessionFields {
   source: SessionSource;
   startedAt: Date;
   endedAt: Date | null;
-  durationMinutes: number | null;
-  netFocusMinutes: number | null;
+  durationMs: number | null;
+  netFocusMs: number | null;
   distractions: Distraction[];
   plantStatus: PlantStatus;
   plantGrowthPercent: number;
@@ -39,8 +39,8 @@ export class Session {
   readonly source: SessionSource;
   readonly startedAt: Date;
   readonly endedAt: Date | null;
-  readonly durationMinutes: number | null;
-  readonly netFocusMinutes: number | null;
+  readonly durationMs: number | null;
+  readonly netFocusMs: number | null;
   readonly distractions: Distraction[];
   readonly plantStatus: PlantStatus;
   readonly plantGrowthPercent: number;
@@ -54,8 +54,8 @@ export class Session {
     this.source = fields.source;
     this.startedAt = fields.startedAt;
     this.endedAt = fields.endedAt;
-    this.durationMinutes = fields.durationMinutes;
-    this.netFocusMinutes = fields.netFocusMinutes;
+    this.durationMs = fields.durationMs;
+    this.netFocusMs = fields.netFocusMs;
     this.distractions = fields.distractions;
     this.plantStatus = fields.plantStatus;
     this.plantGrowthPercent = fields.plantGrowthPercent;
@@ -82,29 +82,29 @@ export class Session {
 
   /**
    * Returns a new completed Session with all metrics computed.
-   * @param durationMinutes  Elapsed timer minutes (from Redis).
-   * @param taskEstimatedDurationMinutes  Used to calculate plantGrowthPercent.
+   * @param durationMs  Elapsed timer milliseconds (from Redis).
+   * @param taskEstimatedDurationMs  Used to calculate plantGrowthPercent.
+   * @param previousNetFocusMs  Sum of netFocusMs from all prior COMPLETED sessions for this task.
    */
   complete(
-    durationMinutes: number,
-    taskEstimatedDurationMinutes: number,
+    durationMs: number,
+    taskEstimatedDurationMs: number,
+    previousNetFocusMs: number = 0,
   ): Session {
     if (this.status !== SessionStatus.ACTIVE) {
       throw new BadRequestException('Session is not active.');
     }
-    const totalDistractionMinutes = this.distractions.reduce(
-      (sum, d) => sum + d.estimatedMinutes,
+    const totalDistractionMs = this.distractions.reduce(
+      (sum, d) => sum + d.estimatedMs,
       0,
     );
-    const netFocusMinutes = Math.max(
-      0,
-      durationMinutes - totalDistractionMinutes,
-    );
+    const netFocusMs = Math.max(0, durationMs - totalDistractionMs);
+    const cumulativeNetFocusMs = previousNetFocusMs + netFocusMs;
     const plantGrowthPercent =
-      taskEstimatedDurationMinutes > 0
+      taskEstimatedDurationMs > 0
         ? Math.min(
             100,
-            Math.round((netFocusMinutes / taskEstimatedDurationMinutes) * 100),
+            Math.round((cumulativeNetFocusMs / taskEstimatedDurationMs) * 100),
           )
         : 0;
 
@@ -112,8 +112,8 @@ export class Session {
       ...this.toFields(),
       status: SessionStatus.COMPLETED,
       endedAt: new Date(),
-      durationMinutes,
-      netFocusMinutes,
+      durationMs,
+      netFocusMs,
       plantGrowthPercent,
       plantStatus: computePlantStatus(this.distractions),
     });
@@ -137,8 +137,8 @@ export class Session {
       source: this.source,
       startedAt: this.startedAt,
       endedAt: this.endedAt,
-      durationMinutes: this.durationMinutes,
-      netFocusMinutes: this.netFocusMinutes,
+      durationMs: this.durationMs,
+      netFocusMs: this.netFocusMs,
       distractions: this.distractions,
       plantStatus: this.plantStatus,
       plantGrowthPercent: this.plantGrowthPercent,
@@ -149,18 +149,12 @@ export class Session {
 
 function computePlantStatus(distractions: Distraction[]): PlantStatus {
   const count = distractions.length;
-  const totalMinutes = distractions.reduce((s, d) => s + d.estimatedMinutes, 0);
+  const totalMs = distractions.reduce((s, d) => s + d.estimatedMs, 0);
 
-  if (
-    count >= WILTED_DISTRACTION_COUNT ||
-    totalMinutes >= WILTED_DISTRACTION_MINUTES
-  ) {
+  if (count >= WILTED_DISTRACTION_COUNT || totalMs >= WILTED_DISTRACTION_MS) {
     return PlantStatus.WILTED;
   }
-  if (
-    count >= WILTING_DISTRACTION_COUNT ||
-    totalMinutes >= WILTING_DISTRACTION_MINUTES
-  ) {
+  if (count >= WILTING_DISTRACTION_COUNT || totalMs >= WILTING_DISTRACTION_MS) {
     return PlantStatus.WILTING;
   }
   return PlantStatus.HEALTHY;

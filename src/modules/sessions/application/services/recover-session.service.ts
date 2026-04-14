@@ -8,7 +8,7 @@ export interface RecoverSessionResult {
   sessionId: string;
   elapsedMs: number;
   taskId: string;
-  taskEstimatedDurationMinutes: number;
+  taskEstimatedDurationMs: number;
   plantGrowthPercent: number;
 }
 
@@ -32,14 +32,11 @@ export class RecoverSessionService {
     if (!timer) return null;
 
     const elapsedMs = Date.now() - timer.startedAt;
-    const elapsedMinutes = elapsedMs / 60_000;
     const plantGrowthPercent =
-      timer.taskEstimatedDurationMinutes > 0
+      timer.taskEstimatedDurationMs > 0
         ? Math.min(
             100,
-            Math.round(
-              (elapsedMinutes / timer.taskEstimatedDurationMinutes) * 100,
-            ),
+            Math.round((elapsedMs / timer.taskEstimatedDurationMs) * 100),
           )
         : 0;
 
@@ -47,7 +44,7 @@ export class RecoverSessionService {
       sessionId,
       elapsedMs,
       taskId: timer.taskId,
-      taskEstimatedDurationMinutes: timer.taskEstimatedDurationMinutes,
+      taskEstimatedDurationMs: timer.taskEstimatedDurationMs,
       plantGrowthPercent,
     };
   }

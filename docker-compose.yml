@@ -1,0 +1,56 @@
+services:
+  mongo:
+    build:
+      context: ./scripts/mongo
+      dockerfile: Dockerfile
+    container_name: social_mongo
+    restart: unless-stopped
+    ports:
+      - '27017:27017'
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+      MONGO_INITDB_DATABASE: social
+    command: mongod --replSet rs0 --bind_ip_all --keyFile /etc/mongo/keyfile
+    volumes:
+      - mongo_data:/data/db
+      - ./scripts/mongo/init-replicaset.js:/docker-entrypoint-initdb.d/init-replicaset.js:ro
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mongosh',
+          '--quiet',
+          '-u',
+          'root',
+          '-p',
+          'root',
+          '--authenticationDatabase',
+          'admin',
+          '--eval',
+          "try { rs.status().ok } catch(e) { rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'localhost:27017' }] }).ok }",
+        ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  redis:
+    image: redis:7-alpine
+    container_name: social_redis
+    restart: unless-stopped
+    ports:
+      - '6380:6379'
+    command: redis-server --requirepass redispassword
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'redispassword', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+volumes:
+  mongo_data:
+  redis_data:

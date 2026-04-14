@@ -32,22 +32,19 @@ export interface GoalProgress {
   totalTasks: number;
   /** Completed tasks */
   completedTasks: number;
-  /** 0–100 percentage */
-  completionPercent: number;
-  /** Sum of all session durations in minutes */
-  totalLoggedMinutes: number;
-  /** Estimated total minutes (estimatedHours * 60) */
-  estimatedMinutes: number;
-  /** completedTasks / max(totalTasks,1) * 100 — updated in background */
+  /** Sum of all session durations in milliseconds */
+  totalLoggedMs: number;
+  /** 0–100, computed as completedTasks / max(totalTasks, 1) * 100 — updated in background */
+  score: number;
+  /** Timestamp of the last background recomputation */
   lastComputedAt: Date;
 }
 
 export const INITIAL_PROGRESS: GoalProgress = {
   totalTasks: 0,
   completedTasks: 0,
-  completionPercent: 0,
-  totalLoggedMinutes: 0,
-  estimatedMinutes: 0,
+  totalLoggedMs: 0,
+  score: 0,
   lastComputedAt: new Date(0),
 };
 
@@ -76,9 +73,16 @@ export interface GoalFields {
   category: GoalCategory;
   status: GoalStatus;
   priority: GoalPriority;
-  deadline: Date | null;
-  /** Estimated hours to complete this goal */
-  estimatedHours: number | null;
+  /** Planned end date for the goal; null = no deadline set */
+  estimatedEndDate: Date | null;
+  /** Estimated duration to complete this goal in milliseconds; null = not set */
+  estimatedDuration: number | null;
+  /** When the user plans to start the goal; null = not set */
+  estimatedStartDate: Date | null;
+  /** Actual date the goal was started; null = not yet started */
+  actualStartDate: Date | null;
+  /** Date the goal was completed or abandoned; null = still in progress */
+  actualEndDate: Date | null;
   /**
    * Nesting level:
    *  1 = top-level Goal

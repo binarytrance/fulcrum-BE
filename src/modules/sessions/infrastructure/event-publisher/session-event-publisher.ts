@@ -24,7 +24,7 @@ export class SessionEventPublisher implements ISessionEventPublisher {
   async publishSessionCompleted(event: SessionCompletedEvent): Promise<void> {
     const payload: UpdateTaskDurationPayload = {
       taskId: event.taskId,
-      durationMinutes: event.durationMinutes,
+      durationMs: event.durationMs,
     };
 
     const date = new Date().toISOString().slice(0, 10);

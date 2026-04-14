@@ -5,7 +5,7 @@ export enum SessionStatus {
 }
 
 export enum SessionSource {
-  TIMER = 'TIMER',
+  AUTO = 'AUTO',
   MANUAL = 'MANUAL',
 }
 
@@ -19,10 +19,10 @@ export enum PlantStatus {
 export const WILTING_DISTRACTION_COUNT = 1;
 /** Distraction count threshold for fully wilted */
 export const WILTED_DISTRACTION_COUNT = 3;
-/** Cumulative distraction minutes before wilting */
-export const WILTING_DISTRACTION_MINUTES = 15;
-/** Cumulative distraction minutes for fully wilted */
-export const WILTED_DISTRACTION_MINUTES = 30;
+/** Cumulative distraction milliseconds before wilting */
+export const WILTING_DISTRACTION_MS = 15 * 60 * 1000;
+/** Cumulative distraction milliseconds for fully wilted */
+export const WILTED_DISTRACTION_MS = 30 * 60 * 1000;
 
 /** Sessions with no heartbeat beyond this are auto-abandoned */
 export const SESSION_ABANDONMENT_MS = 4 * 60 * 60 * 1000; // 4 hours

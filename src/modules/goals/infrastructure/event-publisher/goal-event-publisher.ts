@@ -5,9 +5,12 @@ import type {
   IGoalEventPublisher,
   GoalEvent,
 } from '@goals/domain/ports/goal-event-publisher.port';
-import { GoalDeadlineChangedEvent } from '@goals/domain/events/goal-deadline-changed.event';
+import { GoalEstimatedEndDateChangedEvent } from '@goals/domain/events/goal-deadline-changed.event';
 import { GoalProgressRecomputeEvent } from '@goals/domain/events/goal-progress-recompute.event';
-import { GoalJobs, GOALS_QUEUE_NAME } from '@goals/domain/types/goal-jobs.types';
+import {
+  GoalJobs,
+  GOALS_QUEUE_NAME,
+} from '@goals/domain/types/goal-jobs.types';
 
 @Injectable()
 export class GoalEventPublisher implements IGoalEventPublisher {
@@ -16,7 +19,7 @@ export class GoalEventPublisher implements IGoalEventPublisher {
   constructor(@InjectQueue(GOALS_QUEUE_NAME) private readonly queue: Queue) {}
 
   async publish(event: GoalEvent): Promise<void> {
-    if (event instanceof GoalDeadlineChangedEvent) {
+    if (event instanceof GoalEstimatedEndDateChangedEvent) {
       this.logger.log(
         `Queuing pacing recalculation — goalId: ${event.goalId}, userId: ${event.userId}`,
       );

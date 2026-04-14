@@ -41,11 +41,23 @@ export class Task {
   @Prop({ type: Date, default: null, index: true })
   scheduledFor: Date | null;
 
-  /** Time-box set at creation, in minutes */
-  @Prop({ type: Number, required: true, min: 1 })
+  /** Planned end date for the task; null = no target date set */
+  @Prop({ type: Date, default: null })
+  estimatedEndDate: Date | null;
+
+  /** Actual date the user started working; null = not yet started */
+  @Prop({ type: Date, default: null })
+  startDate: Date | null;
+
+  /** Date the task was completed or cancelled; null = still in progress */
+  @Prop({ type: Date, default: null })
+  actualEndDate: Date | null;
+
+  /** Time-box set at creation, in milliseconds */
+  @Prop({ type: Number, required: true, min: 1000 })
   estimatedDuration: number;
 
-  /** Computed from sum of session durations on completion (Phase 4) */
+  /** Computed from sum of session durations on completion (Phase 4), in milliseconds */
   @Prop({ type: Number, default: null, min: 0 })
   actualDuration: number | null;
 

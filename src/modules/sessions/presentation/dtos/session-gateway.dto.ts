@@ -13,11 +13,11 @@ export type HeartbeatDto = z.infer<typeof HeartbeatSchema>;
 export const LogDistractionSchema = z.object({
   sessionId: z.string().min(1),
   reason: z.string().min(1).max(500),
-  estimatedMinutes: z
-    .number({ error: 'estimatedMinutes must be a number' })
+  estimatedMs: z
+    .number({ error: 'estimatedMs must be a number' })
     .int()
-    .min(1)
-    .max(120),
+    .min(1_000)
+    .max(120 * 60 * 1_000),
 });
 export type LogDistractionDto = z.infer<typeof LogDistractionSchema>;
 
@@ -25,3 +25,13 @@ export const StopSessionSchema = z.object({
   sessionId: z.string().min(1),
 });
 export type StopSessionDto = z.infer<typeof StopSessionSchema>;
+
+export const ExtendTrackingSchema = z.object({
+  sessionId: z.string().min(1),
+  additionalMs: z
+    .number({ error: 'additionalMs must be a number' })
+    .int()
+    .min(60_000)
+    .max(4 * 60 * 60 * 1_000),
+});
+export type ExtendTrackingDto = z.infer<typeof ExtendTrackingSchema>;

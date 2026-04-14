@@ -8,12 +8,21 @@ export const CreateGoalSchema = z.object({
     error: `Category must be one of: ${Object.values(GoalCategory).join(', ')}`,
   }),
   priority: z.nativeEnum(GoalPriority).optional(),
-  deadline: z
+  estimatedEndDate: z
     .string()
-    .datetime({ message: 'Deadline must be a valid ISO date-time string.' })
+    .datetime({
+      message: 'Estimated end date must be a valid ISO date-time string.',
+    })
     .transform((v) => new Date(v))
     .optional(),
-  estimatedHours: z.number().positive().optional(),
+  estimatedDuration: z.number().positive().optional(),
+  estimatedStartDate: z
+    .string()
+    .datetime({
+      message: 'Estimated start date must be a valid ISO date-time string.',
+    })
+    .transform((v) => new Date(v))
+    .optional(),
   parentGoalId: z.string().optional(),
 });
 

@@ -12,5 +12,5 @@ export interface AbandonStaleJobPayload {
 
 export interface UpdateTaskDurationPayload {
   taskId: string;
-  durationMinutes: number;
+  durationMs: number;
 }

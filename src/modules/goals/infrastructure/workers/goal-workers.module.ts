@@ -6,6 +6,9 @@ import { GoalWorker } from '@goals/infrastructure/workers/goal.worker';
 import { GoalEventPublisher } from '@goals/infrastructure/event-publisher/goal-event-publisher';
 import { GOALS_QUEUE_NAME } from '@goals/domain/types/goal-jobs.types';
 import { GOAL_EVENT_PUBLISHER_PORT } from '@goals/domain/ports/goal-event-publisher.port';
+import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
+import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
+import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
 
 @Module({
   imports: [
@@ -14,6 +17,9 @@ import { GOAL_EVENT_PUBLISHER_PORT } from '@goals/domain/ports/goal-event-publis
       name: GOALS_QUEUE_NAME,
       adapter: BullMQAdapter,
     }),
+    GoalMongoModule,
+    TaskMongoModule,
+    SessionMongoModule,
   ],
   providers: [
     GoalWorker,

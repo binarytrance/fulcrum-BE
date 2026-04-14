@@ -11,9 +11,8 @@ import { HydratedDocument, Types } from 'mongoose';
 export class GoalProgressSchema {
   @Prop({ type: Number, default: 0 }) totalTasks: number;
   @Prop({ type: Number, default: 0 }) completedTasks: number;
-  @Prop({ type: Number, default: 0 }) completionPercent: number;
-  @Prop({ type: Number, default: 0 }) totalLoggedMinutes: number;
-  @Prop({ type: Number, default: 0 }) estimatedMinutes: number;
+  @Prop({ type: Number, default: 0 }) totalLoggedMs: number;
+  @Prop({ type: Number, default: 0 }) score: number;
   @Prop({ type: Date, default: () => new Date(0) }) lastComputedAt: Date;
 }
 
@@ -49,10 +48,19 @@ export class Goal {
   priority: GoalPriority;
 
   @Prop({ type: Date, default: null })
-  deadline: Date | null;
+  estimatedEndDate: Date | null;
+
+  @Prop({ type: Date, default: null })
+  estimatedStartDate: Date | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  estimatedHours: number | null;
+  estimatedDuration: number | null;
+
+  @Prop({ type: Date, default: null })
+  actualStartDate: Date | null;
+
+  @Prop({ type: Date, default: null })
+  actualEndDate: Date | null;
 
   @Prop({ type: Number, required: true, min: 1, max: 3 })
   level: 1 | 2 | 3;
@@ -61,9 +69,8 @@ export class Goal {
     type: {
       totalTasks: { type: Number, default: 0 },
       completedTasks: { type: Number, default: 0 },
-      completionPercent: { type: Number, default: 0 },
-      totalLoggedMinutes: { type: Number, default: 0 },
-      estimatedMinutes: { type: Number, default: 0 },
+      totalLoggedMs: { type: Number, default: 0 },
+      score: { type: Number, default: 0 },
       lastComputedAt: { type: Date, default: () => new Date(0) },
     },
     default: () => ({ ...INITIAL_PROGRESS, lastComputedAt: new Date(0) }),
@@ -72,9 +79,8 @@ export class Goal {
   progress: {
     totalTasks: number;
     completedTasks: number;
-    completionPercent: number;
-    totalLoggedMinutes: number;
-    estimatedMinutes: number;
+    totalLoggedMs: number;
+    score: number;
     lastComputedAt: Date;
   };
 

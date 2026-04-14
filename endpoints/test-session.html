@@ -180,7 +180,7 @@
     <!-- Distraction row -->
     <div class="distract-row">
       <input id="inp-reason" type="text" placeholder="Distraction reason" value="Phone notification" style="width:260px" />
-      <input id="inp-mins" type="number" placeholder="mins" value="5" style="width:70px" />
+      <input id="inp-mins" type="number" placeholder="mins" value="5" style="width:70px" title="Minutes — will be converted to ms" />
       <button id="btn-distract" disabled>😵 Log Distraction</button>
     </div>
 
@@ -284,11 +284,11 @@
           log('🔄', `Crash recovery — resuming session ${d.sessionId}, elapsed ${Math.round(d.elapsedMs/1000)}s`, 'blue');
           setSession(d.sessionId);
           setElapsed(d.elapsedMs);
-          setPlant(null, d.plantGrowthPercent);
+          setPlant('HEALTHY', d.plantGrowthPercent);
         });
 
         socket.on('sessionStarted', (d) => {
-          log('▶️', `Session started:\n${JSON.stringify(d, null, 2)}`, 'green');
+          log('▶️', `Session started — sessionId: ${d.sessionId}, estimatedDurationMs: ${d.taskEstimatedDurationMs}`, 'green');
           setSession(d.sessionId);
           setElapsed(0);
           setPlant('HEALTHY', 0);
@@ -299,7 +299,7 @@
         });
 
         socket.on('heartbeatAck', (d) => {
-          log('💓', `Heartbeat — elapsed ${Math.round(d.elapsedMs/1000)}s, plant ${d.plantGrowthPercent}%`);
+          log('💓', `Heartbeat — elapsed ${Math.round(d.elapsedMs / 1000)}s, plant ${d.plantGrowthPercent}%`);
           setElapsed(d.elapsedMs);
           setPlant(null, d.plantGrowthPercent);
         });
@@ -310,7 +310,9 @@
         });
 
         socket.on('sessionStopped', (d) => {
-          log('⏹️', `Session stopped:\n${JSON.stringify(d, null, 2)}`, 'purple');
+          log('⏹️',
+            `Session stopped — durationMs: ${d.durationMs}, netFocusMs: ${d.netFocusMs}, distractions: ${d.distractionCount}, plant: ${d.plantStatus} ${d.plantGrowthPercent}%`,
+            'purple');
           clearInterval(heartbeatTimer);
           setSession(null);
           setElapsed(null);
@@ -342,9 +344,9 @@
       $('btn-distract').addEventListener('click', () => {
         if (!sessionId) return;
         const reason = $('inp-reason').value.trim() || 'Distraction';
-        const mins   = parseInt($('inp-mins').value) || 5;
-        log('➡️', `Emitting logDistraction { reason: "${reason}", estimatedMinutes: ${mins} }`);
-        socket.emit('logDistraction', { sessionId, reason, estimatedMinutes: mins });
+        const ms     = (parseInt($('inp-mins').value) || 5) * 60_000;
+        log('➡️', `Emitting logDistraction { reason: "${reason}", estimatedMs: ${ms} }`);
+        socket.emit('logDistraction', { sessionId, reason, estimatedMs: ms });
       });
 
       // ─── Stop Session ─────────────────────────────────────────────────────────

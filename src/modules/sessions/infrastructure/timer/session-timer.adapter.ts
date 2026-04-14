@@ -71,4 +71,24 @@ export class SessionTimerAdapter implements ISessionTimerPort {
     const state = JSON.parse(raw) as ActiveTimerState;
     return Date.now() - state.startedAt;
   }
+
+  async extendTimer(
+    sessionId: string,
+    additionalMs: number,
+  ): Promise<ActiveTimerState> {
+    const raw = await this.redis.get(timerKey(sessionId));
+    if (!raw) throw new Error('Timer not found or expired.');
+    const state = JSON.parse(raw) as ActiveTimerState;
+    const updated: ActiveTimerState = {
+      ...state,
+      taskEstimatedDurationMs: state.taskEstimatedDurationMs + additionalMs,
+    };
+    await this.redis.set(
+      timerKey(sessionId),
+      JSON.stringify(updated),
+      'EX',
+      REDIS_TTL_SECONDS,
+    );
+    return updated;
+  }
 }

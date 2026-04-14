@@ -31,8 +31,10 @@ import { HeartbeatService } from '@sessions/application/services/heartbeat.servi
 import { LogDistractionService } from '@sessions/application/services/log-distraction.service';
 import { StopSessionService } from '@sessions/application/services/stop-session.service';
 import { RecoverSessionService } from '@sessions/application/services/recover-session.service';
+import { ExtendTrackingService } from '@sessions/application/services/extend-tracking.service';
 
 import {
+  ExtendTrackingSchema,
   HeartbeatSchema,
   LogDistractionSchema,
   StartSessionSchema,
@@ -59,6 +61,7 @@ export class SessionGateway
     private readonly logDistractionService: LogDistractionService,
     private readonly stopSessionService: StopSessionService,
     private readonly recoverSessionService: RecoverSessionService,
+    private readonly extendTrackingService: ExtendTrackingService,
   ) {}
 
   // ─── Connection Lifecycle ─────────────────────────────────────────────────────
@@ -151,7 +154,7 @@ export class SessionGateway
         sessionId: dto.sessionId,
         userId,
         reason: dto.reason,
-        estimatedMinutes: dto.estimatedMinutes,
+        estimatedMs: dto.estimatedMs,
       });
       client.emit('distractionLogged', {
         distractions: session.distractions,
@@ -178,8 +181,8 @@ export class SessionGateway
       );
       client.emit('sessionStopped', {
         sessionId: session.id,
-        durationMinutes: session.durationMinutes,
-        netFocusMinutes: session.netFocusMinutes,
+        durationMs: session.durationMs,
+        netFocusMs: session.netFocusMs,
         distractionCount: session.distractions.length,
         plantStatus: session.plantStatus,
         plantGrowthPercent: session.plantGrowthPercent,
@@ -188,6 +191,27 @@ export class SessionGateway
     } catch (err) {
       client.emit('error', {
         message: (err as Error).message ?? 'Failed to stop session.',
+      });
+    }
+  }
+
+  @SubscribeMessage('extendTracking')
+  async handleExtendTracking(
+    @ConnectedSocket() client: AuthSocket,
+    @MessageBody() data: unknown,
+  ): Promise<void> {
+    const userId: string = client.data.userId;
+    try {
+      const dto = ExtendTrackingSchema.parse(data);
+      const result = await this.extendTrackingService.execute(
+        dto.sessionId,
+        userId,
+        dto.additionalMs,
+      );
+      client.emit('trackingExtended', result);
+    } catch (err) {
+      client.emit('error', {
+        message: (err as Error).message ?? 'Failed to extend tracking.',
       });
     }
   }

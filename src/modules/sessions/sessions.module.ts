@@ -11,6 +11,7 @@ import { LogDistractionService } from '@sessions/application/services/log-distra
 import { StopSessionService } from '@sessions/application/services/stop-session.service';
 import { ManualSessionService } from '@sessions/application/services/manual-session.service';
 import { RecoverSessionService } from '@sessions/application/services/recover-session.service';
+import { ExtendTrackingService } from '@sessions/application/services/extend-tracking.service';
 
 import { SESSION_REPO_PORT } from '@sessions/domain/ports/session-repo.port';
 import { SESSION_TIMER_PORT } from '@sessions/domain/ports/session-timer.port';
@@ -49,6 +50,7 @@ import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.mo
     StopSessionService,
     ManualSessionService,
     RecoverSessionService,
+    ExtendTrackingService,
 
     // WebSocket gateway
     SessionGateway,

@@ -18,6 +18,21 @@ export const UpdateTaskSchema = z
       .transform((v) => new Date(v))
       .nullable()
       .optional(),
+    estimatedEndDate: z
+      .string()
+      .datetime({
+        message: 'estimatedEndDate must be a valid ISO date-time string.',
+      })
+      .transform((v) => new Date(v))
+      .nullable()
+      .optional(),
+    startDate: z
+      .string()
+      .datetime({ message: 'startDate must be a valid ISO date-time string.' })
+      .transform((v) => new Date(v))
+      .nullable()
+      .optional(),
+    /** Time-box in milliseconds */
     estimatedDuration: z.number().int().positive().optional(),
     /**
      * Status transitions: PENDING ↔ IN_PROGRESS, either → CANCELLED.

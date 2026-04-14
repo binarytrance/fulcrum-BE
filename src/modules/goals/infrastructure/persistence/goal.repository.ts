@@ -26,8 +26,11 @@ type GoalDocLean = {
   category: GoalCategory;
   status: GoalStatus;
   priority: GoalPriority;
-  deadline?: Date | null;
-  estimatedHours?: number | null;
+  estimatedEndDate?: Date | null;
+  estimatedDuration?: number | null;
+  estimatedStartDate?: Date | null;
+  actualStartDate?: Date | null;
+  actualEndDate?: Date | null;
   level: 1 | 2 | 3;
   progress: GoalProgress;
   deletedAt?: Date | null;
@@ -115,8 +118,11 @@ export class GoalRepository implements IGoalRepository {
       category: goal.category,
       status: goal.status,
       priority: goal.priority,
-      deadline: goal.deadline ?? null,
-      estimatedHours: goal.estimatedHours ?? null,
+      estimatedEndDate: goal.estimatedEndDate ?? null,
+      estimatedDuration: goal.estimatedDuration ?? null,
+      estimatedStartDate: goal.estimatedStartDate ?? null,
+      actualStartDate: goal.actualStartDate ?? null,
+      actualEndDate: goal.actualEndDate ?? null,
       level: goal.level,
       progress: goal.progress,
       deletedAt: goal.deletedAt ?? null,
@@ -133,8 +139,11 @@ export class GoalRepository implements IGoalRepository {
       category: doc.category,
       status: doc.status,
       priority: doc.priority,
-      deadline: doc.deadline ?? null,
-      estimatedHours: doc.estimatedHours ?? null,
+      estimatedEndDate: doc.estimatedEndDate ?? null,
+      estimatedDuration: doc.estimatedDuration ?? null,
+      estimatedStartDate: doc.estimatedStartDate ?? null,
+      actualStartDate: doc.actualStartDate ?? null,
+      actualEndDate: doc.actualEndDate ?? null,
       level: doc.level,
       progress: doc.progress,
       deletedAt: doc.deletedAt ?? null,

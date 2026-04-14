@@ -26,6 +26,9 @@ type TaskDocLean = {
   priority: TaskPriority;
   type: TaskType;
   scheduledFor?: Date | null;
+  estimatedEndDate?: Date | null;
+  startDate?: Date | null;
+  actualEndDate?: Date | null;
   estimatedDuration: number;
   actualDuration?: number | null;
   efficiencyScore?: number | null;
@@ -116,6 +119,9 @@ export class TaskRepository implements ITaskRepository {
       priority: task.priority,
       type: task.type,
       scheduledFor: task.scheduledFor,
+      estimatedEndDate: task.estimatedEndDate ?? null,
+      startDate: task.startDate ?? null,
+      actualEndDate: task.actualEndDate ?? null,
       estimatedDuration: task.estimatedDuration,
       actualDuration: task.actualDuration,
       efficiencyScore: task.efficiencyScore,
@@ -138,6 +144,9 @@ export class TaskRepository implements ITaskRepository {
       priority: doc.priority,
       type: doc.type,
       scheduledFor: doc.scheduledFor ?? null,
+      estimatedEndDate: doc.estimatedEndDate ?? null,
+      startDate: doc.startDate ?? null,
+      actualEndDate: doc.actualEndDate ?? null,
       estimatedDuration: doc.estimatedDuration,
       actualDuration: doc.actualDuration ?? null,
       efficiencyScore: doc.efficiencyScore ?? null,

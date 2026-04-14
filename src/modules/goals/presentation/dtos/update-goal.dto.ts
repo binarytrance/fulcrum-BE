@@ -12,13 +12,39 @@ export const UpdateGoalSchema = z
     category: z.nativeEnum(GoalCategory).optional(),
     status: z.nativeEnum(GoalStatus).optional(),
     priority: z.nativeEnum(GoalPriority).optional(),
-    deadline: z
+    estimatedEndDate: z
       .string()
-      .datetime({ message: 'Deadline must be a valid ISO date-time string.' })
+      .datetime({
+        message: 'estimatedEndDate must be a valid ISO date-time string.',
+      })
       .transform((v) => new Date(v))
       .nullable()
       .optional(),
-    estimatedHours: z.number().positive().nullable().optional(),
+    estimatedDuration: z.number().int().positive().nullable().optional(),
+    estimatedStartDate: z
+      .string()
+      .datetime({
+        message: 'estimatedStartDate must be a valid ISO date-time string.',
+      })
+      .transform((v) => new Date(v))
+      .nullable()
+      .optional(),
+    actualStartDate: z
+      .string()
+      .datetime({
+        message: 'actualStartDate must be a valid ISO date-time string.',
+      })
+      .transform((v) => new Date(v))
+      .nullable()
+      .optional(),
+    actualEndDate: z
+      .string()
+      .datetime({
+        message: 'actualEndDate must be a valid ISO date-time string.',
+      })
+      .transform((v) => new Date(v))
+      .nullable()
+      .optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update.',

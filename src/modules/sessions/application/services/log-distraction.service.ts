@@ -14,7 +14,7 @@ export interface LogDistractionInput {
   sessionId: string;
   userId: string;
   reason: string;
-  estimatedMinutes: number;
+  estimatedMs: number;
 }
 
 @Injectable()
@@ -32,7 +32,7 @@ export class LogDistractionService {
 
     const updated = session.addDistraction({
       reason: input.reason,
-      estimatedMinutes: input.estimatedMinutes,
+      estimatedMs: input.estimatedMs,
     });
 
     await this.sessionRepo.update(updated);

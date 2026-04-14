@@ -29,10 +29,16 @@ export interface GoalTreeNode {
   category: GoalCategory;
   status: GoalStatus;
   priority: GoalPriority;
-  deadline: Date | null;
-  estimatedHours: number | null;
+  estimatedEndDate: Date | null;
+  estimatedDuration: number | null;
+  /** When the user plans to start the goal; null = not set */
+  estimatedStartDate: Date | null;
+  /** Actual date the goal was started; null = not yet started */
+  actualStartDate: Date | null;
   level: number;
   progress: GoalProgress;
+  /** True when progress.score >= 100 and the goal is still ACTIVE */
+  isReadyToComplete: boolean;
   createdAt: Date;
   updatedAt: Date;
   children: GoalTreeNode[];
@@ -48,10 +54,14 @@ function goalToNode(goal: Goal): GoalTreeNode {
     category: goal.category,
     status: goal.status,
     priority: goal.priority,
-    deadline: goal.deadline,
-    estimatedHours: goal.estimatedHours,
+    estimatedEndDate: goal.estimatedEndDate,
+    estimatedDuration: goal.estimatedDuration,
+    estimatedStartDate: goal.estimatedStartDate,
+    actualStartDate: goal.actualStartDate,
     level: goal.level,
     progress: goal.progress,
+    isReadyToComplete:
+      goal.progress.score >= 100 && goal.status === GoalStatus.ACTIVE,
     createdAt: goal.createdAt,
     updatedAt: goal.updatedAt,
     children: [],

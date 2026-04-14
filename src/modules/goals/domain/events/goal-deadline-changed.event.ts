@@ -1,10 +1,10 @@
-export class GoalDeadlineChangedEvent {
-  readonly type = 'GoalDeadlineChangedEvent';
+export class GoalEstimatedEndDateChangedEvent {
+  readonly type = 'GoalEstimatedEndDateChangedEvent';
 
   constructor(
     public readonly goalId: string,
     public readonly userId: string,
-    public readonly newDeadline: Date | null,
+    public readonly newEstimatedEndDate: Date | null,
     public readonly timestamp: Date = new Date(),
   ) {}
 }

@@ -20,6 +20,8 @@ export interface UpdateTaskInput {
   description?: string | null;
   priority?: TaskPriority;
   scheduledFor?: Date | null;
+  estimatedEndDate?: Date | null;
+  startDate?: Date | null;
   estimatedDuration?: number;
   status?: TaskStatus;
 }

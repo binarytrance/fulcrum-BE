@@ -48,17 +48,20 @@ export class StopSessionService {
     // If Redis key expired (e.g. crash + recovery), fall back to wall-clock diff
     const finalElapsedMs =
       elapsedMs ?? Date.now() - session.startedAt.getTime();
-    const durationMinutes = Math.max(1, Math.round(finalElapsedMs / 60_000));
+    const durationMs = finalElapsedMs;
 
     // Fetch task's estimated duration for plant growth calculation
-    const estimatedDurationMinutes = await this.taskAccess.getEstimatedDuration(
-      session.taskId,
-      userId,
-    );
+    const estimatedDurationMs =
+      (await this.taskAccess.getEstimatedDuration(session.taskId, userId)) *
+      60_000;
 
+    const previousNetFocusMs = await this.sessionRepo.sumNetFocusMsByTaskId(
+      session.taskId,
+    );
     const completed = session.complete(
-      durationMinutes,
-      estimatedDurationMinutes,
+      durationMs,
+      estimatedDurationMs,
+      previousNetFocusMs,
     );
 
     // Persist the final session document (immutable — never edited again)
@@ -69,12 +72,7 @@ export class StopSessionService {
 
     // Queue background jobs (update task actualDuration, etc.)
     await this.eventPublisher.publishSessionCompleted(
-      new SessionCompletedEvent(
-        sessionId,
-        userId,
-        session.taskId,
-        durationMinutes,
-      ),
+      new SessionCompletedEvent(sessionId, userId, session.taskId, durationMs),
     );
 
     return completed;

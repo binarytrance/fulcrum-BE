@@ -3,7 +3,7 @@ import { z } from 'zod';
 export const CompleteTaskSchema = z
   .object({
     /**
-     * Actual duration in minutes.
+     * Actual duration in milliseconds.
      * Optional — if omitted, falls back to task.actualDuration (session-backfilled)
      * and then to estimatedDuration as a last resort.
      */

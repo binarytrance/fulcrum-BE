@@ -3,7 +3,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { TASKS_QUEUE_NAME, TaskJobPayloads, TaskJobs } from '@tasks/domain/types/task-jobs.types';
+import {
+  TASKS_QUEUE_NAME,
+  TaskJobPayloads,
+  TaskJobs,
+} from '@tasks/domain/types/task-jobs.types';
 import { OccurrenceStatus } from '@habits/domain/types/habit.types';
 
 // Narrow lean types — avoids unsafe-any lint errors
@@ -12,6 +16,23 @@ interface TaskLean {
   habitId?: string | null;
   actualDuration?: number | null;
   estimatedDuration: number;
+}
+
+interface GoalLean {
+  _id: string;
+  parentGoalId?: string | null;
+  progress: {
+    totalTasks: number;
+    completedTasks: number;
+    totalLoggedMs: number;
+    score: number;
+    lastComputedAt: Date;
+  };
+}
+
+interface SessionLean {
+  taskId: string;
+  durationMs: number | null;
 }
 
 type TaskJobUnion =
@@ -27,6 +48,9 @@ export class TaskWorker extends WorkerHost {
     @InjectModel('Task') private readonly taskModel: Model<TaskLean>,
     @InjectModel('HabitOccurrence')
     private readonly occurrenceModel: Model<Record<string, unknown>>,
+    @InjectModel('Goal') private readonly goalModel: Model<GoalLean>,
+    @InjectModel('SessionDoc')
+    private readonly sessionModel: Model<SessionLean>,
   ) {
     super();
   }
@@ -41,8 +65,7 @@ export class TaskWorker extends WorkerHost {
         this.logger.log(
           `[GoalProgress] Recomputing progress for goal ${goalId} after task ${taskId} completed (user ${userId})`,
         );
-        // TODO (Phase Sessions): aggregate session + task data and write back to goal.progress
-        return Promise.resolve();
+        return this.recomputeGoalProgress(goalId);
       }
 
       case TaskJobs.MARK_HABIT_OCCURRENCE: {
@@ -60,6 +83,76 @@ export class TaskWorker extends WorkerHost {
     }
   }
 
+  private async recomputeGoalProgress(goalId: string): Promise<void> {
+    // Collect the goal and all ancestors (max 3 levels)
+    const goalChain: GoalLean[] = [];
+    let currentId: string | null = goalId;
+    while (currentId) {
+      const found = (await this.goalModel
+        .findById(currentId)
+        .lean()) as GoalLean | null;
+      if (!found) break;
+      goalChain.push(found);
+      currentId = found.parentGoalId ?? null;
+    }
+
+    // Recompute each goal in the chain (deepest first, then ancestors)
+    for (const goal of goalChain) {
+      await this.recomputeSingleGoal(goal._id.toString());
+    }
+  }
+
+  private async recomputeSingleGoal(goalId: string): Promise<void> {
+    // 1. Count tasks for this goal
+    const totalTasks = await this.taskModel.countDocuments({
+      goalId,
+      deletedAt: null,
+    });
+    const completedTasks = await this.taskModel.countDocuments({
+      goalId,
+      deletedAt: null,
+      status: 'COMPLETED',
+    });
+
+    // 2. Get all task IDs for this goal to aggregate sessions
+    const taskDocs = await this.taskModel
+      .find({ goalId, deletedAt: null }, { _id: 1 })
+      .lean<{ _id: string }[]>();
+    const taskIds = taskDocs.map((t) => t._id.toString());
+
+    // 3. Aggregate total session duration in ms
+    let totalLoggedMs = 0;
+    if (taskIds.length > 0) {
+      const result = await this.sessionModel.aggregate<{ total: number }>([
+        { $match: { taskId: { $in: taskIds }, status: 'COMPLETED' } },
+        { $group: { _id: null, total: { $sum: '$durationMs' } } },
+      ]);
+      totalLoggedMs = result[0]?.total ?? 0;
+    }
+
+    // 4. Compute score
+    const score = Math.round((completedTasks / Math.max(totalTasks, 1)) * 100);
+
+    // 5. Write back
+    await this.goalModel.updateOne(
+      { _id: goalId },
+      {
+        $set: {
+          'progress.totalTasks': totalTasks,
+          'progress.completedTasks': completedTasks,
+          'progress.totalLoggedMs': totalLoggedMs,
+          'progress.score': score,
+          'progress.lastComputedAt': new Date(),
+          updatedAt: new Date(),
+        },
+      },
+    );
+
+    this.logger.log(
+      `[GoalProgress] goal=${goalId} totalTasks=${totalTasks} completed=${completedTasks} score=${score} loggedMs=${totalLoggedMs}`,
+    );
+  }
+
   private async handleMarkHabitOccurrence(
     taskId: string,
     date: string,
@@ -67,8 +160,8 @@ export class TaskWorker extends WorkerHost {
     const task = await this.taskModel.findById(taskId).lean<TaskLean>().exec();
     if (!task?.habitId) return; // task not linked to a habit
 
-    const durationMinutes: number =
-      task.actualDuration ?? task.estimatedDuration;
+    const durationMs: number = task.actualDuration ?? task.estimatedDuration;
+    const durationMinutes: number = Math.round(durationMs / 60000);
 
     const result = await this.occurrenceModel
       .findOneAndUpdate(

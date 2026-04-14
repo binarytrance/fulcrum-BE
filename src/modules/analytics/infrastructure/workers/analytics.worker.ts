@@ -44,9 +44,9 @@ interface SessionLean {
   userId: string;
   taskId: string;
   status: string;
-  durationMinutes: number | null;
-  netFocusMinutes: number | null;
-  distractions: { estimatedMinutes: number }[];
+  durationMs: number | null;
+  netFocusMs: number | null;
+  distractions: { estimatedMs: number }[];
   plantStatus: string;
   startedAt: Date;
   endedAt: Date | null;
@@ -184,22 +184,22 @@ export class AnalyticsWorker extends WorkerHost {
 
     const sessionCount = sessions.length;
     const totalLoggedMinutes = sessions.reduce(
-      (s, sess) => s + (sess.durationMinutes ?? 0),
+      (s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000),
       0,
     );
     const netFocusMinutes = sessions.reduce(
-      (s, sess) => s + (sess.netFocusMinutes ?? 0),
+      (s, sess) => s + Math.round((sess.netFocusMs ?? 0) / 60_000),
       0,
     );
     const deepWorkMinutes = sessions
       .filter((sess) => sess.plantStatus === 'HEALTHY')
-      .reduce((s, sess) => s + (sess.durationMinutes ?? 0), 0);
+      .reduce((s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000), 0);
     const shallowWorkMinutes = totalLoggedMinutes - deepWorkMinutes;
 
     const allDistractions = sessions.flatMap((sess) => sess.distractions ?? []);
     const totalDistractions = allDistractions.length;
     const totalDistractionMinutes = allDistractions.reduce(
-      (s, d) => s + d.estimatedMinutes,
+      (s, d) => s + Math.round((d.estimatedMs ?? 0) / 60_000),
       0,
     );
     const avgDistractionPerSession =
@@ -344,7 +344,7 @@ export class AnalyticsWorker extends WorkerHost {
       .lean<SessionLean[]>();
 
     const totalLoggedMinutes = sessions.reduce(
-      (s, sess) => s + (sess.durationMinutes ?? 0),
+      (s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000),
       0,
     );
 
@@ -479,7 +479,7 @@ export class AnalyticsWorker extends WorkerHost {
         status: 'COMPLETED',
         startedAt: { $gte: weekStartDate, $lte: weekEndDate },
       })
-      .lean<{ taskId: string; durationMinutes: number | null }[]>();
+      .lean<{ taskId: string; durationMs: number | null }[]>();
 
     const uniqueTaskIds = [...new Set(sessions.map((s) => s.taskId))];
     const taskDocs = await this.taskModel
@@ -497,7 +497,8 @@ export class AnalyticsWorker extends WorkerHost {
       if (goalId) {
         goalMinutesMap.set(
           goalId,
-          (goalMinutesMap.get(goalId) ?? 0) + (sess.durationMinutes ?? 0),
+          (goalMinutesMap.get(goalId) ?? 0) +
+            Math.round((sess.durationMs ?? 0) / 60_000),
         );
       }
     }

@@ -29,8 +29,14 @@ export interface CreateGoalInput {
   description?: string;
   category: GoalCategory;
   priority?: GoalPriority;
-  deadline?: Date;
-  estimatedHours?: number;
+  /** Planned end date for the goal (millisecond-precision Date) */
+  estimatedEndDate?: Date;
+  /** Estimated duration to complete this goal, in milliseconds */
+  estimatedDuration?: number;
+  /** When the user plans to start the goal; omit if not set */
+  estimatedStartDate?: Date;
+  /** Date the goal was completed or abandoned; omit if still in progress */
+  actualEndDate?: Date;
   /** If provided, this goal becomes a sub-goal of the given parent */
   parentGoalId?: string;
 }
@@ -62,7 +68,9 @@ export class CreateGoalService {
       level = (parent.level + 1) as 2 | 3;
     }
 
-    // Goal.create() initialises progress with all zeros automatically
+    // Goal.create() initialises progress with all zeros automatically.
+    // actualStartDate is always null at creation — it is auto-set by Goal.update()
+    // when the goal transitions to ACTIVE for the first time.
     const goal = Goal.create({
       id: this.idGenerator.generate(),
       userId: input.userId,
@@ -72,8 +80,11 @@ export class CreateGoalService {
       category: input.category,
       status: GoalStatus.ACTIVE,
       priority: input.priority ?? GoalPriority.MEDIUM,
-      deadline: input.deadline ?? null,
-      estimatedHours: input.estimatedHours ?? null,
+      estimatedEndDate: input.estimatedEndDate ?? null,
+      estimatedDuration: input.estimatedDuration ?? null,
+      estimatedStartDate: input.estimatedStartDate ?? null,
+      actualStartDate: null,
+      actualEndDate: input.actualEndDate ?? null,
       level,
     });
 

@@ -52,40 +52,39 @@ interface SessionResponse {
   source: string;
   startedAt: Date;
   endedAt: Date | null;
-  durationMinutes: number | null;
-  netFocusMinutes: number | null;
+  durationMs: number | null;
+  netFocusMs: number | null;
   distractions: Session['distractions'];
   plantStatus: string;
   plantGrowthPercent: number;
-  /** Elapsed minutes since session start (only present for ACTIVE sessions). */
-  elapsedMinutes: number | null;
+  /** Elapsed milliseconds since session start (only present for ACTIVE sessions). */
+  elapsedMs: number | null;
   createdAt: Date;
 }
 
 function computeLiveGrowth(
   s: Session,
   timer: ActiveTimerState,
-): { plantGrowthPercent: number; elapsedMinutes: number } {
+): { plantGrowthPercent: number; elapsedMs: number } {
   const elapsedMs = Date.now() - timer.startedAt;
-  const elapsedMinutes = elapsedMs / 60_000;
-  const totalDistractionMins = s.distractions.reduce(
-    (sum, d) => sum + d.estimatedMinutes,
+  const totalDistractionMs = s.distractions.reduce(
+    (sum, d) => sum + d.estimatedMs,
     0,
   );
-  const netFocus = Math.max(0, elapsedMinutes - totalDistractionMins);
+  const netFocusMs = Math.max(0, elapsedMs - totalDistractionMs);
   const plantGrowthPercent =
-    timer.taskEstimatedDurationMinutes > 0
+    timer.taskEstimatedDurationMs > 0
       ? Math.min(
           100,
-          Math.round((netFocus / timer.taskEstimatedDurationMinutes) * 100),
+          Math.round((netFocusMs / timer.taskEstimatedDurationMs) * 100),
         )
       : 0;
-  return { plantGrowthPercent, elapsedMinutes: Math.round(elapsedMinutes) };
+  return { plantGrowthPercent, elapsedMs };
 }
 
 function toSessionResponse(
   s: Session,
-  liveData?: { plantGrowthPercent: number; elapsedMinutes: number },
+  liveData?: { plantGrowthPercent: number; elapsedMs: number },
 ): SessionResponse {
   return {
     id: s.id,
@@ -95,12 +94,12 @@ function toSessionResponse(
     source: s.source,
     startedAt: s.startedAt,
     endedAt: s.endedAt,
-    durationMinutes: s.durationMinutes,
-    netFocusMinutes: s.netFocusMinutes,
+    durationMs: s.durationMs,
+    netFocusMs: s.netFocusMs,
     distractions: s.distractions,
     plantStatus: s.plantStatus,
     plantGrowthPercent: liveData?.plantGrowthPercent ?? s.plantGrowthPercent,
-    elapsedMinutes: liveData?.elapsedMinutes ?? null,
+    elapsedMs: liveData?.elapsedMs ?? null,
     createdAt: s.createdAt,
   };
 }
