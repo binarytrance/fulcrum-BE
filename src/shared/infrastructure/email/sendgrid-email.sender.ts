@@ -1,29 +1,20 @@
-import { ConfigService } from '@shared/config/config.service';
 import { Injectable, Logger } from '@nestjs/common';
-import * as nodemailer from 'nodemailer';
+import sgMail from '@sendgrid/mail';
 import { IEmailSender } from '@shared/domain/ports/email.port';
+import { ConfigService } from '@shared/config/config.service';
 
 @Injectable()
-export class NodeMailerEmailSender implements IEmailSender {
-  private transporter: nodemailer.Transporter;
-  private readonly logger = new Logger(NodeMailerEmailSender.name);
+export class SendGridEmailSender implements IEmailSender {
+  private readonly logger = new Logger(SendGridEmailSender.name);
 
   constructor(private readonly config: ConfigService) {
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false,
-      auth: {
-        user: this.config.email.senderEmail,
-        pass: this.config.email.senderEmailPassword,
-      },
-    });
+    sgMail.setApiKey(this.config.email.sendgridApiKey);
   }
 
   async send(email: string, token: string | null): Promise<void> {
     try {
-      await this.transporter.sendMail({
-        from: this.config.email.senderEmail,
+      await sgMail.send({
+        from: this.config.email.sendgridSender,
         to: email,
         subject: 'Email Verification',
         text: `Your verification token is: ${token}`,

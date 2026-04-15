@@ -37,6 +37,7 @@
     "@nestjs/platform-socket.io": "^11.1.14",
     "@nestjs/swagger": "^11.2.6",
     "@nestjs/websockets": "^11.1.14",
+    "@sendgrid/mail": "^8.1.6",
     "@types/cookie-parser": "^1.4.10",
     "agenda": "^6.2.3",
     "bcrypt": "^6.0.0",
