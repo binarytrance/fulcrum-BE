@@ -23,6 +23,7 @@ import { CreateOAuthUserService } from '@users/application/services/create-oauth
 import { SignupService } from '@auth/application/services/signup.service';
 import { LocalSigninService } from '@auth/application/services/local-signin.service';
 import { OAuthSigninService } from '@auth/application/services/oauth-signin.service';
+import { OAuthPkceCodeService } from '@auth/application/services/oauth-pkce-code.service';
 import { AuthWorkersModule } from '@auth/infrastructure/workers/auth-workers.module';
 import { AuthMongoModule } from '@auth/infrastructure/persistence/auth-mongo.module';
 import { PENDING_CREDENTIAL_REPO_PORT } from '@auth/domain/ports/pending-credential-repo.port';
@@ -31,6 +32,7 @@ import { VerifyEmailService } from '@auth/application/services/verify-email.serv
 import { AuthSessionService } from '@auth/application/services/auth-session.service';
 import { SignupEmailEventPublisher } from '@auth/infrastructure/event-publisher/signup-email.event-publisher';
 import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
+import { OAuthPkceStateService } from '@auth/infrastructure/security/oauth-pkce-state.service';
 
 @Module({
   imports: [
@@ -61,6 +63,8 @@ import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
     SignupService,
     LocalSigninService,
     OAuthSigninService,
+    OAuthPkceCodeService,
+    OAuthPkceStateService,
     VerifyEmailService,
     AuthSessionService,
 

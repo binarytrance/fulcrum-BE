@@ -25,10 +25,19 @@ import { AnalyticsController } from '@analytics/presentation/controllers/analyti
   imports: [SharedModule, AnalyticsMongoModule, AnalyticsWorkersModule],
   controllers: [AnalyticsController],
   providers: [
-    { provide: DAILY_ANALYTICS_REPO_PORT, useExisting: DailyAnalyticsRepository },
+    {
+      provide: DAILY_ANALYTICS_REPO_PORT,
+      useExisting: DailyAnalyticsRepository,
+    },
     { provide: GOAL_ANALYTICS_REPO_PORT, useExisting: GoalAnalyticsRepository },
-    { provide: WEEKLY_ANALYTICS_REPO_PORT, useExisting: WeeklyAnalyticsRepository },
-    { provide: ESTIMATION_PROFILE_REPO_PORT, useExisting: EstimationProfileRepository },
+    {
+      provide: WEEKLY_ANALYTICS_REPO_PORT,
+      useExisting: WeeklyAnalyticsRepository,
+    },
+    {
+      provide: ESTIMATION_PROFILE_REPO_PORT,
+      useExisting: EstimationProfileRepository,
+    },
     GetDailyAnalyticsService,
     GetGoalAnalyticsService,
     GetWeeklyAnalyticsService,

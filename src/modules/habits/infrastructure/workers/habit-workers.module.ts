@@ -19,7 +19,6 @@ import { HABIT_OCCURRENCE_REPO_PORT } from '@habits/domain/ports/habit-occurrenc
 import { HabitRepository } from '@habits/infrastructure/persistence/habit.repository';
 import { HabitOccurrenceRepository } from '@habits/infrastructure/persistence/habit-occurrence.repository';
 
-
 @Module({
   imports: [
     SharedModule,

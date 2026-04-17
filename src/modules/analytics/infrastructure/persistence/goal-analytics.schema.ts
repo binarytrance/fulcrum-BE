@@ -6,7 +6,8 @@ export class GoalAnalyticsDoc {
   static readonly name = 'GoalAnalytics';
 
   @Prop({ type: String, required: true }) _id!: string;
-  @Prop({ type: String, required: true, unique: true, index: true }) goalId!: string;
+  @Prop({ type: String, required: true, unique: true, index: true })
+  goalId!: string;
   @Prop({ type: String, required: true, index: true }) userId!: string;
   @Prop({ type: String, required: true }) goalTitle!: string;
 
@@ -24,4 +25,5 @@ export class GoalAnalyticsDoc {
 }
 
 export type GoalAnalyticsDocument = HydratedDocument<GoalAnalyticsDoc>;
-export const GoalAnalyticsSchema = SchemaFactory.createForClass(GoalAnalyticsDoc);
+export const GoalAnalyticsSchema =
+  SchemaFactory.createForClass(GoalAnalyticsDoc);

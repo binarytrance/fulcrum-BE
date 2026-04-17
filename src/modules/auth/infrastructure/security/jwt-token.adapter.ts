@@ -106,7 +106,12 @@ export class JwtTokenAdapter implements ITokenService {
 
     await this.redis
       .multi()
-      .set(this.getRefreshKey(userId, sessionId), hashed, 'EX', REFRESH_TOKEN_TTL_SECONDS)
+      .set(
+        this.getRefreshKey(userId, sessionId),
+        hashed,
+        'EX',
+        REFRESH_TOKEN_TTL_SECONDS,
+      )
       .set(
         this.getRefreshSessionKey(userId, sessionId),
         JSON.stringify(session),
@@ -199,7 +204,9 @@ export class JwtTokenAdapter implements ITokenService {
     userId: string,
     sessionId: string,
   ): Promise<StoredRefreshSession | null> {
-    const raw = await this.redis.get(this.getRefreshSessionKey(userId, sessionId));
+    const raw = await this.redis.get(
+      this.getRefreshSessionKey(userId, sessionId),
+    );
     if (!raw) return null;
     return JSON.parse(raw) as StoredRefreshSession;
   }

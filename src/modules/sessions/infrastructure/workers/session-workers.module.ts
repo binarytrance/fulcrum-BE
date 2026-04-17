@@ -27,7 +27,10 @@ import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analyt
   providers: [
     SessionWorker,
     SessionEventPublisher,
-    { provide: SESSION_EVENT_PUBLISHER_PORT, useExisting: SessionEventPublisher },
+    {
+      provide: SESSION_EVENT_PUBLISHER_PORT,
+      useExisting: SessionEventPublisher,
+    },
   ],
   exports: [BullModule, SESSION_EVENT_PUBLISHER_PORT],
 })
