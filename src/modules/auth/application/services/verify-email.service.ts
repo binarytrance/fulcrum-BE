@@ -1,11 +1,15 @@
 import {
   BadRequestException,
+  ConflictException,
   Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
 import { type ITokenService, TOKEN_PORT } from '@auth/domain/ports/token.port';
-import type { AuthTokens } from '@auth/domain/types/token.types';
+import type {
+  AuthTokens,
+  RefreshSessionContext,
+} from '@auth/domain/types/token.types';
 import {
   AUTH_REPO_PORT,
   type IAuthRepository,
@@ -28,6 +32,10 @@ import {
 } from '@shared/domain/ports/transaction-manager.port';
 import { Auth } from '@auth/domain/entities/auth.entity';
 import { AuthProviders } from '@auth/domain/types/auth.types';
+import {
+  FIND_USER_PORT,
+  type IFindUserPort,
+} from '@auth/domain/ports/find-user.port';
 
 @Injectable()
 export class VerifyEmailService {
@@ -38,11 +46,16 @@ export class VerifyEmailService {
     private readonly pendingCredentialRepo: IPendingCredentialRepository,
     @Inject(ID_GENERATOR_PORT) private readonly idGenerator: IIDGenerator,
     @Inject(CREATE_USER_PORT) private readonly createUserPort: ICreateUserPort,
+    @Inject(FIND_USER_PORT) private readonly findUser: IFindUserPort,
     @Inject(TRANSACTION_MANAGER_PORT)
     private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(email: string, token: string): Promise<AuthTokens> {
+  async execute(
+    email: string,
+    token: string,
+    context?: RefreshSessionContext,
+  ): Promise<AuthTokens> {
     const pending = await this.pendingCredentialRepo.findByEmail(email);
     if (!pending) throw new UnauthorizedException('Invalid credentials');
 
@@ -52,12 +65,21 @@ export class VerifyEmailService {
     if (pending.emailVerificationToken !== token)
       throw new UnauthorizedException('Invalid verification token');
 
-    const existingAuth = await this.authRepo.findByProvider(
-      AuthProviders.LOCAL,
-      email,
-    );
-    if (existingAuth)
-      throw new BadRequestException('Email is already verified');
+    const existingUser = await this.findUser.findByEmail(email);
+    if (existingUser) {
+      const existingLocalAuth = await this.authRepo.findByUserIdAndProvider(
+        existingUser.id,
+        AuthProviders.LOCAL,
+      );
+
+      if (existingLocalAuth) {
+        throw new BadRequestException('Email is already verified');
+      }
+
+      throw new ConflictException(
+        'Email is already registered with another sign-in method',
+      );
+    }
 
     return this.txManager.withTransaction(async () => {
       const newUser = await this.createUserPort.execute(
@@ -80,7 +102,9 @@ export class VerifyEmailService {
       await this.authRepo.create(auth);
       await this.pendingCredentialRepo.deleteById(pending.id);
 
-      return this.tokenService.generateTokens(newUser.id, pending.email);
+      return this.tokenService.generateTokens(newUser.id, pending.email, {
+        context,
+      });
     });
   }
 }

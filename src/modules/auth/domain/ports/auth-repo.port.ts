@@ -6,6 +6,10 @@ export const AUTH_REPO_PORT = Symbol('AUTH_PORT');
 export interface IAuthRepository {
   create(authAccount: Auth): Promise<void>;
   findByUserId(userId: string): Promise<Auth | null>;
+  findByUserIdAndProvider(
+    userId: string,
+    provider: AuthProviders,
+  ): Promise<Auth | null>;
   findByProvider(
     provider: AuthProviders,
     providerId: string,

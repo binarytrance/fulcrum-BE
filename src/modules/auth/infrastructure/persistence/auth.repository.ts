@@ -39,6 +39,26 @@ export class AuthRepository implements IAuthRepository {
     });
   }
 
+  async findByUserIdAndProvider(
+    userId: string,
+    provider: AuthProviders,
+  ): Promise<Auth | null> {
+    const doc = await this.authModel
+      .findOne({ userId, provider })
+      .select('+hashedPassword')
+      .lean();
+    if (!doc) return null;
+    return new Auth({
+      id: doc._id.toString(),
+      userId: doc.userId.toString(),
+      hashedPassword: doc.hashedPassword,
+      provider: doc.provider,
+      providerId: doc.providerId,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    });
+  }
+
   async findByProvider(
     provider: AuthProviders,
     providerId: string,

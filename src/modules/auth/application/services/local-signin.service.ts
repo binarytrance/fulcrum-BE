@@ -8,11 +8,15 @@ import {
   PASSWORD_HASH_PORT,
 } from '@auth/domain/ports/password-hasher.port';
 import { type ITokenService, TOKEN_PORT } from '@auth/domain/ports/token.port';
-import type { AuthTokens } from '@auth/domain/types/token.types';
+import type {
+  AuthTokens,
+  RefreshSessionContext,
+} from '@auth/domain/types/token.types';
 import {
   type IFindUserPort,
   FIND_USER_PORT,
 } from '@auth/domain/ports/find-user.port';
+import { AuthProviders } from '@auth/domain/types/auth.types';
 
 @Injectable()
 export class LocalSigninService {
@@ -24,11 +28,18 @@ export class LocalSigninService {
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
   ) {}
 
-  async execute(email: string, password: string): Promise<AuthTokens> {
+  async execute(
+    email: string,
+    password: string,
+    context?: RefreshSessionContext,
+  ): Promise<AuthTokens> {
     const user = await this.findUser.findByEmail(email);
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const auth = await this.authRepo.findByUserId(user.id);
+    const auth = await this.authRepo.findByUserIdAndProvider(
+      user.id,
+      AuthProviders.LOCAL,
+    );
     if (!auth || !auth.hashedPassword)
       throw new UnauthorizedException('Invalid credentials');
 
@@ -38,6 +49,6 @@ export class LocalSigninService {
     );
     if (!isValid) throw new UnauthorizedException('Invalid credentials');
 
-    return this.tokenService.generateTokens(user.id, user.email);
+    return this.tokenService.generateTokens(user.id, user.email, { context });
   }
 }

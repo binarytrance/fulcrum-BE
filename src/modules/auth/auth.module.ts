@@ -28,6 +28,7 @@ import { AuthMongoModule } from '@auth/infrastructure/persistence/auth-mongo.mod
 import { PENDING_CREDENTIAL_REPO_PORT } from '@auth/domain/ports/pending-credential-repo.port';
 import { PendingCredentialRepository } from '@auth/infrastructure/persistence/pending-credential.repository';
 import { VerifyEmailService } from '@auth/application/services/verify-email.service';
+import { AuthSessionService } from '@auth/application/services/auth-session.service';
 import { SignupEmailEventPublisher } from '@auth/infrastructure/event-publisher/signup-email.event-publisher';
 import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
 
@@ -61,6 +62,7 @@ import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
     LocalSigninService,
     OAuthSigninService,
     VerifyEmailService,
+    AuthSessionService,
 
     // Passport strategies
     GoogleStrategy,

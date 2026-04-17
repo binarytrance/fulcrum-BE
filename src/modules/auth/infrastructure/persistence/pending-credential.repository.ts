@@ -18,11 +18,10 @@ export class PendingCredentialRepository implements IPendingCredentialRepository
 
   async save(credential: PendingCredentialEntity): Promise<void> {
     const session = mongoSessionContext.getStore();
-    await this.model.create(
-      [
-        {
-          _id: credential.id,
-          email: credential.email,
+    await this.model.updateOne(
+      { email: credential.email },
+      {
+        $set: {
           firstname: credential.firstname,
           lastname: credential.lastname,
           hashedPassword: credential.hashedPassword,
@@ -30,8 +29,12 @@ export class PendingCredentialRepository implements IPendingCredentialRepository
           tokenExpiresAt: credential.tokenExpiresAt,
           createdAt: credential.createdAt,
         },
-      ],
-      { session },
+        $setOnInsert: {
+          _id: credential.id,
+          email: credential.email,
+        },
+      },
+      { session, upsert: true },
     );
   }
 

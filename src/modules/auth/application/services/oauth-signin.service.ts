@@ -10,7 +10,11 @@ import {
 } from '@auth/domain/ports/auth-repo.port';
 import { type ITokenService, TOKEN_PORT } from '@auth/domain/ports/token.port';
 import { Auth } from '@auth/domain/entities/auth.entity';
-import type { AuthTokens, OAuthProfile } from '@auth/domain/types/token.types';
+import type {
+  AuthTokens,
+  OAuthProfile,
+  RefreshSessionContext,
+} from '@auth/domain/types/token.types';
 import {
   type IFindUserPort,
   type AuthUserView,
@@ -44,7 +48,10 @@ export class OAuthSigninService {
     private readonly txManager: ITransactionManager,
   ) {}
 
-  async execute(profile: OAuthProfile): Promise<AuthTokens> {
+  async execute(
+    profile: OAuthProfile,
+    context?: RefreshSessionContext,
+  ): Promise<AuthTokens> {
     // Try to find existing auth record for this provider
     let auth = await this.authRepo.findByProvider(
       profile.provider,
@@ -90,6 +97,8 @@ export class OAuthSigninService {
     const user = await this.findUser.findById(auth.userId);
     if (!user) throw new InternalServerErrorException('User not found');
 
-    return this.tokenService.generateTokens(auth.userId, user.email);
+    return this.tokenService.generateTokens(auth.userId, user.email, {
+      context,
+    });
   }
 }
