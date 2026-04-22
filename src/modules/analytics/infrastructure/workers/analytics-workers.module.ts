@@ -17,6 +17,7 @@ import { ANALYTICS_EVENT_PUBLISHER_PORT } from '@analytics/domain/ports/analytic
 import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
+import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 
 import { AnalyticsJobName } from '@analytics/domain/types/analytics-jobs.types';
 
@@ -27,6 +28,7 @@ import { AnalyticsJobName } from '@analytics/domain/types/analytics-jobs.types';
     SessionMongoModule,
     TaskMongoModule,
     GoalMongoModule,
+    HabitMongoModule,
     BullModule.registerQueue({ name: ANALYTICS_QUEUE_NAME }),
     BullBoardModule.forFeature({
       name: ANALYTICS_QUEUE_NAME,

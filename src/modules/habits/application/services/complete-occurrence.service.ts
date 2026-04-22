@@ -17,6 +17,10 @@ import {
   HABIT_EVENT_PUBLISHER_PORT,
   type IHabitEventPublisher,
 } from '@habits/domain/ports/habit-event-publisher.port';
+import {
+  ANALYTICS_EVENT_PUBLISHER_PORT,
+  type IAnalyticsEventPublisher,
+} from '@analytics/domain/ports/analytics-event-publisher.port';
 import type { HabitOccurrence } from '@habits/domain/entities/habit-occurrence.entity';
 import { COMPLETION_GRACE_PERCENT } from '@habits/domain/types/habit.types';
 
@@ -36,6 +40,8 @@ export class CompleteOccurrenceService {
     @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
     @Inject(HABIT_EVENT_PUBLISHER_PORT)
     private readonly eventPublisher: IHabitEventPublisher,
+    @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
+    private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
   ) {}
 
   async execute(input: CompleteOccurrenceInput): Promise<HabitOccurrence> {
@@ -74,6 +80,8 @@ export class CompleteOccurrenceService {
       durationMinutes: input.durationMinutes,
       sessionId: input.sessionId ?? null,
     });
+
+    await this.analyticsEventPublisher.queueDailyCompute(input.userId, saved.date);
 
     return saved;
   }

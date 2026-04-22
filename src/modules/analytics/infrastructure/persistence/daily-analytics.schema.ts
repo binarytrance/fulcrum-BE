@@ -34,6 +34,12 @@ export class DailyAnalyticsDoc {
   @Prop({ type: Number, default: 0 }) unplannedPercent!: number;
   @Prop({ type: Number, default: 0 }) taskCompletionRate!: number;
 
+  @Prop({ type: Number, default: 0 }) totalHabitCount!: number;
+  @Prop({ type: Number, default: 0 }) completedHabitCount!: number;
+  @Prop({ type: Number, default: 0 }) skippedHabitCount!: number;
+  @Prop({ type: Number, default: 0 }) missedHabitCount!: number;
+  @Prop({ type: Number, default: 0 }) habitCompletionRate!: number;
+
   @Prop({ type: Number, default: null }) avgEfficiencyScore!: number | null;
 
   @Prop({ type: [TimeLeakSubSchema], default: [] })

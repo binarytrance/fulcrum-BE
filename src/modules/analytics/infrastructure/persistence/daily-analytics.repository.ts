@@ -30,6 +30,11 @@ type DailyLean = {
   completedTaskCount: number;
   unplannedPercent: number;
   taskCompletionRate: number;
+  totalHabitCount: number;
+  completedHabitCount: number;
+  skippedHabitCount: number;
+  missedHabitCount: number;
+  habitCompletionRate: number;
   avgEfficiencyScore: number | null;
   timeLeaks: TimeLeak[];
   computedAt: Date;
@@ -54,6 +59,11 @@ function toDomain(doc: DailyLean): DailyAnalytics {
     completedTaskCount: doc.completedTaskCount,
     unplannedPercent: doc.unplannedPercent,
     taskCompletionRate: doc.taskCompletionRate,
+    totalHabitCount: doc.totalHabitCount ?? 0,
+    completedHabitCount: doc.completedHabitCount ?? 0,
+    skippedHabitCount: doc.skippedHabitCount ?? 0,
+    missedHabitCount: doc.missedHabitCount ?? 0,
+    habitCompletionRate: doc.habitCompletionRate ?? 0,
     avgEfficiencyScore: doc.avgEfficiencyScore,
     timeLeaks: doc.timeLeaks ?? [],
     computedAt: doc.computedAt,

@@ -35,6 +35,14 @@ export interface DailyAnalyticsFields {
   /** 0–100 */
   taskCompletionRate: number;
 
+  // ── Habit metrics ─────────────────────────────────────────────────────────
+  totalHabitCount: number;
+  completedHabitCount: number;
+  skippedHabitCount: number;
+  missedHabitCount: number;
+  /** 0–100 */
+  habitCompletionRate: number;
+
   // ── Efficiency ────────────────────────────────────────────────────────────
   /** null if no tasks were completed with an actualDuration */
   avgEfficiencyScore: number | null;

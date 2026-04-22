@@ -4,6 +4,7 @@ import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.mo
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 import { HabitWorkersModule } from '@habits/infrastructure/workers/habit-workers.module';
+import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
 import { GoalAccessAdapter } from '@habits/infrastructure/adapters/goal-access.adapter';
 import { TaskCapacityAdapter } from '@habits/infrastructure/adapters/task-capacity.adapter';
 import { HabitCapacityAdapter } from '@habits/infrastructure/adapters/habit-capacity.adapter';
@@ -31,6 +32,7 @@ import { GetOccurrencesService } from '@habits/application/services/get-occurren
     SharedModule,
     HabitMongoModule,
     HabitWorkersModule,
+    AnalyticsWorkersModule,
     // GoalMongoModule registers the 'Goal' Mongoose model used by GoalAccessAdapter.
     GoalMongoModule,
     // TaskMongoModule registers the 'Task' Mongoose model used by TaskCapacityAdapter.

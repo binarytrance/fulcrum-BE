@@ -25,6 +25,12 @@ export class DailyAnalytics {
   readonly unplannedPercent: number;
   readonly taskCompletionRate: number;
 
+  readonly totalHabitCount: number;
+  readonly completedHabitCount: number;
+  readonly skippedHabitCount: number;
+  readonly missedHabitCount: number;
+  readonly habitCompletionRate: number;
+
   readonly avgEfficiencyScore: number | null;
   readonly timeLeaks: TimeLeak[];
   readonly computedAt: Date;
@@ -47,6 +53,11 @@ export class DailyAnalytics {
     this.completedTaskCount = fields.completedTaskCount;
     this.unplannedPercent = fields.unplannedPercent;
     this.taskCompletionRate = fields.taskCompletionRate;
+    this.totalHabitCount = fields.totalHabitCount;
+    this.completedHabitCount = fields.completedHabitCount;
+    this.skippedHabitCount = fields.skippedHabitCount;
+    this.missedHabitCount = fields.missedHabitCount;
+    this.habitCompletionRate = fields.habitCompletionRate;
     this.avgEfficiencyScore = fields.avgEfficiencyScore;
     this.timeLeaks = fields.timeLeaks;
     this.computedAt = fields.computedAt;
@@ -71,6 +82,11 @@ export class DailyAnalytics {
       completedTaskCount: this.completedTaskCount,
       unplannedPercent: this.unplannedPercent,
       taskCompletionRate: this.taskCompletionRate,
+      totalHabitCount: this.totalHabitCount,
+      completedHabitCount: this.completedHabitCount,
+      skippedHabitCount: this.skippedHabitCount,
+      missedHabitCount: this.missedHabitCount,
+      habitCompletionRate: this.habitCompletionRate,
       avgEfficiencyScore: this.avgEfficiencyScore,
       timeLeaks: this.timeLeaks,
       computedAt: this.computedAt,

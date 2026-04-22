@@ -73,6 +73,12 @@ interface GoalLean {
   estimatedDuration: number | null;
 }
 
+interface HabitOccurrenceLean {
+  userId: string;
+  date: string;
+  status: 'pending' | 'completed' | 'missed' | 'skipped';
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Returns the YYYY-MM-DD string of the Monday starting the ISO week that contains `date`. */
@@ -125,6 +131,9 @@ export class AnalyticsWorker extends WorkerHost {
 
     @InjectModel('Goal')
     private readonly goalModel: Model<GoalLean>,
+
+    @InjectModel('HabitOccurrence')
+    private readonly habitOccurrenceModel: Model<HabitOccurrenceLean>,
 
     @InjectQueue(ANALYTICS_QUEUE_NAME)
     private readonly analyticsQueue: Queue,
@@ -233,6 +242,26 @@ export class AnalyticsWorker extends WorkerHost {
         ? Math.round((completedTaskCount / totalTaskCount) * 100)
         : 0;
 
+    // ── Habit occurrences on this day ──
+    const occurrences = await this.habitOccurrenceModel
+      .find({ userId, date })
+      .lean<HabitOccurrenceLean[]>();
+
+    const totalHabitCount = occurrences.length;
+    const completedHabitCount = occurrences.filter(
+      (o) => o.status === 'completed',
+    ).length;
+    const skippedHabitCount = occurrences.filter(
+      (o) => o.status === 'skipped',
+    ).length;
+    const missedHabitCount = occurrences.filter(
+      (o) => o.status === 'missed',
+    ).length;
+    const habitCompletionRate =
+      totalHabitCount > 0
+        ? Math.round((completedHabitCount / totalHabitCount) * 100)
+        : 0;
+
     const tasksWithScore = tasks.filter(
       (t) => t.efficiencyScore !== null && t.efficiencyScore !== undefined,
     );
@@ -286,6 +315,11 @@ export class AnalyticsWorker extends WorkerHost {
           completedTaskCount,
           unplannedPercent,
           taskCompletionRate,
+          totalHabitCount,
+          completedHabitCount,
+          skippedHabitCount,
+          missedHabitCount,
+          habitCompletionRate,
           avgEfficiencyScore,
           timeLeaks,
           computedAt: new Date(),
@@ -296,7 +330,7 @@ export class AnalyticsWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[Daily] userId=${userId} date=${date} — ${totalLoggedMinutes}min logged, ${timeLeaks.length} time leaks`,
+      `[Daily] userId=${userId} date=${date} — ${totalLoggedMinutes}min logged, habits=${completedHabitCount}/${totalHabitCount}, ${timeLeaks.length} time leaks`,
     );
   }
 

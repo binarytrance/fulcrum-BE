@@ -22,8 +22,8 @@ export class AnalyticsEventPublisher implements IAnalyticsEventPublisher {
       AnalyticsJobName.COMPUTE_DAILY,
       { userId, date },
       {
-        // Deduplicated per user per day — re-triggered on every session/task that day
-        jobId: `analytics.daily_${userId}_${date}`,
+        // Always enqueue recomputation so habit/task/session updates for the same day
+        // are reflected immediately instead of being blocked by a previous completed job.
         removeOnComplete: { count: 30 },
       },
     );
