@@ -1,14 +1,19 @@
 import { Module } from '@nestjs/common';
 import { SharedModule } from '@shared/shared.module';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
+import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 import { HabitWorkersModule } from '@habits/infrastructure/workers/habit-workers.module';
 import { GoalAccessAdapter } from '@habits/infrastructure/adapters/goal-access.adapter';
+import { TaskCapacityAdapter } from '@habits/infrastructure/adapters/task-capacity.adapter';
+import { HabitCapacityAdapter } from '@habits/infrastructure/adapters/habit-capacity.adapter';
 import { HabitsController } from '@habits/presentation/controllers/habits.controller';
 
 import { HABIT_REPO_PORT } from '@habits/domain/ports/habit-repo.port';
 import { HABIT_OCCURRENCE_REPO_PORT } from '@habits/domain/ports/habit-occurrence-repo.port';
 import { GOAL_ACCESS_PORT } from '@habits/domain/ports/goal-access.port';
+import { TASK_CAPACITY_PORT } from '@habits/domain/ports/task-capacity.port';
+import { HABIT_CAPACITY_PORT } from '@habits/domain/ports/habit-capacity.port';
 import { HabitRepository } from '@habits/infrastructure/persistence/habit.repository';
 import { HabitOccurrenceRepository } from '@habits/infrastructure/persistence/habit-occurrence.repository';
 
@@ -28,6 +33,8 @@ import { GetOccurrencesService } from '@habits/application/services/get-occurren
     HabitWorkersModule,
     // GoalMongoModule registers the 'Goal' Mongoose model used by GoalAccessAdapter.
     GoalMongoModule,
+    // TaskMongoModule registers the 'Task' Mongoose model used by TaskCapacityAdapter.
+    TaskMongoModule,
   ],
   controllers: [HabitsController],
   providers: [
@@ -38,6 +45,8 @@ import { GetOccurrencesService } from '@habits/application/services/get-occurren
       useExisting: HabitOccurrenceRepository,
     },
     { provide: GOAL_ACCESS_PORT, useClass: GoalAccessAdapter },
+    { provide: TASK_CAPACITY_PORT, useClass: TaskCapacityAdapter },
+    { provide: HABIT_CAPACITY_PORT, useClass: HabitCapacityAdapter },
 
     // ─── Application services ──────────────────────────────────────────────
     CreateHabitService,

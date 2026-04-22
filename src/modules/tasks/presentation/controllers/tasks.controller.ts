@@ -33,8 +33,8 @@ import { DeleteTaskService } from '@tasks/application/services/delete-task.servi
 import {
   GetTasksService,
   type DailyTaskSummary,
+  type TaskStats,
 } from '@tasks/application/services/get-tasks.service';
-
 import {
   type CreateTaskDto,
   CreateTaskSchema,
@@ -47,11 +47,12 @@ import {
   type CompleteTaskDto,
   CompleteTaskSchema,
 } from '@tasks/presentation/dtos/complete-task.dto';
-
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
+  paginated,
   type ApiResponse as ApiResponseType,
+  type PaginatedResponse,
 } from '@shared/presentation/responses/api-response';
 import { Task } from '@tasks/domain/entities/task.entity';
 import {
@@ -60,10 +61,27 @@ import {
   TaskType,
 } from '@tasks/domain/types/task.types';
 
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+function parsePagination(page?: string, limit?: string) {
+  const p = Math.max(
+    1,
+    parseInt(page ?? String(DEFAULT_PAGE), 10) || DEFAULT_PAGE,
+  );
+  const l = Math.min(
+    MAX_LIMIT,
+    Math.max(1, parseInt(limit ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT),
+  );
+  return { page: p, limit: l };
+}
+
 interface TaskResponse {
   id: string;
   userId: string;
   goalId: string | null;
+  goalTitle: string | null;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -86,11 +104,12 @@ interface TaskResponse {
   updatedAt: Date;
 }
 
-function toTaskResponse(task: Task): TaskResponse {
+function toTaskResponse(task: Task, goalTitle: string | null): TaskResponse {
   return {
     id: task.id,
     userId: task.userId,
     goalId: task.goalId,
+    goalTitle,
     title: task.title,
     description: task.description,
     status: task.status,
@@ -142,31 +161,60 @@ export class TasksController {
   ): Promise<ApiResponseType<TaskResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const task = await this.createTaskService.execute({ userId, ...dto });
-    return ok('Task created successfully.', toTaskResponse(task));
+    const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
+    return ok('Task created successfully.', toTaskResponse(task, goalTitle));
   }
 
-  // ─── Daily planner query ────────────────────────────────────────────────────────
+  // ─── Daily planner (dedicated route) ──────────────────────────────────────────
+  // MUST be before GET /:id — registered as GET /tasks/daily
 
-  @Get()
+  @Get('daily')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Get tasks for a specific date (daily planner)',
     description:
       'Returns all tasks scheduled for the given date. ' +
-      'Returns a trimmed DTO (no description/timestamps) — this is the hot-path endpoint. ' +
+      'Returns a trimmed DTO — this is the hot-path endpoint. ' +
       'Results are Redis-cached with a 60 s TTL.',
   })
   @ApiQuery({
     name: 'date',
-    required: false,
-    description: 'Calendar date in YYYY-MM-DD format (daily planner)',
-    example: '2026-02-27',
+    required: true,
+    description: 'Calendar date in YYYY-MM-DD format',
+    example: '2026-04-18',
+  })
+  @ApiResponse({ status: 200, description: 'Tasks returned.' })
+  @ApiResponse({ status: 400, description: 'Invalid or missing date.' })
+  async getByDate(
+    @Req() req: Request,
+    @Query('date') dateStr: string,
+  ): Promise<ApiResponseType<DailyTaskSummary[]>> {
+    if (!dateStr)
+      throw new BadRequestException('Query parameter `date` is required.');
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) {
+      throw new BadRequestException('Invalid date format. Use YYYY-MM-DD.');
+    }
+    const { sub: userId } = req.user as TokenPayload;
+    const summaries = await this.getTasksService.getByDate(userId, date);
+    return ok('Tasks retrieved successfully.', summaries);
+  }
+
+  // ─── List / filter (paginated) ─────────────────────────────────────────────────
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'List tasks',
+    description:
+      'Returns all non-deleted tasks for the authenticated user, with optional ' +
+      'filtering by `type`, `status`, or `goalId`. Results are paginated.',
   })
   @ApiQuery({
     name: 'type',
     required: false,
     enum: TaskType,
-    description: 'Filter by task type — returns all matching non-deleted tasks',
+    description: 'Filter by task type',
   })
   @ApiQuery({
     name: 'status',
@@ -179,39 +227,131 @@ export class TasksController {
     required: false,
     description: 'Filter by goal ID (combinable with type/status)',
   })
+  @ApiQuery({
+    name: 'date',
+    required: false,
+    description:
+      'Filter by scheduled date (YYYY-MM-DD). Returns tasks whose scheduledFor falls on this calendar day (UTC).',
+    example: '2026-04-18',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based, default 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: `Items per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+    example: DEFAULT_LIMIT,
+  })
   @ApiResponse({ status: 200, description: 'Tasks returned.' })
-  @ApiResponse({ status: 400, description: 'Invalid or missing query params.' })
-  async getByDate(
+  async list(
     @Req() req: Request,
-    @Query('date') dateStr?: string,
     @Query('type') type?: TaskType,
     @Query('status') status?: TaskStatus,
     @Query('goalId') goalId?: string,
-  ): Promise<ApiResponseType<DailyTaskSummary[] | TaskResponse[]>> {
+    @Query('date') dateStr?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<TaskResponse>>> {
     const { sub: userId } = req.user as TokenPayload;
-
-    // ── Daily planner path (hot, cached, trimmed DTO) ──────────────────────────
+    const pagination = parsePagination(page, limit);
+    let scheduledFor: Date | undefined;
     if (dateStr) {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) {
+      const parsed = new Date(dateStr);
+      if (isNaN(parsed.getTime())) {
         throw new BadRequestException('Invalid date format. Use YYYY-MM-DD.');
       }
-      const summaries = await this.getTasksService.getByDate(userId, date);
-      return ok('Tasks retrieved successfully.', summaries);
+      scheduledFor = parsed;
     }
+    const { items, total, goalTitles } = await this.getTasksService.getByFilter(
+      userId,
+      { type, status, goalId, scheduledFor },
+      pagination,
+    );
+    return paginated(
+      'Tasks retrieved successfully.',
+      items.map((t) =>
+        toTaskResponse(t, goalTitles.get(t.goalId ?? '') ?? null),
+      ),
+      total,
+      pagination.page,
+      pagination.limit,
+    );
+  }
 
-    // ── Filter path (type / status / goalId) ───────────────────────────────────
-    if (type || status || goalId) {
-      const tasks = await this.getTasksService.getByFilter(userId, {
-        type,
-        status,
-        goalId,
-      });
-      return ok('Tasks retrieved successfully.', tasks.map(toTaskResponse));
-    }
+  // ─── Stats ─────────────────────────────────────────────────────────────────────
+  // MUST be registered before GET /:id to avoid route shadowing.
 
-    throw new BadRequestException(
-      'Provide at least one query param: date, type, status, or goalId.',
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get task statistics',
+    description:
+      'Returns total task count, a per-status breakdown ' +
+      '(PENDING, IN_PROGRESS, COMPLETED, CANCELLED) and a per-type breakdown ' +
+      '(PLANNED, UNPLANNED) for the authenticated user. ' +
+      'Computed in a single MongoDB aggregation.',
+  })
+  @ApiResponse({ status: 200, description: 'Stats returned.' })
+  async getStats(@Req() req: Request): Promise<ApiResponseType<TaskStats>> {
+    const { sub: userId } = req.user as TokenPayload;
+    const stats = await this.getTasksService.getStats(userId);
+    return ok('Task stats retrieved successfully.', stats);
+  }
+
+  // ─── Search ─────────────────────────────────────────────────────────────────────
+  // MUST be registered before GET /:id to avoid route shadowing.
+
+  @Get('search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Search tasks by title or description',
+    description:
+      'Case-insensitive substring search over `title` and `description`. ' +
+      'Returns a flat paginated list. ' +
+      '`q` must be at least 1 character.',
+  })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query string' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based, default 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: `Results per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+    example: DEFAULT_LIMIT,
+  })
+  @ApiResponse({ status: 200, description: 'Search results returned.' })
+  @ApiResponse({ status: 400, description: 'Missing or empty query string.' })
+  async search(
+    @Req() req: Request,
+    @Query('q') q: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<TaskResponse>>> {
+    if (!q?.trim())
+      throw new BadRequestException('Query parameter `q` is required.');
+    const { sub: userId } = req.user as TokenPayload;
+    const pagination = parsePagination(page, limit);
+    const { items, total, goalTitles } = await this.getTasksService.search(
+      userId,
+      q.trim(),
+      pagination,
+    );
+    return paginated(
+      'Search results retrieved successfully.',
+      items.map((t) =>
+        toTaskResponse(t, goalTitles.get(t.goalId ?? '') ?? null),
+      ),
+      total,
+      pagination.page,
+      pagination.limit,
     );
   }
 
@@ -229,8 +369,8 @@ export class TasksController {
     @Param('id') id: string,
   ): Promise<ApiResponseType<TaskResponse>> {
     const { sub: userId } = req.user as TokenPayload;
-    const task = await this.getTasksService.getOne(id, userId);
-    return ok('Task retrieved successfully.', toTaskResponse(task));
+    const { task, goalTitle } = await this.getTasksService.getOne(id, userId);
+    return ok('Task retrieved successfully.', toTaskResponse(task, goalTitle));
   }
 
   // ─── Complete (dedicated endpoint) ───────────────────────────────────────────────
@@ -266,7 +406,8 @@ export class TasksController {
       userId,
       dto.actualDuration,
     );
-    return ok('Task completed successfully.', toTaskResponse(task));
+    const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
+    return ok('Task completed successfully.', toTaskResponse(task, goalTitle));
   }
 
   // ─── Update ──────────────────────────────────────────────────────────────────────
@@ -292,7 +433,8 @@ export class TasksController {
   ): Promise<ApiResponseType<TaskResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const task = await this.updateTaskService.execute(id, userId, dto);
-    return ok('Task updated successfully.', toTaskResponse(task));
+    const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
+    return ok('Task updated successfully.', toTaskResponse(task, goalTitle));
   }
 
   // ─── Soft-delete ─────────────────────────────────────────────────────────────────

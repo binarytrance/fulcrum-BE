@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,6 +9,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -15,6 +17,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -28,7 +31,7 @@ import { UpdateGoalService } from '@goals/application/services/update-goal.servi
 import { DeleteGoalService } from '@goals/application/services/delete-goal.service';
 import {
   GetGoalsService,
-  type GoalTreeNode,
+  type GoalStats,
 } from '@goals/application/services/get-goals.service';
 
 import {
@@ -43,7 +46,9 @@ import {
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
+  paginated,
   type ApiResponse as ApiResponseType,
+  type PaginatedResponse,
 } from '@shared/presentation/responses/api-response';
 import { Goal } from '@goals/domain/entities/goal.entity';
 import {
@@ -52,6 +57,23 @@ import {
   GoalProgress,
   GoalStatus,
 } from '@goals/domain/types/goal.types';
+import { type GoalFilter } from '@goals/domain/ports/goal-repo.port';
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+function parsePagination(page?: string, limit?: string) {
+  const p = Math.max(
+    1,
+    parseInt(page ?? String(DEFAULT_PAGE), 10) || DEFAULT_PAGE,
+  );
+  const l = Math.min(
+    MAX_LIMIT,
+    Math.max(1, parseInt(limit ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT),
+  );
+  return { page: p, limit: l };
+}
 
 interface GoalResponse {
   id: string;
@@ -74,6 +96,8 @@ interface GoalResponse {
   actualEndDate: Date | null;
   /** True when the goal is active and all tasks are complete (score >= 100) */
   isReadyToComplete: boolean;
+  /** True when the goal deadline passed without completion (status === MISSED). */
+  isOverdue: boolean;
   level: number;
   progress: GoalProgress;
   createdAt: Date;
@@ -97,6 +121,7 @@ function toGoalResponse(goal: Goal): GoalResponse {
     actualEndDate: goal.actualEndDate,
     isReadyToComplete:
       goal.progress.score >= 100 && goal.status === GoalStatus.ACTIVE,
+    isOverdue: goal.status === GoalStatus.MISSED,
     level: goal.level,
     progress: goal.progress,
     createdAt: goal.createdAt,
@@ -138,22 +163,143 @@ export class GoalsController {
     return ok('Goal created successfully.', toGoalResponse(goal));
   }
 
-  // ─── Goal tree ──────────────────────────────────────────────────────────────────
+  // ─── List all goals (flat) ──────────────────────────────────────────────────────
 
   @Get()
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: 'Get goal tree for the authenticated user',
+    summary: 'List all goals for the authenticated user',
     description:
-      'Returns the full goal hierarchy as a nested tree. ' +
-      'Results are cached in Redis (30 s TTL). ' +
-      'Each node includes a `children` array of sub-goals.',
+      'Returns a flat paginated list of every goal owned by the user — ' +
+      'both top-level goals and sub-goals. No nested children.',
   })
-  @ApiResponse({ status: 200, description: 'Goal tree returned.' })
-  async getTree(@Req() req: Request): Promise<ApiResponseType<GoalTreeNode[]>> {
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based, default 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: `Goals per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+    example: DEFAULT_LIMIT,
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: `Filter by status. One of: ${Object.values(GoalStatus).join(', ')}`,
+    enum: GoalStatus,
+  })
+  @ApiQuery({
+    name: 'category',
+    required: false,
+    description: `Filter by category. One of: ${Object.values(GoalCategory).join(', ')}`,
+    enum: GoalCategory,
+  })
+  @ApiResponse({ status: 200, description: 'Goals returned.' })
+  async getAll(
+    @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+    @Query('category') category?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<GoalResponse>>> {
     const { sub: userId } = req.user as TokenPayload;
-    const tree = await this.getGoalsService.getTree(userId);
-    return ok('Goal tree retrieved successfully.', tree);
+    const pagination = parsePagination(page, limit);
+    const filter: GoalFilter = {};
+    if (status && Object.values(GoalStatus).includes(status as GoalStatus)) {
+      filter.status = status as GoalStatus;
+    }
+    if (
+      category &&
+      Object.values(GoalCategory).includes(category as GoalCategory)
+    ) {
+      filter.category = category as GoalCategory;
+    }
+    const { items, total } = await this.getGoalsService.getAll(
+      userId,
+      filter,
+      pagination.page,
+      pagination.limit,
+    );
+    return paginated(
+      'Goals retrieved successfully.',
+      items.map(toGoalResponse),
+      total,
+      pagination.page,
+      pagination.limit,
+    );
+  }
+
+  // ─── Stats ─────────────────────────────────────────────────────────────────────
+  // MUST be registered before GET /:id to avoid route shadowing.
+
+  @Get('stats')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get goal statistics',
+    description:
+      'Returns total goal count and a per-status breakdown ' +
+      '(ACTIVE, COMPLETED, PAUSED, ABANDONED) for the authenticated user. ' +
+      'Computed in a single MongoDB aggregation.',
+  })
+  @ApiResponse({ status: 200, description: 'Stats returned.' })
+  async getStats(@Req() req: Request): Promise<ApiResponseType<GoalStats>> {
+    const { sub: userId } = req.user as TokenPayload;
+    const stats = await this.getGoalsService.getStats(userId);
+    return ok('Goal stats retrieved successfully.', stats);
+  }
+
+  // ─── Search ────────────────────────────────────────────────────────
+  // MUST be registered before GET /:id to avoid route shadowing.
+
+  @Get('search')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Search goals by title or description',
+    description:
+      'Case-insensitive substring search over `title` and `description`. ' +
+      'Returns a flat paginated list (not a tree). ' +
+      '`q` must be at least 1 character.',
+  })
+  @ApiQuery({ name: 'q', required: true, description: 'Search query string' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based, default 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: `Results per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+    example: DEFAULT_LIMIT,
+  })
+  @ApiResponse({ status: 200, description: 'Search results returned.' })
+  @ApiResponse({ status: 400, description: 'Missing or empty query string.' })
+  async search(
+    @Req() req: Request,
+    @Query('q') q: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<GoalResponse>>> {
+    if (!q?.trim())
+      throw new BadRequestException('Query parameter `q` is required.');
+    const { sub: userId } = req.user as TokenPayload;
+    const pagination = parsePagination(page, limit);
+    const { items, total } = await this.getGoalsService.search(
+      userId,
+      q.trim(),
+      pagination,
+    );
+    return paginated(
+      'Search results retrieved successfully.',
+      items.map(toGoalResponse),
+      total,
+      pagination.page,
+      pagination.limit,
+    );
   }
 
   // ─── Get one ─────────────────────────────────────────────────────────────────────
@@ -163,6 +309,7 @@ export class GoalsController {
   @ApiOperation({ summary: 'Get a single goal by ID' })
   @ApiParam({ name: 'id', description: 'Goal ID' })
   @ApiResponse({ status: 200, description: 'Goal retrieved.' })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Goal not found.' })
   async getOne(
     @Req() req: Request,
@@ -171,6 +318,56 @@ export class GoalsController {
     const { sub: userId } = req.user as TokenPayload;
     const goal = await this.getGoalsService.getOne(id, userId);
     return ok('Goal retrieved successfully.', toGoalResponse(goal));
+  }
+
+  // ─── Subgoals ─────────────────────────────────────────────────────────────────────
+  // Registered before :id so it is not shadowed.
+
+  @Get(':id/subgoals')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get direct sub-goals of a goal',
+    description:
+      'Returns a flat paginated list of all direct sub-goals ' +
+      'under the specified goal. No further nesting.',
+  })
+  @ApiParam({ name: 'id', description: 'Parent goal ID' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based, default 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: `Sub-goals per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+    example: DEFAULT_LIMIT,
+  })
+  @ApiResponse({ status: 200, description: 'Sub-goals returned.' })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Goal not found.' })
+  async getSubgoals(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<GoalResponse>>> {
+    const { sub: userId } = req.user as TokenPayload;
+    const pagination = parsePagination(page, limit);
+    const { items, total } = await this.getGoalsService.getSubgoals(
+      id,
+      userId,
+      pagination.page,
+      pagination.limit,
+    );
+    return paginated(
+      'Sub-goals retrieved successfully.',
+      items.map(toGoalResponse),
+      total,
+      pagination.page,
+      pagination.limit,
+    );
   }
 
   // ─── Update ──────────────────────────────────────────────────────────────────────

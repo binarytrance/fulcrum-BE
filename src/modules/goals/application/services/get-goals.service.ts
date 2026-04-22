@@ -8,64 +8,19 @@ import { Goal } from '@goals/domain/entities/goal.entity';
 import {
   GOAL_REPO_PORT,
   type IGoalRepository,
+  type GoalStats,
 } from '@goals/domain/ports/goal-repo.port';
+import { type GoalFilter } from '@goals/domain/ports/goal-repo.port';
+export type { GoalStats };
 import {
   GOAL_CACHE_PORT,
   type IGoalCachePort,
 } from '@goals/domain/ports/goal-cache.port';
-import {
-  GoalCategory,
-  GoalPriority,
-  GoalProgress,
-  GoalStatus,
-} from '@goals/domain/types/goal.types';
+import type { Pagination } from '@tasks/domain/ports/task-repo.port';
 
-export interface GoalTreeNode {
-  id: string;
-  userId: string;
-  parentGoalId: string | null;
-  title: string;
-  description: string | null;
-  category: GoalCategory;
-  status: GoalStatus;
-  priority: GoalPriority;
-  estimatedEndDate: Date | null;
-  estimatedDuration: number | null;
-  /** When the user plans to start the goal; null = not set */
-  estimatedStartDate: Date | null;
-  /** Actual date the goal was started; null = not yet started */
-  actualStartDate: Date | null;
-  level: number;
-  progress: GoalProgress;
-  /** True when progress.score >= 100 and the goal is still ACTIVE */
-  isReadyToComplete: boolean;
-  createdAt: Date;
-  updatedAt: Date;
-  children: GoalTreeNode[];
-}
-
-function goalToNode(goal: Goal): GoalTreeNode {
-  return {
-    id: goal.id,
-    userId: goal.userId,
-    parentGoalId: goal.parentGoalId,
-    title: goal.title,
-    description: goal.description,
-    category: goal.category,
-    status: goal.status,
-    priority: goal.priority,
-    estimatedEndDate: goal.estimatedEndDate,
-    estimatedDuration: goal.estimatedDuration,
-    estimatedStartDate: goal.estimatedStartDate,
-    actualStartDate: goal.actualStartDate,
-    level: goal.level,
-    progress: goal.progress,
-    isReadyToComplete:
-      goal.progress.score >= 100 && goal.status === GoalStatus.ACTIVE,
-    createdAt: goal.createdAt,
-    updatedAt: goal.updatedAt,
-    children: [],
-  };
+export interface PagedGoals {
+  items: Goal[];
+  total: number;
 }
 
 @Injectable()
@@ -78,56 +33,73 @@ export class GetGoalsService {
   ) {}
 
   /**
-   * Returns the full goal tree for a user.
-   * - Tries Redis cache first (30 s TTL).
-   * - On miss: fetches all goals from MongoDB, builds tree in JS, writes to cache.
-   * Never issues recursive DB queries — one flat fetch, tree assembled in memory.
+   * Returns a flat paginated list of all goals (parents and sub-goals) for a user.
+   * Results are sorted by createdAt descending.
    */
-  async getTree(userId: string): Promise<GoalTreeNode[]> {
-    const cached = await this.goalCache.getTree<GoalTreeNode[]>(userId);
-    if (cached) return cached;
-
-    const goals = await this.goalRepo.findAllByUserId(userId);
-    const tree = this.buildTree(goals);
-    await this.goalCache.setTree(userId, tree);
-    return tree;
+  async getAll(
+    userId: string,
+    filter: GoalFilter,
+    page: number,
+    limit: number,
+  ): Promise<PagedGoals> {
+    await this.goalRepo.markOverdueAsMissed(userId);
+    const [items, total] = await Promise.all([
+      this.goalRepo.findByUserId(userId, filter, { page, limit }),
+      this.goalRepo.countByUserId(userId, filter),
+    ]);
+    return { items, total };
   }
 
-  /** Return a single goal by ID, verifying ownership */
+  /** Returns a single goal by ID. */
   async getOne(goalId: string, userId: string): Promise<Goal> {
+    await this.goalRepo.markOverdueAsMissed(userId);
     const goal = await this.goalRepo.findById(goalId);
     if (!goal) throw new NotFoundException('Goal not found.');
     if (goal.userId !== userId) throw new ForbiddenException('Access denied.');
     return goal;
   }
 
-  // ─── Private helpers ────────────────────────────────────────────────────────
+  /**
+   * Returns the direct sub-goals of a given goal (level-2 children only),
+   * as a flat paginated list — no nesting.
+   */
+  async getSubgoals(
+    goalId: string,
+    userId: string,
+    page: number,
+    limit: number,
+  ): Promise<PagedGoals> {
+    await this.goalRepo.markOverdueAsMissed(userId);
+    const goal = await this.goalRepo.findById(goalId);
+    if (!goal) throw new NotFoundException('Goal not found.');
+    if (goal.userId !== userId) throw new ForbiddenException('Access denied.');
+    const all = await this.goalRepo.findAllByUserId(userId);
+    const subgoals = all.filter((g) => g.parentGoalId === goalId);
+    const total = subgoals.length;
+    const skip = (page - 1) * limit;
+    const items = subgoals.slice(skip, skip + limit);
+    return { items, total };
+  }
 
-  private buildTree(goals: Goal[]): GoalTreeNode[] {
-    const nodeMap = new Map<string, GoalTreeNode>();
-    const roots: GoalTreeNode[] = [];
+  /**
+   * Full-text search over title and description — flat list, paginated.
+   * Not cached; used for search UI.
+   */
+  async search(
+    userId: string,
+    q: string,
+    pagination: Pagination,
+  ): Promise<PagedGoals> {
+    await this.goalRepo.markOverdueAsMissed(userId);
+    const [items, total] = await Promise.all([
+      this.goalRepo.searchByUserId(userId, q, pagination),
+      this.goalRepo.countSearchByUserId(userId, q),
+    ]);
+    return { items, total };
+  }
 
-    // First pass: create all nodes
-    for (const goal of goals) {
-      nodeMap.set(goal.id, goalToNode(goal));
-    }
-
-    // Second pass: wire parent → children
-    for (const goal of goals) {
-      const node = nodeMap.get(goal.id)!;
-      if (goal.parentGoalId) {
-        const parentNode = nodeMap.get(goal.parentGoalId);
-        if (parentNode) {
-          parentNode.children.push(node);
-        } else {
-          // Orphaned node (parent soft-deleted) — surface as root
-          roots.push(node);
-        }
-      } else {
-        roots.push(node);
-      }
-    }
-
-    return roots;
+  /** Total goal count + per-status breakdown for the user's dashboard. */
+  async getStats(userId: string): Promise<GoalStats> {
+    return this.goalRepo.getStats(userId);
   }
 }

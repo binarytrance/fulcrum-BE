@@ -3,7 +3,7 @@ import { HabitFrequency } from '@habits/domain/types/habit.types';
 
 export const CreateHabitSchema = z
   .object({
-    goalId: z.string().min(1, 'goalId is required'),
+    goalId: z.string().min(1).nullable().optional(),
     title: z.string().min(1).max(200),
     description: z.string().max(1000).nullable().optional(),
     frequency: z.nativeEnum(HabitFrequency, {

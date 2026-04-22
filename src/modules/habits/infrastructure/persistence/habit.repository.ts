@@ -10,7 +10,7 @@ import { HabitFrequency, HabitStatus } from '@habits/domain/types/habit.types';
 interface HabitLean {
   _id: string;
   userId: { toString(): string };
-  goalId: { toString(): string };
+  goalId: { toString(): string } | null;
   title: string;
   description: string | null;
   frequency: HabitFrequency;
@@ -28,7 +28,7 @@ function toDomain(doc: HabitLean): HabitEntity {
   return new HabitEntity({
     id: doc._id,
     userId: doc.userId.toString(),
-    goalId: doc.goalId.toString(),
+    goalId: doc.goalId ? doc.goalId.toString() : null,
     title: doc.title,
     description: doc.description,
     frequency: doc.frequency,
@@ -70,7 +70,7 @@ export class HabitRepository implements IHabitRepository {
   }
 
   async findById(id: string): Promise<HabitEntity | null> {
-    const doc = await this.model.findById(id).lean<HabitLean>().exec();
+    const doc = await this.model.findOne({ _id: id, deletedAt: null }).lean<HabitLean>().exec();
     return doc ? toDomain(doc) : null;
   }
 
@@ -80,6 +80,29 @@ export class HabitRepository implements IHabitRepository {
       .lean<HabitLean[]>()
       .exec();
     return docs.map(toDomain);
+  }
+
+  async findByUserPaged(
+    userId: string,
+    filter: import('@habits/domain/ports/habit-repo.port').HabitFilter,
+    page: number,
+    limit: number,
+  ): Promise<import('@habits/domain/ports/habit-repo.port').PagedHabits> {
+    const query: Record<string, unknown> = { userId, deletedAt: null };
+    if (filter.status) query.status = filter.status;
+    if (filter.goalId) query.goalId = filter.goalId;
+    const skip = (page - 1) * limit;
+    const [docs, total] = await Promise.all([
+      this.model
+        .find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean<HabitLean[]>()
+        .exec(),
+      this.model.countDocuments(query).exec(),
+    ]);
+    return { items: docs.map(toDomain), total };
   }
 
   async findByGoal(goalId: string): Promise<HabitEntity[]> {
@@ -92,7 +115,7 @@ export class HabitRepository implements IHabitRepository {
 
   async findAllActive(): Promise<HabitEntity[]> {
     const docs = await this.model
-      .find({ status: HabitStatus.ACTIVE })
+      .find({ status: HabitStatus.ACTIVE, deletedAt: null })
       .lean<HabitLean[]>()
       .exec();
     return docs.map(toDomain);

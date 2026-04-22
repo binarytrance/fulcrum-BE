@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import {
   HABIT_REPO_PORT,
@@ -12,6 +12,14 @@ import {
   GOAL_ACCESS_PORT,
   type IGoalAccessPort,
 } from '@habits/domain/ports/goal-access.port';
+import {
+  TASK_CAPACITY_PORT,
+  type ITaskCapacityPort,
+} from '@habits/domain/ports/task-capacity.port';
+import {
+  HABIT_CAPACITY_PORT,
+  type IHabitCapacityPort,
+} from '@habits/domain/ports/habit-capacity.port';
 import { Habit } from '@habits/domain/entities/habit.entity';
 import { HabitOccurrenceFields } from '@habits/domain/entities/habit-occurrence.entity';
 import {
@@ -23,13 +31,15 @@ import {
 
 export interface CreateHabitInput {
   userId: string;
-  goalId: string;
+  goalId: string | null;
   title: string;
   description?: string | null;
   frequency: HabitFrequency;
   daysOfWeek?: number[];
   targetDuration: number;
 }
+
+const MAX_DAY_MS = 24 * 60 * 60 * 1000;
 
 @Injectable()
 export class CreateHabitService {
@@ -38,18 +48,44 @@ export class CreateHabitService {
     @Inject(HABIT_OCCURRENCE_REPO_PORT)
     private readonly occurrenceRepo: IHabitOccurrenceRepository,
     @Inject(GOAL_ACCESS_PORT) private readonly goalAccess: IGoalAccessPort,
+    @Inject(TASK_CAPACITY_PORT) private readonly taskCapacity: ITaskCapacityPort,
+    @Inject(HABIT_CAPACITY_PORT)
+    private readonly habitCapacity: IHabitCapacityPort,
   ) {}
 
   async execute(input: CreateHabitInput): Promise<Habit> {
-    // 1. Verify the goal belongs to the user
-    await this.goalAccess.verifyOwnership(input.goalId, input.userId);
+    // 1. Verify the goal belongs to the user (only when goalId is provided)
+    if (input.goalId) {
+      await this.goalAccess.verifyOwnership(input.goalId, input.userId);
+    }
 
-    // 2. Build the habit entity
+    // 2. Check today's 24h cap if this habit is scheduled for today
+    const today = new Date();
+    const isScheduledToday =
+      input.frequency === HabitFrequency.DAILY ||
+      (input.daysOfWeek ?? []).includes(today.getUTCDay());
+
+    if (isScheduledToday) {
+      const [taskMs, habitMs] = await Promise.all([
+        this.taskCapacity.getCommittedTaskMs(input.userId, today),
+        this.habitCapacity.getPendingHabitMs(input.userId, today),
+      ]);
+      const newHabitMs = input.targetDuration * 60_000;
+      if (taskMs + habitMs + newHabitMs > MAX_DAY_MS) {
+        const todayStr = today.toISOString().slice(0, 10);
+        throw new BadRequestException(
+          `Adding this habit would exceed 24 hours of commitment for today (${todayStr}). ` +
+            `Free up capacity by removing tasks or habits scheduled for today.`,
+        );
+      }
+    }
+
+    // 3. Build the habit entity
     const now = new Date();
     const habit = new Habit({
       id: randomUUID(),
       userId: input.userId,
-      goalId: input.goalId,
+      goalId: input.goalId ?? null,
       title: input.title,
       description: input.description ?? null,
       frequency: input.frequency,

@@ -10,8 +10,8 @@ export class Habit {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Goal', required: true, index: true })
-  goalId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'Goal', default: null, index: true })
+  goalId: Types.ObjectId | null;
 
   @Prop({ type: String, required: true, trim: true })
   title: string;

@@ -15,6 +15,7 @@ export enum GoalStatus {
   COMPLETED = 'COMPLETED',
   PAUSED = 'PAUSED',
   ABANDONED = 'ABANDONED',
+  MISSED = 'MISSED',
 }
 
 export enum GoalPriority {
@@ -61,6 +62,8 @@ export const GOAL_STATUS_TRANSITIONS: Record<GoalStatus, GoalStatus[]> = {
   [GoalStatus.PAUSED]: [GoalStatus.ACTIVE, GoalStatus.ABANDONED],
   [GoalStatus.COMPLETED]: [GoalStatus.ACTIVE],
   [GoalStatus.ABANDONED]: [],
+  // User can reactivate a missed goal (e.g. after extending the deadline)
+  [GoalStatus.MISSED]: [GoalStatus.ACTIVE, GoalStatus.ABANDONED],
 };
 
 export interface GoalFields {

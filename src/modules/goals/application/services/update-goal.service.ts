@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ForbiddenException,
   Inject,
   Injectable,
@@ -65,6 +66,34 @@ export class UpdateGoalService {
     const estimatedEndDateChanged =
       input.estimatedEndDate !== undefined &&
       input.estimatedEndDate?.getTime() !== goal.estimatedEndDate?.getTime();
+
+    if (estimatedEndDateChanged && input.estimatedEndDate) {
+      const newDeadline = input.estimatedEndDate;
+
+      // Sub-goal: new deadline must not exceed parent's deadline
+      if (goal.parentGoalId) {
+        const parent = await this.goalRepo.findById(goal.parentGoalId);
+        if (parent?.estimatedEndDate && newDeadline > parent.estimatedEndDate) {
+          throw new BadRequestException(
+            `Deadline cannot exceed the parent goal's deadline (${parent.estimatedEndDate.toISOString().slice(0, 10)}).`,
+          );
+        }
+      }
+
+      // Parent goal: new deadline must not be earlier than any child's deadline
+      const allGoals = await this.goalRepo.findAllByUserId(userId);
+      const children = allGoals.filter((g) => g.parentGoalId === goalId);
+      const violating = children.find(
+        (c) => c.estimatedEndDate && c.estimatedEndDate > newDeadline,
+      );
+      if (violating) {
+        throw new BadRequestException(
+          `Cannot set deadline earlier than sub-goal "${violating.title}" ` +
+            `(${violating.estimatedEndDate!.toISOString().slice(0, 10)}). ` +
+            'Update or remove the sub-goal deadline first.',
+        );
+      }
+    }
 
     // entity.update() enforces the status transition state machine
     const updated = goal.update(input);

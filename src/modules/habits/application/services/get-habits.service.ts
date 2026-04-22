@@ -7,6 +7,8 @@ import {
 import {
   HABIT_REPO_PORT,
   type IHabitRepository,
+  type HabitFilter,
+  type PagedHabits,
 } from '@habits/domain/ports/habit-repo.port';
 import type { Habit } from '@habits/domain/entities/habit.entity';
 
@@ -28,6 +30,15 @@ export class GetHabitsService {
       return habits.filter((h) => h.userId === input.userId);
     }
     return this.habitRepo.findByUser(input.userId);
+  }
+
+  async getPaged(
+    userId: string,
+    filter: HabitFilter,
+    page: number,
+    limit: number,
+  ): Promise<PagedHabits> {
+    return this.habitRepo.findByUserPaged(userId, filter, page, limit);
   }
 
   async getOne(id: string, userId: string): Promise<Habit> {

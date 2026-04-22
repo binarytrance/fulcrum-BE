@@ -4,7 +4,7 @@ import { HabitFrequency, HabitStatus } from '@habits/domain/types/habit.types';
 export interface HabitFields {
   id: string;
   userId: string;
-  goalId: string;
+  goalId: string | null;
   title: string;
   description: string | null;
   frequency: HabitFrequency;
@@ -23,7 +23,7 @@ export interface HabitFields {
 export class Habit {
   readonly id: string;
   readonly userId: string;
-  readonly goalId: string;
+  readonly goalId: string | null;
   readonly title: string;
   readonly description: string | null;
   readonly frequency: HabitFrequency;

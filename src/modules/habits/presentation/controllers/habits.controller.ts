@@ -50,8 +50,28 @@ import {
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
+  paginated,
   type ApiResponse as ApiResponseType,
+  type PaginatedResponse,
 } from '@shared/presentation/responses/api-response';
+import { HabitStatus } from '@habits/domain/types/habit.types';
+import type { HabitFilter } from '@habits/domain/ports/habit-repo.port';
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+function parsePagination(page?: string, limit?: string) {
+  const p = Math.max(
+    1,
+    parseInt(page ?? String(DEFAULT_PAGE), 10) || DEFAULT_PAGE,
+  );
+  const l = Math.min(
+    MAX_LIMIT,
+    Math.max(1, parseInt(limit ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT),
+  );
+  return { page: p, limit: l };
+}
 
 import type { Habit } from '@habits/domain/entities/habit.entity';
 import type { HabitOccurrence } from '@habits/domain/entities/habit-occurrence.entity';
@@ -62,7 +82,7 @@ import type { HabitAnalytics } from '@habits/application/services/get-analytics.
 interface HabitResponse {
   id: string;
   userId: string;
-  goalId: string;
+  goalId: string | null;
   title: string;
   description: string | null;
   frequency: string;
@@ -153,40 +173,71 @@ export class HabitsController {
     @Body(new ZodValidationPipe(CreateHabitSchema)) dto: CreateHabitDto,
   ): Promise<ApiResponseType<HabitResponse>> {
     const { sub: userId } = req.user as TokenPayload;
-    const habit = await this.createHabitService.execute({ userId, ...dto });
+    const habit = await this.createHabitService.execute({
+      userId,
+      title: dto.title,
+      description: dto.description,
+      frequency: dto.frequency,
+      daysOfWeek: dto.daysOfWeek,
+      targetDuration: dto.targetDuration,
+      goalId: dto.goalId ?? null,
+    });
     return ok('Habit created.', toHabitResponse(habit));
   }
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'List all habits for the authenticated user' })
-  @ApiQuery({
-    name: 'goalId',
-    required: false,
-    description: 'Filter by goal ID',
-  })
+  @ApiOperation({ summary: 'List all habits for the authenticated user (paginated)' })
+  @ApiQuery({ name: 'page', required: false, description: 'Page number (1-based, default 1)', example: 1 })
+  @ApiQuery({ name: 'limit', required: false, description: `Habits per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`, example: DEFAULT_LIMIT })
+  @ApiQuery({ name: 'status', required: false, description: 'Filter by status: active | paused | archived', enum: HabitStatus })
+  @ApiQuery({ name: 'goalId', required: false, description: 'Filter by goal ID' })
   async list(
     @Req() req: Request,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
     @Query('goalId') goalId?: string,
-  ): Promise<ApiResponseType<HabitResponse[]>> {
+  ): Promise<ApiResponseType<PaginatedResponse<HabitResponse>>> {
     const { sub: userId } = req.user as TokenPayload;
-    const habits = await this.getHabitsService.execute({ userId, goalId });
-    return ok('Habits retrieved.', habits.map(toHabitResponse));
+    const pagination = parsePagination(page, limit);
+    const filter: HabitFilter = {};
+    if (status && Object.values(HabitStatus).includes(status as HabitStatus)) {
+      filter.status = status as HabitStatus;
+    }
+    if (goalId) filter.goalId = goalId;
+    const { items, total } = await this.getHabitsService.getPaged(
+      userId,
+      filter,
+      pagination.page,
+      pagination.limit,
+    );
+    return paginated(
+      'Habits retrieved.',
+      items.map(toHabitResponse),
+      total,
+      pagination.page,
+      pagination.limit,
+    );
   }
 
   @Get('due-today')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Get today's pending habit occurrences (daily planner)",
+    summary: "Get today's pending habit occurrences merged with habit data (daily planner)",
   })
   async dueToday(
     @Req() req: Request,
-  ): Promise<ApiResponseType<OccurrenceResponse[]>> {
+  ): Promise<ApiResponseType<(HabitResponse & { occurrenceId: string; occurrenceStatus: string })[]>> {
     const { sub: userId } = req.user as TokenPayload;
-    const occurrences = await this.getOccurrencesService.getDueToday(userId);
+    const entries = await this.getOccurrencesService.getDueToday(userId);
     return ok(
       "Today's habits retrieved.",
-      occurrences.map(toOccurrenceResponse),
+      entries.map(({ habit, occurrence }) => ({
+        ...toHabitResponse(habit),
+        occurrenceId: occurrence.id,
+        occurrenceStatus: occurrence.status,
+      })),
     );
   }
 

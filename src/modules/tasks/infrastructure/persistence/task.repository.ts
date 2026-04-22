@@ -9,12 +9,19 @@ import { Task } from '@tasks/domain/entities/task.entity';
 import {
   type ITaskRepository,
   type TaskFilter,
+  type TaskStats,
+  type Pagination,
 } from '@tasks/domain/ports/task-repo.port';
 import {
   TaskPriority,
   TaskStatus,
   TaskType,
 } from '@tasks/domain/types/task.types';
+
+/** Escapes special regex characters to prevent ReDoS from user input. */
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 type TaskDocLean = {
   _id: { toString(): string };
@@ -51,9 +58,7 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async findById(id: string): Promise<Task | null> {
-    const doc = await this.taskModel
-      .findOne({ _id: id, deletedAt: null })
-      .lean<TaskDocLean>();
+    const doc = await this.taskModel.findOne({ _id: id, deletedAt: null }).lean<TaskDocLean>();
     if (!doc) return null;
     return this.toDomain(doc);
   }
@@ -80,18 +85,149 @@ export class TaskRepository implements ITaskRepository {
     return docs.map((d) => this.toDomain(d));
   }
 
-  async findByUserId(userId: string, filter?: TaskFilter): Promise<Task[]> {
+  async findByUserId(
+    userId: string,
+    filter?: TaskFilter,
+    pagination?: Pagination,
+  ): Promise<Task[]> {
     const query: Record<string, unknown> = { userId, deletedAt: null };
     if (filter?.status) query.status = filter.status;
     if (filter?.type) query.type = filter.type;
     if (filter?.goalId) query.goalId = filter.goalId;
+    if (filter?.scheduledFor) {
+      const start = new Date(filter.scheduledFor);
+      start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(filter.scheduledFor);
+      end.setUTCHours(23, 59, 59, 999);
+      // Planned tasks match via scheduledFor; unplanned tasks (scheduledFor: null)
+      // are bucketed by their creation date instead.
+      query.$or = [
+        { scheduledFor: { $gte: start, $lte: end } },
+        { scheduledFor: null, createdAt: { $gte: start, $lte: end } },
+      ];
+    }
 
-    const docs = await this.taskModel
-      .find(query)
-      .sort({ createdAt: -1 })
-      .lean<TaskDocLean[]>();
+    const q = this.taskModel.find(query).sort({ createdAt: -1 });
 
+    if (pagination) {
+      const skip = (pagination.page - 1) * pagination.limit;
+      q.skip(skip).limit(pagination.limit);
+    }
+
+    const docs = await q.lean<TaskDocLean[]>();
     return docs.map((d) => this.toDomain(d));
+  }
+
+  async countByUserId(userId: string, filter?: TaskFilter): Promise<number> {
+    const query: Record<string, unknown> = { userId, deletedAt: null };
+    if (filter?.status) query.status = filter.status;
+    if (filter?.type) query.type = filter.type;
+    if (filter?.goalId) query.goalId = filter.goalId;
+    if (filter?.scheduledFor) {
+      const start = new Date(filter.scheduledFor);
+      start.setUTCHours(0, 0, 0, 0);
+      const end = new Date(filter.scheduledFor);
+      end.setUTCHours(23, 59, 59, 999);
+      query.$or = [
+        { scheduledFor: { $gte: start, $lte: end } },
+        { scheduledFor: null, createdAt: { $gte: start, $lte: end } },
+      ];
+    }
+    return this.taskModel.countDocuments(query);
+  }
+
+  async searchByUserId(
+    userId: string,
+    q: string,
+    pagination: Pagination,
+  ): Promise<Task[]> {
+    const pattern = new RegExp(escapeRegex(q), 'i');
+    const qLower = q.trim().toLowerCase();
+    const skip = (pagination.page - 1) * pagination.limit;
+    const docs = await this.taskModel.aggregate<TaskDocLean>([
+      {
+        $match: {
+          userId,
+          deletedAt: null,
+          $or: [{ title: pattern }, { description: pattern }],
+        },
+      },
+      {
+        $addFields: {
+          exactMatchRank: {
+            $cond: [
+              {
+                $or: [
+                  { $eq: [{ $toLower: '$title' }, qLower] },
+                  {
+                    $eq: [
+                      { $toLower: { $ifNull: ['$description', ''] } },
+                      qLower,
+                    ],
+                  },
+                ],
+              },
+              0,
+              1,
+            ],
+          },
+        },
+      },
+      { $sort: { exactMatchRank: 1, createdAt: -1 } },
+      { $skip: skip },
+      { $limit: pagination.limit },
+    ]);
+    return docs.map((d) => this.toDomain(d));
+  }
+
+  async countSearchByUserId(userId: string, q: string): Promise<number> {
+    const pattern = new RegExp(escapeRegex(q), 'i');
+    return this.taskModel.countDocuments({
+      userId,
+      deletedAt: null,
+      $or: [{ title: pattern }, { description: pattern }],
+    });
+  }
+
+  async getStats(userId: string): Promise<TaskStats> {
+    type AggResult = {
+      total: { n: number }[];
+      byStatus: { _id: TaskStatus; count: number }[];
+      byType: { _id: TaskType; count: number }[];
+    };
+
+    const [result] = await this.taskModel.aggregate<AggResult>([
+      { $match: { userId, deletedAt: null } },
+      {
+        $facet: {
+          total: [{ $count: 'n' }],
+          byStatus: [{ $group: { _id: '$status', count: { $sum: 1 } } }],
+          byType: [{ $group: { _id: '$type', count: { $sum: 1 } } }],
+        },
+      },
+    ]);
+
+    const total = result?.total[0]?.n ?? 0;
+
+    const byStatus: Record<TaskStatus, number> = {
+      [TaskStatus.PENDING]: 0,
+      [TaskStatus.IN_PROGRESS]: 0,
+      [TaskStatus.COMPLETED]: 0,
+      [TaskStatus.CANCELLED]: 0,
+    };
+    for (const row of result?.byStatus ?? []) {
+      byStatus[row._id] = row.count;
+    }
+
+    const byType: Record<TaskType, number> = {
+      [TaskType.PLANNED]: 0,
+      [TaskType.UNPLANNED]: 0,
+    };
+    for (const row of result?.byType ?? []) {
+      byType[row._id] = row.count;
+    }
+
+    return { total, byStatus, byType };
   }
 
   async update(task: Task): Promise<void> {
@@ -101,11 +237,31 @@ export class TaskRepository implements ITaskRepository {
     );
   }
 
-  async softDelete(id: string): Promise<void> {
-    await this.taskModel.updateOne(
-      { _id: id },
-      { $set: { deletedAt: new Date(), updatedAt: new Date() } },
-    );
+  async sumDailyDuration(userId: string, date: Date): Promise<number> {
+    const start = new Date(date);
+    start.setUTCHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setUTCHours(23, 59, 59, 999);
+
+    type SumResult = { total: number }[];
+    const [result] = await this.taskModel.aggregate<SumResult[0]>([
+      {
+        $match: {
+          userId,
+          deletedAt: null,
+          $or: [
+            { scheduledFor: { $gte: start, $lte: end } },
+            { scheduledFor: null, createdAt: { $gte: start, $lte: end } },
+          ],
+        },
+      },
+      { $group: { _id: null, total: { $sum: '$estimatedDuration' } } },
+    ]);
+    return (result as { total?: number } | undefined)?.total ?? 0;
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.taskModel.deleteOne({ _id: id });
   }
 
   private toPersistence(task: Task): Record<string, unknown> {

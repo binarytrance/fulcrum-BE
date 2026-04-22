@@ -66,11 +66,33 @@ export class CreateGoalService {
         );
       }
       level = (parent.level + 1) as 2 | 3;
+
+      if (input.estimatedEndDate && parent.estimatedEndDate) {
+        if (input.estimatedEndDate > parent.estimatedEndDate) {
+          throw new BadRequestException(
+            `Sub-goal deadline (${input.estimatedEndDate.toISOString().slice(0, 10)}) cannot exceed ` +
+              `the parent goal's deadline (${parent.estimatedEndDate.toISOString().slice(0, 10)}).`,
+          );
+        }
+      }
     }
 
     // Goal.create() initialises progress with all zeros automatically.
     // actualStartDate is always null at creation — it is auto-set by Goal.update()
     // when the goal transitions to ACTIVE for the first time.
+
+    if (input.estimatedDuration && input.estimatedEndDate) {
+      const now = Date.now();
+      const availableMs = input.estimatedEndDate.getTime() - now;
+      if (input.estimatedDuration > availableMs) {
+        const availableHours = (availableMs / 3_600_000).toFixed(1);
+        const requiredHours = (input.estimatedDuration / 3_600_000).toFixed(1);
+        throw new BadRequestException(
+          `Goal requires ${requiredHours}h but only ${availableHours}h remain before the deadline. ` +
+            'Please extend the deadline or reduce the estimated duration.',
+        );
+      }
+    }
     const goal = Goal.create({
       id: this.idGenerator.generate(),
       userId: input.userId,

@@ -27,7 +27,7 @@ export class DeleteTaskService {
     if (!task) throw new NotFoundException('Task not found.');
     if (task.userId !== userId) throw new ForbiddenException('Access denied.');
 
-    await this.taskRepo.softDelete(taskId);
+    await this.taskRepo.update(task.softDelete());
     await this.taskCache.invalidate(userId, task.scheduledFor);
   }
 }

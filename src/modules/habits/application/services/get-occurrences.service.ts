@@ -13,6 +13,12 @@ import {
   type IHabitRepository,
 } from '@habits/domain/ports/habit-repo.port';
 import type { HabitOccurrence } from '@habits/domain/entities/habit-occurrence.entity';
+import type { Habit } from '@habits/domain/entities/habit.entity';
+
+export interface DueTodayEntry {
+  habit: Habit;
+  occurrence: HabitOccurrence;
+}
 
 @Injectable()
 export class GetOccurrencesService {
@@ -22,10 +28,17 @@ export class GetOccurrencesService {
     @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
   ) {}
 
-  /** All today's PENDING occurrences for a user (daily planner). */
-  async getDueToday(userId: string): Promise<HabitOccurrence[]> {
+  /** All today's PENDING occurrences for a user, merged with their habit data. */
+  async getDueToday(userId: string): Promise<DueTodayEntry[]> {
     const dateStr = new Date().toISOString().slice(0, 10);
-    return this.occurrenceRepo.findDueToday(userId, dateStr);
+    const [occurrences, habits] = await Promise.all([
+      this.occurrenceRepo.findDueToday(userId, dateStr),
+      this.habitRepo.findByUser(userId),
+    ]);
+    const habitMap = new Map(habits.map((h) => [h.id, h]));
+    return occurrences
+      .filter((o) => habitMap.has(o.habitId))
+      .map((o) => ({ habit: habitMap.get(o.habitId)!, occurrence: o }));
   }
 
   /** All occurrences for a specific habit, verified by ownership. */

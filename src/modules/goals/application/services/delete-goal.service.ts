@@ -31,7 +31,7 @@ export class DeleteGoalService {
     if (!goal) throw new NotFoundException('Goal not found.');
     if (goal.userId !== userId) throw new ForbiddenException('Access denied.');
 
-    await this.goalRepo.softDeleteWithDescendants(goalId);
+    await this.goalRepo.deleteWithDescendants(goalId);
     await this.goalCache.invalidate(userId);
   }
 }

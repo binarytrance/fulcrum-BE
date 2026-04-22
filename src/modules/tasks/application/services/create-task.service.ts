@@ -21,6 +21,10 @@ import {
   ID_GENERATOR_PORT,
   type IIDGenerator,
 } from '@shared/domain/ports/id-generator.port';
+import {
+  HABIT_CAPACITY_PORT,
+  type IHabitCapacityPort,
+} from '@tasks/domain/ports/habit-capacity.port';
 
 export interface CreateTaskInput {
   userId: string;
@@ -47,6 +51,8 @@ export class CreateTaskService {
     private readonly idGenerator: IIDGenerator,
     @Inject(TASK_CACHE_PORT)
     private readonly taskCache: ITaskCachePort,
+    @Inject(HABIT_CAPACITY_PORT)
+    private readonly habitCapacity: IHabitCapacityPort,
   ) {}
 
   async execute(input: CreateTaskInput): Promise<Task> {
@@ -58,6 +64,31 @@ export class CreateTaskService {
     if (input.estimatedDuration < 1000) {
       throw new BadRequestException(
         'estimatedDuration must be at least 1000ms (1 second).',
+      );
+    }
+
+    const MAX_DURATION_MS = 24 * 60 * 60 * 1000; // 86 400 000 ms
+
+    if (input.estimatedDuration >= MAX_DURATION_MS) {
+      throw new BadRequestException(
+        'A single task cannot be 24 hours or more.',
+      );
+    }
+
+    // For scheduled tasks use scheduledFor; for unplanned tasks check today so
+    // ad-hoc work still counts against the day's 24-hour cap.
+    const capDay = input.scheduledFor ?? new Date();
+    const [dayTotal, habitTotal] = await Promise.all([
+      this.taskRepo.sumDailyDuration(input.userId, capDay),
+      this.habitCapacity.getPendingHabitMs(input.userId, capDay),
+    ]);
+    if (dayTotal + habitTotal + input.estimatedDuration > MAX_DURATION_MS) {
+      const day = capDay.toISOString().slice(0, 10);
+      const hint = input.scheduledFor
+        ? 'Please delete or move an existing task for that day first.'
+        : 'Today is already full. Consider moving a planned task to another day to free up capacity.';
+      throw new BadRequestException(
+        `Adding this task would exceed 24 hours of work on ${day}. ${hint}`,
       );
     }
 

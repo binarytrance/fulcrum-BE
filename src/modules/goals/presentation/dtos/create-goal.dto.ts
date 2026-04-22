@@ -15,7 +15,7 @@ export const CreateGoalSchema = z.object({
     })
     .transform((v) => new Date(v))
     .optional(),
-  estimatedDuration: z.number().positive().optional(),
+  estimatedDuration: z.number().int().positive().optional(),
   estimatedStartDate: z
     .string()
     .datetime({
