@@ -69,8 +69,8 @@ interface TaskLean {
 interface GoalLean {
   _id: string;
   title: string;
-  deadline: Date | null;
-  estimatedHours: number | null;
+  estimatedEndDate: Date | null;
+  estimatedDuration: number | null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -207,12 +207,12 @@ export class AnalyticsWorker extends WorkerHost {
         ? Math.round((totalDistractions / sessionCount) * 10) / 10
         : 0;
 
-    // ── Tasks ──
+    // ── Tasks completed on this day ──
     const tasks = await this.taskModel
       .find({
         userId,
         deletedAt: null,
-        scheduledFor: { $gte: dayStart, $lte: dayEnd },
+        completedAt: { $gte: dayStart, $lte: dayEnd },
       })
       .lean<TaskLean[]>();
 
@@ -361,10 +361,12 @@ export class AnalyticsWorker extends WorkerHost {
     const weeksActive = Math.max(activeWeekKeys.size, 1);
     const weeklyAvgMinutes = Math.round(totalLoggedMinutes / weeksActive);
 
-    // ── Pacing ──
+    // ── Pacing: based on estimatedDuration (ms) and estimatedEndDate ──
     let projectedCompletionDate: Date | null = null;
     let isOnTrack: boolean | null = null;
-    const estimatedMinutes = (goal.estimatedHours ?? 0) * 60;
+    const estimatedMinutes = goal.estimatedDuration != null
+      ? Math.round(goal.estimatedDuration / 60_000)
+      : 0;
     if (estimatedMinutes > 0 && weeklyAvgMinutes > 0) {
       const remaining = Math.max(0, estimatedMinutes - totalLoggedMinutes);
       const weeksNeeded = remaining / weeklyAvgMinutes;
@@ -373,8 +375,8 @@ export class AnalyticsWorker extends WorkerHost {
         projected.getUTCDate() + Math.round(weeksNeeded * 7),
       );
       projectedCompletionDate = projected;
-      if (goal.deadline) {
-        isOnTrack = projected <= goal.deadline;
+      if (goal.estimatedEndDate) {
+        isOnTrack = projected <= goal.estimatedEndDate;
       }
     }
 
@@ -619,11 +621,11 @@ export class AnalyticsWorker extends WorkerHost {
   // ─── COMPUTE_WEEKLY_ALL (cron) ──────────────────────────────────────────────
 
   private async handleComputeWeeklyAll(): Promise<void> {
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+    const fourteenDaysAgo = new Date();
+    fourteenDaysAgo.setUTCDate(fourteenDaysAgo.getUTCDate() - 14);
 
     const userIds = await this.sessionModel.distinct('userId', {
-      startedAt: { $gte: sevenDaysAgo },
+      startedAt: { $gte: fourteenDaysAgo },
     });
 
     const weekStart = getWeekStart();

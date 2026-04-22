@@ -24,7 +24,7 @@ export class EstimationProfileDoc {
   recentAccuracies!: AccuracyEntrySubDoc[];
 
   @Prop({ type: Number, default: null }) rollingAverage!: number | null;
-  @Prop({ type: String, default: null }) trend!: string | null;
+  @Prop({ type: String, enum: ['IMPROVING', 'DECLINING', 'STABLE'], default: null }) trend!: string | null;
   @Prop({ type: Date, required: true }) updatedAt!: Date;
 }
 

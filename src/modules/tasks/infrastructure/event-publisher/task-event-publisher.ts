@@ -56,17 +56,23 @@ export class TaskEventPublisher implements ITaskEventPublisher {
       }
 
       // (Phase 6: Analytics) — queue daily analytics recompute + estimation profile update
-      await Promise.all([
+      const analyticsJobs: Promise<void>[] = [
         this.analyticsEventPublisher.queueDailyCompute(event.userId, date),
-        this.analyticsEventPublisher.queueGoalCompute(
-          event.userId,
-          event.taskId,
-        ),
         this.analyticsEventPublisher.queueEstimationUpdate(
           event.userId,
           event.taskId,
         ),
-      ]);
+      ];
+      // Only queue goal analytics if this task belongs to a goal.
+      if (event.goalId) {
+        analyticsJobs.push(
+          this.analyticsEventPublisher.queueGoalCompute(
+            event.userId,
+            event.taskId,
+          ),
+        );
+      }
+      await Promise.all(analyticsJobs);
     }
   }
 }
