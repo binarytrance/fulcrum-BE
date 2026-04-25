@@ -2,6 +2,9 @@ import { Module } from '@nestjs/common';
 import { SharedModule } from '@shared/shared.module';
 import { AnalyticsMongoModule } from '@analytics/infrastructure/persistence/analytics-mongo.module';
 import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
+import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
+import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
+import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 
 import { DAILY_ANALYTICS_REPO_PORT } from '@analytics/domain/ports/daily-analytics-repo.port';
 import { GOAL_ANALYTICS_REPO_PORT } from '@analytics/domain/ports/goal-analytics-repo.port';
@@ -16,13 +19,21 @@ import { EstimationProfileRepository } from '@analytics/infrastructure/persisten
 import { GetDailyAnalyticsService } from '@analytics/application/services/get-daily-analytics.service';
 import { GetGoalAnalyticsService } from '@analytics/application/services/get-goal-analytics.service';
 import { GetWeeklyAnalyticsService } from '@analytics/application/services/get-weekly-analytics.service';
+import { GetMonthlyAnalyticsService } from '@analytics/application/services/get-monthly-analytics.service';
 import { GetEstimationProfileService } from '@analytics/application/services/get-estimation-profile.service';
 import { GetDashboardService } from '@analytics/application/services/get-dashboard.service';
 
 import { AnalyticsController } from '@analytics/presentation/controllers/analytics.controller';
 
 @Module({
-  imports: [SharedModule, AnalyticsMongoModule, AnalyticsWorkersModule],
+  imports: [
+    SharedModule,
+    AnalyticsMongoModule,
+    AnalyticsWorkersModule,
+    SessionMongoModule,
+    TaskMongoModule,
+    GoalMongoModule,
+  ],
   controllers: [AnalyticsController],
   providers: [
     {
@@ -41,6 +52,7 @@ import { AnalyticsController } from '@analytics/presentation/controllers/analyti
     GetDailyAnalyticsService,
     GetGoalAnalyticsService,
     GetWeeklyAnalyticsService,
+    GetMonthlyAnalyticsService,
     GetEstimationProfileService,
     GetDashboardService,
   ],

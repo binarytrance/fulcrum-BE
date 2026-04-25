@@ -1,4 +1,8 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  ANALYTICS_EVENT_PUBLISHER_PORT,
+  type IAnalyticsEventPublisher,
+} from '@analytics/domain/ports/analytics-event-publisher.port';
 import { randomUUID } from 'node:crypto';
 import {
   HABIT_REPO_PORT,
@@ -44,13 +48,18 @@ const MAX_DAY_MS = 24 * 60 * 60 * 1000;
 @Injectable()
 export class CreateHabitService {
   constructor(
-    @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
+    @Inject(HABIT_REPO_PORT)
+    private readonly habitRepo: IHabitRepository,
     @Inject(HABIT_OCCURRENCE_REPO_PORT)
     private readonly occurrenceRepo: IHabitOccurrenceRepository,
-    @Inject(GOAL_ACCESS_PORT) private readonly goalAccess: IGoalAccessPort,
-    @Inject(TASK_CAPACITY_PORT) private readonly taskCapacity: ITaskCapacityPort,
+    @Inject(GOAL_ACCESS_PORT)
+    private readonly goalAccess: IGoalAccessPort,
+    @Inject(TASK_CAPACITY_PORT)
+    private readonly taskCapacity: ITaskCapacityPort,
     @Inject(HABIT_CAPACITY_PORT)
     private readonly habitCapacity: IHabitCapacityPort,
+    @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
+    private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
   ) {}
 
   async execute(input: CreateHabitInput): Promise<Habit> {
@@ -104,6 +113,15 @@ export class CreateHabitService {
     // 3. Pre-generate the next 30 days of occurrences
     const occurrences = this.generateOccurrences(saved);
     if (occurrences.length) await this.occurrenceRepo.createMany(occurrences);
+
+    // If this habit fires today, immediately recompute daily analytics so counts are up-to-date.
+    if (isScheduledToday) {
+      const todayStr = new Date().toISOString().slice(0, 10);
+      await this.analyticsEventPublisher.queueDailyCompute(
+        input.userId,
+        todayStr,
+      );
+    }
 
     return saved;
   }

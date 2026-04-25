@@ -32,7 +32,7 @@ export class GoalWorker extends WorkerHost {
   constructor(
     @InjectModel('Goal') private readonly goalModel: Model<GoalLean>,
     @InjectModel('Task') private readonly taskModel: Model<TaskLean>,
-    @InjectModel('SessionDoc')
+    @InjectModel('Session')
     private readonly sessionModel: Model<SessionLean>,
   ) {
     super();

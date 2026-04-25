@@ -4,6 +4,7 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { Queue } from 'bullmq';
 import { SharedModule } from '@shared/shared.module';
+import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 import { HabitWorker } from '@habits/infrastructure/workers/habit.worker';
 import { HabitEventPublisher } from '@habits/infrastructure/event-publisher/habit-event-publisher';
@@ -22,6 +23,7 @@ import { HabitOccurrenceRepository } from '@habits/infrastructure/persistence/ha
 @Module({
   imports: [
     SharedModule,
+    AnalyticsWorkersModule,
     HabitMongoModule,
     BullModule.registerQueue({ name: HABITS_QUEUE_NAME }),
     BullBoardModule.forFeature({

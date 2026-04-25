@@ -15,6 +15,7 @@ export class DistractionSchema {
 
 @Schema({ timestamps: false, versionKey: false })
 export class SessionDoc {
+  static readonly name = 'Session';
   @Prop({ type: String })
   _id: string;
 

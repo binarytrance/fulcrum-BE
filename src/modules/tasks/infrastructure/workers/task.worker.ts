@@ -49,7 +49,7 @@ export class TaskWorker extends WorkerHost {
     @InjectModel('HabitOccurrence')
     private readonly occurrenceModel: Model<Record<string, unknown>>,
     @InjectModel('Goal') private readonly goalModel: Model<GoalLean>,
-    @InjectModel('SessionDoc')
+    @InjectModel('Session')
     private readonly sessionModel: Model<SessionLean>,
   ) {
     super();

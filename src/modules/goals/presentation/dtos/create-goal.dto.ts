@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { GoalCategory, GoalPriority } from '@goals/domain/types/goal.types';
 
+/**
+ * Accepts both a date-only string (YYYY-MM-DD) and a full ISO 8601 datetime
+ * string (with or without timezone offset), and coerces both to a Date object.
+ */
+const flexDate = z
+  .union([z.iso.datetime({ offset: true }), z.iso.date()])
+  .transform((v) => new Date(v));
+
 export const CreateGoalSchema = z.object({
   title: z.string().min(1, 'Title is required').max(200),
   description: z.string().max(1000).optional(),
@@ -8,21 +16,9 @@ export const CreateGoalSchema = z.object({
     error: `Category must be one of: ${Object.values(GoalCategory).join(', ')}`,
   }),
   priority: z.nativeEnum(GoalPriority).optional(),
-  estimatedEndDate: z
-    .string()
-    .datetime({
-      message: 'Estimated end date must be a valid ISO date-time string.',
-    })
-    .transform((v) => new Date(v))
-    .optional(),
+  estimatedEndDate: flexDate.optional(),
   estimatedDuration: z.number().int().positive().optional(),
-  estimatedStartDate: z
-    .string()
-    .datetime({
-      message: 'Estimated start date must be a valid ISO date-time string.',
-    })
-    .transform((v) => new Date(v))
-    .optional(),
+  estimatedStartDate: flexDate.optional(),
   parentGoalId: z.string().optional(),
 });
 

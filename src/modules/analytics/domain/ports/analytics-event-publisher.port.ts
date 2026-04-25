@@ -6,4 +6,9 @@ export interface IAnalyticsEventPublisher {
   queueDailyCompute(userId: string, date: string): Promise<void>;
   queueGoalCompute(userId: string, taskId: string): Promise<void>;
   queueEstimationUpdate(userId: string, taskId: string): Promise<void>;
+  queueGoalInit(
+    userId: string,
+    goalId: string,
+    goalTitle: string,
+  ): Promise<void>;
 }

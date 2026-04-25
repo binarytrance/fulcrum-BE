@@ -3,12 +3,10 @@ export enum AnalyticsJobName {
   COMPUTE_DAILY = 'analytics.compute-daily',
   /** Compute (or recompute) goal analytics triggered by a task/session event */
   COMPUTE_GOAL = 'analytics.compute-goal',
-  /** Compute (or recompute) weekly analytics for a single user */
-  COMPUTE_WEEKLY = 'analytics.compute-weekly',
+  /** Seed a zero-valued analytics doc when a goal is first created */
+  INIT_GOAL = 'analytics.init-goal',
   /** Update the rolling 30-task estimation-accuracy profile */
   UPDATE_ESTIMATION = 'analytics.update-estimation',
-  /** Sunday cron: discover all active users and fan-out COMPUTE_WEEKLY jobs */
-  COMPUTE_WEEKLY_ALL = 'analytics.compute-weekly-all',
 }
 
 export interface AnalyticsJobPayloads {
@@ -22,14 +20,13 @@ export interface AnalyticsJobPayloads {
     /** The task that triggered the recompute — its goalId is looked up */
     taskId: string;
   };
-  [AnalyticsJobName.COMPUTE_WEEKLY]: {
+  [AnalyticsJobName.INIT_GOAL]: {
     userId: string;
-    /** YYYY-MM-DD — Monday that starts the week */
-    weekStart: string;
+    goalId: string;
+    goalTitle: string;
   };
   [AnalyticsJobName.UPDATE_ESTIMATION]: {
     userId: string;
     taskId: string;
   };
-  [AnalyticsJobName.COMPUTE_WEEKLY_ALL]: Record<string, never>;
 }

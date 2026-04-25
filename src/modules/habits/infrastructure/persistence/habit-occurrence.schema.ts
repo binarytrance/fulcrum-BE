@@ -1,6 +1,6 @@
 import { OccurrenceStatus } from '@habits/domain/types/habit.types';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema({
   timestamps: { createdAt: true, updatedAt: false },
@@ -10,11 +10,11 @@ export class HabitOccurrence {
   @Prop({ type: String })
   _id: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Habit', required: true, index: true })
-  habitId: Types.ObjectId;
+  @Prop({ type: String, required: true, index: true })
+  habitId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  userId: Types.ObjectId;
+  @Prop({ type: String, required: true, index: true })
+  userId: string;
 
   /** YYYY-MM-DD (UTC) */
   @Prop({ type: String, required: true, index: true })

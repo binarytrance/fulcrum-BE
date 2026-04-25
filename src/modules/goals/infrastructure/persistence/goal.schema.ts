@@ -5,7 +5,7 @@ import {
   INITIAL_PROGRESS,
 } from '@goals/domain/types/goal.types';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema({ _id: false })
 export class GoalProgressSchema {
@@ -21,11 +21,11 @@ export class Goal {
   @Prop({ type: String })
   _id: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  userId: Types.ObjectId;
+  @Prop({ type: String, required: true, index: true })
+  userId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Goal', default: null, index: true })
-  parentGoalId: Types.ObjectId | null;
+  @Prop({ type: String, default: null, index: true })
+  parentGoalId: string | null;
 
   @Prop({ type: String, required: true, trim: true })
   title: string;

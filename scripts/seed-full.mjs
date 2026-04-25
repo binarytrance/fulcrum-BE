@@ -39,6 +39,7 @@ const OCCURRENCE_DAYS     = 30;  // days of past occurrences to generate
 // With ~520 planned tasks across 130 nodes and avg 45 min each, 30 days keeps
 // each day under ~18h (leaving room for daily habits).
 const TASK_SCHEDULE_SPREAD = 30;
+const SESSION_SPREAD_DAYS  = 90;   // 3 months of session history for weekly/monthly testing
 
 // ─── Reference Data ───────────────────────────────────────────────────────────
 
@@ -335,6 +336,66 @@ function buildOccurrences(habit, userId, daysBack) {
   return occs;
 }
 
+const DISTRACTION_REASONS = [
+  'Checked phone', 'Colleague interruption', 'Email notification',
+  'Slack message', 'Ambient noise', 'Side research rabbit-hole',
+];
+const SESSION_DURATIONS = [25, 30, 45, 50, 60, 90]; // minutes — Pomodoro-ish spread
+
+function buildSession({ id, userId, taskId, daysAgoVal, slot }) {
+  const seed = (daysAgoVal * 17 + slot * 31) >>> 0;
+  const source = seed % 4 === 0 ? 'MANUAL' : 'AUTO';          // ~25% MANUAL
+  const durationMin = SESSION_DURATIONS[seed % SESSION_DURATIONS.length];
+  const durationMs  = durationMin * 60_000;
+
+  // Build 0–2 distractions deterministically
+  const distractions = [];
+  if (seed % 3 !== 0) { // ~67% have at least one distraction
+    distractions.push({
+      reason:      DISTRACTION_REASONS[seed % DISTRACTION_REASONS.length],
+      estimatedMs: ((seed % 10) + 3) * 60_000,
+      loggedAt:    daysAgo(daysAgoVal, 10 + slot, 20 + (seed % 30)),
+    });
+  }
+  if (seed % 9 === 0) { // ~11% get a second distraction
+    distractions.push({
+      reason:      DISTRACTION_REASONS[(seed + 3) % DISTRACTION_REASONS.length],
+      estimatedMs: ((seed % 5) + 2) * 60_000,
+      loggedAt:    daysAgo(daysAgoVal, 10 + slot, 45 + (seed % 10)),
+    });
+  }
+
+  const totalDistractionMs = distractions.reduce((s, d) => s + d.estimatedMs, 0);
+  const netFocusMs  = Math.max(0, durationMs - totalDistractionMs);
+
+  const distractionCount = distractions.length;
+  const plantStatus =
+    distractionCount >= 3 || totalDistractionMs >= 30 * 60_000 ? 'WILTED' :
+    distractionCount >= 1 || totalDistractionMs >= 15 * 60_000 ? 'WILTING' :
+    'HEALTHY';
+
+  const startHour  = 8 + (slot * 2) % 10;  // sessions between 08:00–18:00
+  const startMin   = (seed % 60);
+  const startedAt  = daysAgo(daysAgoVal, startHour, startMin);
+  const endedAt    = new Date(startedAt.getTime() + durationMs);
+
+  return {
+    _id: id,
+    userId,
+    taskId,
+    status: 'COMPLETED',
+    source,
+    startedAt,
+    endedAt,
+    durationMs,
+    netFocusMs,
+    distractions,
+    plantStatus,
+    plantGrowthPercent: Math.min(100, Math.round((netFocusMs / durationMs) * 100)),
+    createdAt: startedAt,
+  };
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 async function main() {
@@ -355,11 +416,12 @@ async function main() {
   console.log(`\n🌱  Seeding "${env.MONGO_DB_NAME}" for userId=${userId}`);
   console.log(`   Goals: ${PARENT_GOALS} parents + ${PARENT_GOALS * SUBGOALS_PER_PARENT} subgoals = ${totalGoalNodes}`);
   console.log(`   Tasks: ${totalTasks}`);
-  console.log(`   Habits: ${totalHabits} (with ${OCCURRENCE_DAYS} days of occurrences each)\n`);
+  console.log(`   Habits: ${totalHabits} (with ${OCCURRENCE_DAYS} days of occurrences each)`);
+  console.log(`   Sessions: ~${SESSION_SPREAD_DAYS * 1.5 | 0} focus sessions spanning ${SESSION_SPREAD_DAYS} days\n`);
 
   if (drop) {
     console.log('  ⚠  --drop: removing existing data for this user...');
-    for (const col of ['goals', 'tasks', 'habits', 'habitoccurrences']) {
+    for (const col of ['goals', 'tasks', 'habits', 'habitoccurrences', 'sessions']) {
       const { deletedCount } = await db.collection(col).deleteMany({ userId });
       console.log(`     cleared ${deletedCount.toLocaleString()} from ${col}`);
     }
@@ -370,6 +432,7 @@ async function main() {
   const tasks       = [];
   const habits      = [];
   const occurrences = [];
+  const sessions    = [];
 
   for (let pi = 0; pi < PARENT_GOALS; pi++) {
     const parentId      = randomUUID();
@@ -458,6 +521,32 @@ async function main() {
     }
   }
 
+  // ── Focus sessions — 90 days spread for weekly / monthly analytics testing ─
+  // Use non-deleted task IDs as the pool that sessions can reference.
+  const sessionTaskPool = tasks.filter((t) => t.deletedAt === null).map((t) => t._id);
+
+  for (let d = SESSION_SPREAD_DAYS; d >= 1; d--) {
+    const dow        = daysAgo(d).getUTCDay();           // 0 = Sun, 6 = Sat
+    const isWeekend  = dow === 0 || dow === 6;
+    const seedDay    = (d * 13 + 5) >>> 0;
+    // Weekdays: 1-3 sessions; weekends: 0-1 sessions
+    const maxSlots   = isWeekend ? 2 : 3;
+    const slotCount  = isWeekend
+      ? (seedDay % 3 === 0 ? 1 : 0)
+      : 1 + (seedDay % maxSlots);
+
+    for (let sl = 0; sl < slotCount; sl++) {
+      const taskIdx = (d * 7 + sl * 11) % sessionTaskPool.length;
+      sessions.push(buildSession({
+        id:         randomUUID(),
+        userId,
+        taskId:     sessionTaskPool[taskIdx],
+        daysAgoVal: d,
+        slot:       sl,
+      }));
+    }
+  }
+
   // ── Insert all ────────────────────────────────────────────────────────────
 
   await db.collection('goals').insertMany(goals);
@@ -478,6 +567,21 @@ async function main() {
   const missedOccs    = occurrences.filter((o) => o.status === 'missed').length;
   const pendingOccs   = occurrences.filter((o) => o.status === 'pending').length;
   console.log(`  ✓  habit_occurrences — ${occurrences.length.toLocaleString()} documents (${completedOccs} completed, ${skippedOccs} skipped, ${missedOccs} missed, ${pendingOccs} pending today)`);
+
+  await db.collection('sessions').insertMany(sessions);
+  const autoSessions    = sessions.filter((s) => s.source === 'AUTO').length;
+  const manualSessions  = sessions.filter((s) => s.source === 'MANUAL').length;
+  const healthySessions = sessions.filter((s) => s.plantStatus === 'HEALTHY').length;
+  const wiltingSessions = sessions.filter((s) => s.plantStatus === 'WILTING').length;
+  const wiltedSessions  = sessions.filter((s) => s.plantStatus === 'WILTED').length;
+  const totalFocusMs    = sessions.reduce((s, x) => s + (x.netFocusMs ?? 0), 0);
+  const totalFocusHrs   = (totalFocusMs / 3_600_000).toFixed(1);
+  console.log(
+    `  ✓  sessions         — ${sessions.length.toLocaleString()} documents` +
+    ` (${autoSessions} AUTO, ${manualSessions} MANUAL | ` +
+    `🌱 ${healthySessions} healthy, 🌿 ${wiltingSessions} wilting, 🍂 ${wiltedSessions} wilted | ` +
+    `${totalFocusHrs}h net focus across ${SESSION_SPREAD_DAYS} days)`
+  );
 
   console.log('\n✅  Done!\n');
   await client.close();

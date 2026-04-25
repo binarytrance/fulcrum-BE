@@ -109,6 +109,38 @@ export interface WeeklyAnalyticsFields {
   computedAt: Date;
 }
 
+// ── MonthlyAnalytics ──────────────────────────────────────────────────────
+
+export interface GoalMonthlyBreakdown {
+  goalId: string;
+  goalTitle: string;
+  minutesLogged: number;
+}
+
+export interface MonthlyAnalyticsFields {
+  id: string;
+  userId: string;
+  /** ISO date of the first day of the month (YYYY-MM-01) */
+  monthStart: string;
+  /** ISO date of the last day of the month (YYYY-MM-DD) */
+  monthEnd: string;
+
+  totalLoggedMinutes: number;
+  netFocusMinutes: number;
+  deepWorkMinutes: number;
+  totalSessions: number;
+  totalCompletedTasks: number;
+  avgDailyMinutes: number;
+
+  bestDay: { date: string; minutes: number } | null;
+  worstDay: { date: string; minutes: number } | null;
+  timeLeaksIdentified: number;
+
+  goalBreakdown: GoalMonthlyBreakdown[];
+
+  computedAt: Date;
+}
+
 // ── EstimationProfile ─────────────────────────────────────────────────────
 
 export type EstimationTrend = 'IMPROVING' | 'DECLINING' | 'STABLE';

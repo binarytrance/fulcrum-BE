@@ -4,6 +4,10 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import {
+  ANALYTICS_EVENT_PUBLISHER_PORT,
+  type IAnalyticsEventPublisher,
+} from '@analytics/domain/ports/analytics-event-publisher.port';
 import { Goal } from '@goals/domain/entities/goal.entity';
 import {
   GOAL_REPO_PORT,
@@ -50,6 +54,8 @@ export class CreateGoalService {
     private readonly idGenerator: IIDGenerator,
     @Inject(GOAL_CACHE_PORT)
     private readonly goalCache: IGoalCachePort,
+    @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
+    private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
   ) {}
 
   async execute(input: CreateGoalInput): Promise<Goal> {
@@ -113,6 +119,12 @@ export class CreateGoalService {
     await this.goalRepo.create(goal);
     // Bust cached tree so next GET /goals reflects new goal
     await this.goalCache.invalidate(input.userId);
+    // Seed a zero-valued goal analytics doc so the goal appears on the dashboard immediately.
+    await this.analyticsEventPublisher.queueGoalInit(
+      input.userId,
+      goal.id,
+      goal.title,
+    );
     return goal;
   }
 }

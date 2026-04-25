@@ -1,0 +1,62 @@
+import type {
+  MonthlyAnalyticsFields,
+  GoalMonthlyBreakdown,
+} from '@analytics/domain/types/analytics.types';
+
+export class MonthlyAnalytics {
+  readonly id: string;
+  readonly userId: string;
+  readonly monthStart: string;
+  readonly monthEnd: string;
+
+  readonly totalLoggedMinutes: number;
+  readonly netFocusMinutes: number;
+  readonly deepWorkMinutes: number;
+  readonly totalSessions: number;
+  readonly totalCompletedTasks: number;
+  readonly avgDailyMinutes: number;
+
+  readonly bestDay: { date: string; minutes: number } | null;
+  readonly worstDay: { date: string; minutes: number } | null;
+  readonly timeLeaksIdentified: number;
+  readonly goalBreakdown: GoalMonthlyBreakdown[];
+  readonly computedAt: Date;
+
+  constructor(fields: MonthlyAnalyticsFields) {
+    this.id = fields.id;
+    this.userId = fields.userId;
+    this.monthStart = fields.monthStart;
+    this.monthEnd = fields.monthEnd;
+    this.totalLoggedMinutes = fields.totalLoggedMinutes;
+    this.netFocusMinutes = fields.netFocusMinutes;
+    this.deepWorkMinutes = fields.deepWorkMinutes;
+    this.totalSessions = fields.totalSessions;
+    this.totalCompletedTasks = fields.totalCompletedTasks;
+    this.avgDailyMinutes = fields.avgDailyMinutes;
+    this.bestDay = fields.bestDay;
+    this.worstDay = fields.worstDay;
+    this.timeLeaksIdentified = fields.timeLeaksIdentified;
+    this.goalBreakdown = fields.goalBreakdown;
+    this.computedAt = fields.computedAt;
+  }
+
+  toFields(): MonthlyAnalyticsFields {
+    return {
+      id: this.id,
+      userId: this.userId,
+      monthStart: this.monthStart,
+      monthEnd: this.monthEnd,
+      totalLoggedMinutes: this.totalLoggedMinutes,
+      netFocusMinutes: this.netFocusMinutes,
+      deepWorkMinutes: this.deepWorkMinutes,
+      totalSessions: this.totalSessions,
+      totalCompletedTasks: this.totalCompletedTasks,
+      avgDailyMinutes: this.avgDailyMinutes,
+      bestDay: this.bestDay,
+      worstDay: this.worstDay,
+      timeLeaksIdentified: this.timeLeaksIdentified,
+      goalBreakdown: this.goalBreakdown,
+      computedAt: this.computedAt,
+    };
+  }
+}

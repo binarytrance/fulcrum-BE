@@ -1,4 +1,8 @@
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
+import {
+  ANALYTICS_EVENT_PUBLISHER_PORT,
+  type IAnalyticsEventPublisher,
+} from '@analytics/domain/ports/analytics-event-publisher.port';
 import { Task } from '@tasks/domain/entities/task.entity';
 import {
   TASK_REPO_PORT,
@@ -53,6 +57,8 @@ export class CreateTaskService {
     private readonly taskCache: ITaskCachePort,
     @Inject(HABIT_CAPACITY_PORT)
     private readonly habitCapacity: IHabitCapacityPort,
+    @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
+    private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
   ) {}
 
   async execute(input: CreateTaskInput): Promise<Task> {
@@ -116,6 +122,16 @@ export class CreateTaskService {
     await this.taskRepo.create(task);
     // Bust the daily cache for the scheduled date so the planner reflects the new task
     await this.taskCache.invalidate(input.userId, task.scheduledFor);
+
+    // Trigger daily analytics recompute so the dashboard reflects the new task immediately.
+    const analyticsDate = task.scheduledFor
+      ? task.scheduledFor.toISOString().slice(0, 10)
+      : new Date().toISOString().slice(0, 10);
+    await this.analyticsEventPublisher.queueDailyCompute(
+      input.userId,
+      analyticsDate,
+    );
+
     return task;
   }
 }

@@ -81,7 +81,10 @@ export class CompleteOccurrenceService {
       sessionId: input.sessionId ?? null,
     });
 
-    await this.analyticsEventPublisher.queueDailyCompute(input.userId, saved.date);
+    await this.analyticsEventPublisher.queueDailyCompute(
+      input.userId,
+      saved.date,
+    );
 
     return saved;
   }

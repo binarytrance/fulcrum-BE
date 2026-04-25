@@ -1,8 +1,7 @@
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Job, Queue } from 'bullmq';
+import { Job } from 'bullmq';
 import { Model } from 'mongoose';
 import { randomUUID } from 'crypto';
 
@@ -18,10 +17,6 @@ import {
   GoalAnalyticsDoc,
   type GoalAnalyticsDocument,
 } from '@analytics/infrastructure/persistence/goal-analytics.schema';
-import {
-  WeeklyAnalyticsDoc,
-  type WeeklyAnalyticsDocument,
-} from '@analytics/infrastructure/persistence/weekly-analytics.schema';
 import {
   EstimationProfileDoc,
   type EstimationProfileDocument,
@@ -91,10 +86,6 @@ function getWeekStart(date: Date = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-function formatDateString(date: Date): string {
-  return date.toISOString().slice(0, 10);
-}
-
 function padTime(n: number): string {
   return String(n).padStart(2, '0');
 }
@@ -117,9 +108,6 @@ export class AnalyticsWorker extends WorkerHost {
     @InjectModel(GoalAnalyticsDoc.name)
     private readonly goalAnalyticsModel: Model<GoalAnalyticsDocument>,
 
-    @InjectModel(WeeklyAnalyticsDoc.name)
-    private readonly weeklyModel: Model<WeeklyAnalyticsDocument>,
-
     @InjectModel(EstimationProfileDoc.name)
     private readonly estimationModel: Model<EstimationProfileDocument>,
 
@@ -134,9 +122,6 @@ export class AnalyticsWorker extends WorkerHost {
 
     @InjectModel('HabitOccurrence')
     private readonly habitOccurrenceModel: Model<HabitOccurrenceLean>,
-
-    @InjectQueue(ANALYTICS_QUEUE_NAME)
-    private readonly analyticsQueue: Queue,
   ) {
     super();
   }
@@ -155,18 +140,15 @@ export class AnalyticsWorker extends WorkerHost {
           job.data as AnalyticsJobPayloads[AnalyticsJobName.COMPUTE_GOAL],
         );
 
-      case AnalyticsJobName.COMPUTE_WEEKLY:
-        return this.handleComputeWeekly(
-          job.data as AnalyticsJobPayloads[AnalyticsJobName.COMPUTE_WEEKLY],
+      case AnalyticsJobName.INIT_GOAL:
+        return this.handleInitGoal(
+          job.data as AnalyticsJobPayloads[AnalyticsJobName.INIT_GOAL],
         );
 
       case AnalyticsJobName.UPDATE_ESTIMATION:
         return this.handleUpdateEstimation(
           job.data as AnalyticsJobPayloads[AnalyticsJobName.UPDATE_ESTIMATION],
         );
-
-      case AnalyticsJobName.COMPUTE_WEEKLY_ALL:
-        return this.handleComputeWeeklyAll();
 
       default:
         this.logger.warn(`Unknown analytics job: ${job.name}`);
@@ -216,21 +198,39 @@ export class AnalyticsWorker extends WorkerHost {
         ? Math.round((totalDistractions / sessionCount) * 10) / 10
         : 0;
 
-    // ── Tasks completed on this day ──
+    // ── Tasks due or completed on this day ──
+    // totalTaskCount = tasks *scheduled* for today (regardless of status) UNION
+    // tasks *completed* today (catches unplanned work done outside a schedule).
+    // This makes taskCompletionRate meaningful instead of always 100%.
     const tasks = await this.taskModel
       .find({
         userId,
         deletedAt: null,
-        completedAt: { $gte: dayStart, $lte: dayEnd },
+        $or: [
+          { scheduledFor: { $gte: dayStart, $lte: dayEnd } },
+          { completedAt: { $gte: dayStart, $lte: dayEnd } },
+        ],
       })
       .lean<TaskLean[]>();
 
-    const totalTaskCount = tasks.length;
-    const plannedTaskCount = tasks.filter((t) => t.type === 'PLANNED').length;
-    const unplannedTaskCount = tasks.filter(
+    // Deduplicate: a task that was both scheduled today AND completed today
+    // appears in both branches of the $or — MongoDB already deduplicates _id,
+    // but be explicit just in case of edge cases with lean arrays.
+    const seenTaskIds = new Set<string>();
+    const uniqueTasks = tasks.filter((t) => {
+      if (seenTaskIds.has(t._id)) return false;
+      seenTaskIds.add(t._id);
+      return true;
+    });
+
+    const totalTaskCount = uniqueTasks.length;
+    const plannedTaskCount = uniqueTasks.filter(
+      (t) => t.type === 'PLANNED',
+    ).length;
+    const unplannedTaskCount = uniqueTasks.filter(
       (t) => t.type === 'UNPLANNED',
     ).length;
-    const completedTaskCount = tasks.filter(
+    const completedTaskCount = uniqueTasks.filter(
       (t) => t.status === 'COMPLETED',
     ).length;
     const unplannedPercent =
@@ -262,7 +262,7 @@ export class AnalyticsWorker extends WorkerHost {
         ? Math.round((completedHabitCount / totalHabitCount) * 100)
         : 0;
 
-    const tasksWithScore = tasks.filter(
+    const tasksWithScore = uniqueTasks.filter(
       (t) => t.efficiencyScore !== null && t.efficiencyScore !== undefined,
     );
     const avgEfficiencyScore =
@@ -280,7 +280,9 @@ export class AnalyticsWorker extends WorkerHost {
     );
     const timeLeaks: TimeLeak[] = [];
     for (let i = 0; i < sortedSessions.length - 1; i++) {
-      const endedAt = new Date(sortedSessions[i].endedAt!);
+      const currentEndedAt = sortedSessions[i].endedAt;
+      if (!currentEndedAt) continue;
+      const endedAt = new Date(currentEndedAt);
       const nextStart = new Date(sortedSessions[i + 1].startedAt);
       const gapMinutes = Math.round(
         (nextStart.getTime() - endedAt.getTime()) / 60_000,
@@ -398,9 +400,10 @@ export class AnalyticsWorker extends WorkerHost {
     // ── Pacing: based on estimatedDuration (ms) and estimatedEndDate ──
     let projectedCompletionDate: Date | null = null;
     let isOnTrack: boolean | null = null;
-    const estimatedMinutes = goal.estimatedDuration != null
-      ? Math.round(goal.estimatedDuration / 60_000)
-      : 0;
+    const estimatedMinutes =
+      goal.estimatedDuration != null
+        ? Math.round(goal.estimatedDuration / 60_000)
+        : 0;
     if (estimatedMinutes > 0 && weeklyAvgMinutes > 0) {
       const remaining = Math.max(0, estimatedMinutes - totalLoggedMinutes);
       const weeksNeeded = remaining / weeklyAvgMinutes;
@@ -442,141 +445,43 @@ export class AnalyticsWorker extends WorkerHost {
     );
   }
 
-  // ─── COMPUTE_WEEKLY ─────────────────────────────────────────────────────────
+  // ─── INIT_GOAL ────────────────────────────────────────────────────────────────
 
-  private async handleComputeWeekly(
-    payload: AnalyticsJobPayloads[AnalyticsJobName.COMPUTE_WEEKLY],
+  private async handleInitGoal(
+    payload: AnalyticsJobPayloads[AnalyticsJobName.INIT_GOAL],
   ): Promise<void> {
-    const { userId, weekStart } = payload;
-    const weekStartDate = new Date(`${weekStart}T00:00:00.000Z`);
-    const weekEndDate = new Date(weekStartDate);
-    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
-    weekEndDate.setUTCHours(23, 59, 59, 999);
-    const weekEnd = formatDateString(weekEndDate);
+    const { userId, goalId, goalTitle } = payload;
 
-    // ── Daily analytics for the week ──
-    const dailyDocs = await this.dailyModel
-      .find({ userId, date: { $gte: weekStart, $lte: weekEnd } })
-      .lean<
-        {
-          date: string;
-          totalLoggedMinutes: number;
-          netFocusMinutes: number;
-          deepWorkMinutes: number;
-          sessionCount: number;
-          completedTaskCount: number;
-          timeLeaks: { gapMinutes: number }[];
-        }[]
-      >();
-
-    if (dailyDocs.length === 0) return;
-
-    const totalLoggedMinutes = dailyDocs.reduce(
-      (s, d) => s + d.totalLoggedMinutes,
-      0,
-    );
-    const netFocusMinutes = dailyDocs.reduce(
-      (s, d) => s + d.netFocusMinutes,
-      0,
-    );
-    const deepWorkMinutes = dailyDocs.reduce(
-      (s, d) => s + d.deepWorkMinutes,
-      0,
-    );
-    const totalSessions = dailyDocs.reduce((s, d) => s + d.sessionCount, 0);
-    const totalCompletedTasks = dailyDocs.reduce(
-      (s, d) => s + d.completedTaskCount,
-      0,
-    );
-    const avgDailyMinutes = Math.round(totalLoggedMinutes / 7);
-    const timeLeaksIdentified = dailyDocs.reduce(
-      (s, d) => s + (d.timeLeaks?.length ?? 0),
-      0,
-    );
-
-    const sortedByMinutes = [...dailyDocs].sort(
-      (a, b) => b.totalLoggedMinutes - a.totalLoggedMinutes,
-    );
-    const bestDay = sortedByMinutes[0]
-      ? {
-          date: sortedByMinutes[0].date,
-          minutes: sortedByMinutes[0].totalLoggedMinutes,
-        }
-      : null;
-    const lastDay = sortedByMinutes[sortedByMinutes.length - 1];
-    const worstDay = lastDay
-      ? { date: lastDay.date, minutes: lastDay.totalLoggedMinutes }
-      : null;
-
-    // ── Goal breakdown via sessions ──
-    const sessions = await this.sessionModel
-      .find({
-        userId,
-        status: 'COMPLETED',
-        startedAt: { $gte: weekStartDate, $lte: weekEndDate },
-      })
-      .lean<{ taskId: string; durationMs: number | null }[]>();
-
-    const uniqueTaskIds = [...new Set(sessions.map((s) => s.taskId))];
-    const taskDocs = await this.taskModel
-      .find({ _id: { $in: uniqueTaskIds } })
-      .lean<{ _id: string; goalId: string | null }[]>();
-
-    const taskIdToGoalId = new Map<string, string>();
-    taskDocs.forEach((t) => {
-      if (t.goalId) taskIdToGoalId.set(t._id, t.goalId);
-    });
-
-    const goalMinutesMap = new Map<string, number>();
-    for (const sess of sessions) {
-      const goalId = taskIdToGoalId.get(sess.taskId);
-      if (goalId) {
-        goalMinutesMap.set(
-          goalId,
-          (goalMinutesMap.get(goalId) ?? 0) +
-            Math.round((sess.durationMs ?? 0) / 60_000),
-        );
-      }
-    }
-
-    const uniqueGoalIds = [...goalMinutesMap.keys()];
-    const goalDocs = await this.goalModel
-      .find({ _id: { $in: uniqueGoalIds } })
-      .lean<GoalLean[]>();
-    const goalTitleMap = new Map(goalDocs.map((g) => [g._id, g.title]));
-
-    const goalBreakdown = uniqueGoalIds.map((goalId) => ({
-      goalId,
-      goalTitle: goalTitleMap.get(goalId) ?? 'Unknown',
-      minutesLogged: goalMinutesMap.get(goalId) ?? 0,
-    }));
-
-    await this.weeklyModel.findOneAndUpdate(
-      { userId, weekStart },
+    // Uses $setOnInsert only — if a doc already exists (COMPUTE_GOAL ran first)
+    // this is a no-op, so we never overwrite real computed data.
+    const existing = await this.goalAnalyticsModel.findOneAndUpdate(
+      { goalId },
       {
-        $set: {
+        $setOnInsert: {
+          _id: randomUUID(),
+          goalId,
           userId,
-          weekStart,
-          totalLoggedMinutes,
-          netFocusMinutes,
-          deepWorkMinutes,
-          totalSessions,
-          totalCompletedTasks,
-          avgDailyMinutes,
-          bestDay,
-          worstDay,
-          timeLeaksIdentified,
-          goalBreakdown,
-          computedAt: new Date(),
+          goalTitle,
+          totalLoggedMinutes: 0,
+          taskCount: 0,
+          completedTaskCount: 0,
+          completionPercent: 0,
+          avgEfficiencyScore: null,
+          consistencyScore: 0,
+          weeklyAvgMinutes: 0,
+          projectedCompletionDate: null,
+          isOnTrack: null,
+          lastComputedAt: new Date(),
         },
-        $setOnInsert: { _id: randomUUID() },
       },
-      { upsert: true },
+      { upsert: true, new: false },
     );
 
-    this.logger.log(
-      `[Weekly] userId=${userId} week=${weekStart} — ${totalLoggedMinutes}min, ${totalSessions} sessions`,
-    );
+    if (!existing) {
+      this.logger.log(`[GoalInit] goalId=${goalId} — initialized with zeros`);
+    } else {
+      this.logger.log(`[GoalInit] goalId=${goalId} — already exists, skipped`);
+    }
   }
 
   // ─── UPDATE_ESTIMATION ──────────────────────────────────────────────────────
@@ -650,33 +555,6 @@ export class AnalyticsWorker extends WorkerHost {
     this.logger.log(
       `[Estimation] userId=${userId} rolling avg=${String(rollingAverage)} trend=${trend}`,
     );
-  }
-
-  // ─── COMPUTE_WEEKLY_ALL (cron) ──────────────────────────────────────────────
-
-  private async handleComputeWeeklyAll(): Promise<void> {
-    const fourteenDaysAgo = new Date();
-    fourteenDaysAgo.setUTCDate(fourteenDaysAgo.getUTCDate() - 14);
-
-    const userIds = await this.sessionModel.distinct('userId', {
-      startedAt: { $gte: fourteenDaysAgo },
-    });
-
-    const weekStart = getWeekStart();
-    this.logger.log(
-      `[WeeklyAll] Fanning out weekly analytics for ${userIds.length} users, week=${weekStart}`,
-    );
-
-    for (const userId of userIds) {
-      await this.analyticsQueue.add(
-        AnalyticsJobName.COMPUTE_WEEKLY,
-        { userId, weekStart },
-        {
-          jobId: `analytics.weekly_${userId}_${weekStart}`,
-          removeOnComplete: { count: 30 },
-        },
-      );
-    }
   }
 
   // ─── Worker Events ───────────────────────────────────────────────────────────

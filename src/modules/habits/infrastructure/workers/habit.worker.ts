@@ -24,6 +24,10 @@ import {
   OCCURRENCE_LOOKAHEAD_DAYS,
 } from '@habits/domain/types/habit.types';
 import type { HabitOccurrenceFields } from '@habits/domain/entities/habit-occurrence.entity';
+import {
+  ANALYTICS_EVENT_PUBLISHER_PORT,
+  type IAnalyticsEventPublisher,
+} from '@analytics/domain/ports/analytics-event-publisher.port';
 
 // ─── Date helpers (UTC-safe) ─────────────────────────────────────────────────
 
@@ -54,6 +58,8 @@ export class HabitWorker extends WorkerHost {
     private readonly occurrenceRepo: IHabitOccurrenceRepository,
     @Inject(HABIT_STREAK_CACHE_PORT)
     private readonly streakCache: IHabitStreakCachePort,
+    @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
+    private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
   ) {
     super();
   }
@@ -84,11 +90,19 @@ export class HabitWorker extends WorkerHost {
     // 1. Mark all PENDING occurrences before today as MISSED
     const stale = await this.occurrenceRepo.findPendingBefore(todayStr);
     let missedCount = 0;
+    const analyticsKeys = new Set<string>();
     for (const occ of stale) {
       const missed = occ.miss();
       await this.occurrenceRepo.save(missed);
       await this.streakCache.del(occ.habitId);
+      analyticsKeys.add(`${occ.userId}|${occ.date}`);
       missedCount++;
+    }
+
+    // Recompute daily analytics for every affected user+date
+    for (const key of analyticsKeys) {
+      const [userId, date] = key.split('|');
+      await this.analyticsEventPublisher.queueDailyCompute(userId, date);
     }
 
     // 2. Extend rolling window: create occurrence for (today + LOOKAHEAD - 1)

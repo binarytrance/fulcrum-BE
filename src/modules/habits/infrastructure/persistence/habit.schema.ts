@@ -1,17 +1,17 @@
 import { HabitFrequency, HabitStatus } from '@habits/domain/types/habit.types';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema({ timestamps: true, versionKey: false })
 export class Habit {
   @Prop({ type: String })
   _id: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  userId: Types.ObjectId;
+  @Prop({ type: String, required: true, index: true })
+  userId: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'Goal', default: null, index: true })
-  goalId: Types.ObjectId | null;
+  @Prop({ type: String, default: null, index: true })
+  goalId: string | null;
 
   @Prop({ type: String, required: true, trim: true })
   title: string;

@@ -43,6 +43,24 @@ export class AnalyticsEventPublisher implements IAnalyticsEventPublisher {
     );
   }
 
+  async queueGoalInit(
+    userId: string,
+    goalId: string,
+    goalTitle: string,
+  ): Promise<void> {
+    this.logger.log(
+      `Queuing goal analytics init — userId: ${userId}, goalId: ${goalId}`,
+    );
+    await this.queue.add(
+      AnalyticsJobName.INIT_GOAL,
+      { userId, goalId, goalTitle },
+      {
+        jobId: `analytics.goal-init_${goalId}`,
+        removeOnComplete: { count: 30 },
+      },
+    );
+  }
+
   async queueEstimationUpdate(userId: string, taskId: string): Promise<void> {
     this.logger.log(
       `Queuing estimation profile update — userId: ${userId}, taskId: ${taskId}`,

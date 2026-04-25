@@ -25,6 +25,7 @@ import type { TokenPayload } from '@auth/domain/types/token.types';
 import { GetDailyAnalyticsService } from '@analytics/application/services/get-daily-analytics.service';
 import { GetGoalAnalyticsService } from '@analytics/application/services/get-goal-analytics.service';
 import { GetWeeklyAnalyticsService } from '@analytics/application/services/get-weekly-analytics.service';
+import { GetMonthlyAnalyticsService } from '@analytics/application/services/get-monthly-analytics.service';
 import { GetEstimationProfileService } from '@analytics/application/services/get-estimation-profile.service';
 import { GetDashboardService } from '@analytics/application/services/get-dashboard.service';
 
@@ -36,6 +37,7 @@ import {
 import type { DailyAnalytics } from '@analytics/domain/entities/daily-analytics.entity';
 import type { GoalAnalytics } from '@analytics/domain/entities/goal-analytics.entity';
 import type { WeeklyAnalytics } from '@analytics/domain/entities/weekly-analytics.entity';
+import type { MonthlyAnalytics } from '@analytics/domain/entities/monthly-analytics.entity';
 import type { EstimationProfile } from '@analytics/domain/entities/estimation-profile.entity';
 import type { DashboardResult } from '@analytics/application/services/get-dashboard.service';
 
@@ -49,6 +51,16 @@ function parseDate(raw: string | undefined, label: string): string {
   return raw;
 }
 
+/** Validates YYYY-MM format */
+function parseMonth(raw: string | undefined, label: string): string {
+  if (!raw)
+    throw new BadRequestException(`Query param '${label}' is required.`);
+  if (!/^\d{4}-\d{2}$/.test(raw)) {
+    throw new BadRequestException(`'${label}' must be in YYYY-MM format.`);
+  }
+  return raw;
+}
+
 @ApiTags('Analytics')
 @ApiBearerAuth('access-token')
 @UseGuards(JwtAuthGuard)
@@ -58,6 +70,7 @@ export class AnalyticsController {
     private readonly getDailyService: GetDailyAnalyticsService,
     private readonly getGoalService: GetGoalAnalyticsService,
     private readonly getWeeklyService: GetWeeklyAnalyticsService,
+    private readonly getMonthlyService: GetMonthlyAnalyticsService,
     private readonly getEstimationService: GetEstimationProfileService,
     private readonly getDashboardService: GetDashboardService,
   ) {}
@@ -153,7 +166,7 @@ export class AnalyticsController {
   @ApiOperation({
     summary: 'Get weekly analytics for a specific week',
     description:
-      'Provide the Monday date of the desired week. Weekly analytics are computed every Sunday at 23:00 UTC.',
+      'Provide the Monday date of the desired week. Weekly analytics are derived from daily analytics when requested.',
   })
   @ApiQuery({
     name: 'weekStart',
@@ -203,6 +216,65 @@ export class AnalyticsController {
       : 8;
     const analytics = await this.getWeeklyService.getRecent(userId, limit);
     return ok('Recent weekly analytics retrieved.', analytics);
+  }
+
+  // ─── Monthly ──────────────────────────────────────────────────────────────
+
+  @Get('monthly')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get monthly analytics for a specific month',
+    description:
+      'Provide the YYYY-MM month key. Monthly analytics are derived from daily analytics when requested.',
+  })
+  @ApiQuery({
+    name: 'month',
+    required: true,
+    example: '2026-03',
+    description: 'YYYY-MM',
+  })
+  @ApiResponse({ status: 200, description: 'Monthly analytics returned.' })
+  @ApiResponse({
+    status: 404,
+    description: 'No analytics found for this month.',
+  })
+  async getMonthly(
+    @Req() req: Request,
+    @Query('month') monthStr?: string,
+  ): Promise<ApiResponseType<MonthlyAnalytics>> {
+    const { sub: userId } = req.user as TokenPayload;
+    const month = parseMonth(monthStr, 'month');
+    const analytics = await this.getMonthlyService.getByMonth(userId, month);
+    return ok('Monthly analytics retrieved.', analytics);
+  }
+
+  @Get('monthly/recent')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Get the most recent monthly summaries',
+    description:
+      'Returns up to `limit` monthly analytics documents, newest first. Default limit is 6.',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    example: 6,
+    description: 'Max number of months to return (default 6)',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Recent monthly analytics returned.',
+  })
+  async getRecentMonthly(
+    @Req() req: Request,
+    @Query('limit') limitStr?: string,
+  ): Promise<ApiResponseType<MonthlyAnalytics[]>> {
+    const { sub: userId } = req.user as TokenPayload;
+    const limit = limitStr
+      ? Math.min(24, Math.max(1, parseInt(limitStr, 10)))
+      : 6;
+    const analytics = await this.getMonthlyService.getRecent(userId, limit);
+    return ok('Recent monthly analytics retrieved.', analytics);
   }
 
   // ─── Goals ────────────────────────────────────────────────────────────────

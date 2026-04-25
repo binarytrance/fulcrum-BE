@@ -5,8 +5,7 @@ import {
   DAILY_ANALYTICS_REPO_PORT,
   type IDailyAnalyticsRepository,
 } from '@analytics/domain/ports/daily-analytics-repo.port';
-import type { WeeklyAnalytics } from '@analytics/domain/entities/weekly-analytics.entity';
-import { WeeklyAnalytics as WeeklyAnalyticsEntity } from '@analytics/domain/entities/weekly-analytics.entity';
+import { MonthlyAnalytics } from '@analytics/domain/entities/monthly-analytics.entity';
 
 interface SessionLean {
   taskId: string;
@@ -23,44 +22,33 @@ interface GoalLean {
   title: string;
 }
 
-function getWeekEnd(weekStart: string): string {
-  const start = new Date(`${weekStart}T00:00:00.000Z`);
-  const end = new Date(start);
-  end.setUTCDate(end.getUTCDate() + 6);
-  return end.toISOString().slice(0, 10);
+function monthBounds(month: string): { monthStart: string; monthEnd: string } {
+  const [yearStr, monthStr] = month.split('-');
+  const year = Number(yearStr);
+  const monthIndex = Number(monthStr) - 1;
+
+  const first = new Date(Date.UTC(year, monthIndex, 1));
+  const last = new Date(Date.UTC(year, monthIndex + 1, 0));
+
+  return {
+    monthStart: first.toISOString().slice(0, 10),
+    monthEnd: last.toISOString().slice(0, 10),
+  };
 }
 
-function startOfCurrentWeek(): string {
-  const d = new Date();
-  const day = d.getUTCDay();
-  const daysFromMonday = day === 0 ? 6 : day - 1;
-  d.setUTCDate(d.getUTCDate() - daysFromMonday);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+function currentMonth(): string {
+  return new Date().toISOString().slice(0, 7);
 }
 
-function minusWeeks(weekStart: string, weeks: number): string {
-  const d = new Date(`${weekStart}T00:00:00.000Z`);
-  d.setUTCDate(d.getUTCDate() - weeks * 7);
-  return d.toISOString().slice(0, 10);
-}
-
-function weeklyAvgDivisor(weekStart: string): number {
-  const start = new Date(`${weekStart}T00:00:00.000Z`);
-  const now = new Date();
-  const currentWeekStart = startOfCurrentWeek();
-  if (weekStart !== currentWeekStart) return 7;
-
-  const todayUtc = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()),
-  );
-  const elapsedDays =
-    Math.floor((todayUtc.getTime() - start.getTime()) / 86_400_000) + 1;
-  return Math.min(Math.max(elapsedDays, 1), 7);
+function minusMonths(month: string, delta: number): string {
+  const [yearStr, monthStr] = month.split('-');
+  const d = new Date(Date.UTC(Number(yearStr), Number(monthStr) - 1, 1));
+  d.setUTCMonth(d.getUTCMonth() - delta);
+  return d.toISOString().slice(0, 7);
 }
 
 @Injectable()
-export class GetWeeklyAnalyticsService {
+export class GetMonthlyAnalyticsService {
   constructor(
     @Inject(DAILY_ANALYTICS_REPO_PORT)
     private readonly dailyRepo: IDailyAnalyticsRepository,
@@ -72,25 +60,25 @@ export class GetWeeklyAnalyticsService {
     private readonly goalModel: Model<GoalLean>,
   ) {}
 
-  async getByWeek(userId: string, weekStart: string): Promise<WeeklyAnalytics> {
-    const doc = await this.getByWeekOrNull(userId, weekStart);
+  async getByMonth(userId: string, month: string): Promise<MonthlyAnalytics> {
+    const doc = await this.getByMonthOrNull(userId, month);
     if (!doc) {
       throw new NotFoundException(
-        `No analytics found for week starting ${weekStart}. Weekly analytics are derived from daily analytics when requested.`,
+        `No analytics found for month ${month}. Monthly analytics are derived from daily analytics when requested.`,
       );
     }
     return doc;
   }
 
-  async getByWeekOrNull(
+  async getByMonthOrNull(
     userId: string,
-    weekStart: string,
-  ): Promise<WeeklyAnalytics | null> {
-    const weekEnd = getWeekEnd(weekStart);
+    month: string,
+  ): Promise<MonthlyAnalytics | null> {
+    const { monthStart, monthEnd } = monthBounds(month);
     const dailyDocs = await this.dailyRepo.findByUserInRange(
       userId,
-      weekStart,
-      weekEnd,
+      monthStart,
+      monthEnd,
     );
     if (dailyDocs.length === 0) return null;
 
@@ -105,9 +93,11 @@ export class GetWeeklyAnalyticsService {
       (s, d) => s + d.completedTaskCount,
       0,
     );
-    const avgDailyMinutes = Math.round(
-      totalLoggedMinutes / weeklyAvgDivisor(weekStart),
-    );
+
+    const [y, m] = month.split('-').map(Number);
+    const daysInMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    const avgDailyMinutes = Math.round(totalLoggedMinutes / daysInMonth);
+
     const timeLeaksIdentified = dailyDocs.reduce(
       (s, d) => s + (d.timeLeaks?.length ?? 0),
       0,
@@ -127,16 +117,14 @@ export class GetWeeklyAnalyticsService {
       ? { date: lastDay.date, minutes: lastDay.totalLoggedMinutes }
       : null;
 
-    const weekStartDate = new Date(`${weekStart}T00:00:00.000Z`);
-    const weekEndDate = new Date(`${weekStart}T00:00:00.000Z`);
-    weekEndDate.setUTCDate(weekEndDate.getUTCDate() + 6);
-    weekEndDate.setUTCHours(23, 59, 59, 999);
+    const monthStartDate = new Date(`${monthStart}T00:00:00.000Z`);
+    const monthEndDate = new Date(`${monthEnd}T23:59:59.999Z`);
 
     const sessions = await this.sessionModel
       .find({
         userId,
         status: 'COMPLETED',
-        startedAt: { $gte: weekStartDate, $lte: weekEndDate },
+        startedAt: { $gte: monthStartDate, $lte: monthEndDate },
       })
       .lean<SessionLean[]>();
 
@@ -174,10 +162,11 @@ export class GetWeeklyAnalyticsService {
       minutesLogged: goalMinutesMap.get(goalId) ?? 0,
     }));
 
-    return new WeeklyAnalyticsEntity({
-      id: `${userId}_${weekStart}`,
+    return new MonthlyAnalytics({
+      id: `${userId}_${monthStart}`,
       userId,
-      weekStart,
+      monthStart,
+      monthEnd,
       totalLoggedMinutes,
       netFocusMinutes,
       deepWorkMinutes,
@@ -192,15 +181,12 @@ export class GetWeeklyAnalyticsService {
     });
   }
 
-  /** Returns the N most recent weekly summaries, newest first. */
-  async getRecent(userId: string, limit = 8): Promise<WeeklyAnalytics[]> {
-    const currentWeek = startOfCurrentWeek();
-    const weeks = Array.from({ length: limit }, (_, i) =>
-      minusWeeks(currentWeek, i),
-    );
+  async getRecent(userId: string, limit = 6): Promise<MonthlyAnalytics[]> {
+    const month = currentMonth();
+    const months = Array.from({ length: limit }, (_, i) => minusMonths(month, i));
     const docs = await Promise.all(
-      weeks.map((weekStart) => this.getByWeekOrNull(userId, weekStart)),
+      months.map((monthKey) => this.getByMonthOrNull(userId, monthKey)),
     );
-    return docs.filter((doc): doc is WeeklyAnalytics => doc !== null);
+    return docs.filter((doc): doc is MonthlyAnalytics => doc !== null);
   }
 }

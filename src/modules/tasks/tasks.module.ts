@@ -26,9 +26,17 @@ import { HABIT_CAPACITY_PORT } from '@tasks/domain/ports/habit-capacity.port';
 // HabitMongoModule registers Habit + HabitOccurrence models used by HabitCapacityAdapter.
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
+import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
 
 @Module({
-  imports: [SharedModule, TaskMongoModule, GoalMongoModule, HabitMongoModule, TaskWorkersModule],
+  imports: [
+    SharedModule,
+    TaskMongoModule,
+    GoalMongoModule,
+    HabitMongoModule,
+    TaskWorkersModule,
+    AnalyticsWorkersModule,
+  ],
   controllers: [TasksController],
   providers: [
     { provide: TASK_REPO_PORT, useClass: TaskRepository },

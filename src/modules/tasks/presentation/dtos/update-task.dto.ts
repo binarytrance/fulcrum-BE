@@ -5,6 +5,14 @@ import {
   MAX_TASK_DURATION_MS,
 } from '@tasks/domain/types/task.types';
 
+/**
+ * Accepts both a date-only string (YYYY-MM-DD) and a full ISO 8601 datetime
+ * string (with or without timezone offset), and coerces both to a Date object.
+ */
+const flexDate = z
+  .union([z.iso.datetime({ offset: true }), z.iso.date()])
+  .transform((v) => new Date(v));
+
 export const UpdateTaskSchema = z
   .object({
     title: z.string().min(1).max(200).optional(),
@@ -14,28 +22,9 @@ export const UpdateTaskSchema = z
         error: 'priority must be HIGH, MEDIUM, or LOW',
       })
       .optional(),
-    scheduledFor: z
-      .string()
-      .datetime({
-        message: 'scheduledFor must be a valid ISO date-time string.',
-      })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
-    estimatedEndDate: z
-      .string()
-      .datetime({
-        message: 'estimatedEndDate must be a valid ISO date-time string.',
-      })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
-    startDate: z
-      .string()
-      .datetime({ message: 'startDate must be a valid ISO date-time string.' })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
+    scheduledFor: flexDate.nullable().optional(),
+    estimatedEndDate: flexDate.nullable().optional(),
+    startDate: flexDate.nullable().optional(),
     /** Time-box in milliseconds; max 24 hours (86_400_000 ms) */
     estimatedDuration: z
       .number()

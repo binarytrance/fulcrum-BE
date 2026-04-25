@@ -5,6 +5,14 @@ import {
   GoalStatus,
 } from '@goals/domain/types/goal.types';
 
+/**
+ * Accepts both a date-only string (YYYY-MM-DD) and a full ISO 8601 datetime
+ * string (with or without timezone offset), and coerces both to a Date object.
+ */
+const flexDate = z
+  .union([z.iso.datetime({ offset: true }), z.iso.date()])
+  .transform((v) => new Date(v));
+
 export const UpdateGoalSchema = z
   .object({
     title: z.string().min(1).max(200).optional(),
@@ -12,39 +20,11 @@ export const UpdateGoalSchema = z
     category: z.nativeEnum(GoalCategory).optional(),
     status: z.nativeEnum(GoalStatus).optional(),
     priority: z.nativeEnum(GoalPriority).optional(),
-    estimatedEndDate: z
-      .string()
-      .datetime({
-        message: 'estimatedEndDate must be a valid ISO date-time string.',
-      })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
+    estimatedEndDate: flexDate.nullable().optional(),
     estimatedDuration: z.number().int().positive().nullable().optional(),
-    estimatedStartDate: z
-      .string()
-      .datetime({
-        message: 'estimatedStartDate must be a valid ISO date-time string.',
-      })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
-    actualStartDate: z
-      .string()
-      .datetime({
-        message: 'actualStartDate must be a valid ISO date-time string.',
-      })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
-    actualEndDate: z
-      .string()
-      .datetime({
-        message: 'actualEndDate must be a valid ISO date-time string.',
-      })
-      .transform((v) => new Date(v))
-      .nullable()
-      .optional(),
+    estimatedStartDate: flexDate.nullable().optional(),
+    actualStartDate: flexDate.nullable().optional(),
+    actualEndDate: flexDate.nullable().optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update.',

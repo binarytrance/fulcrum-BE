@@ -1,14 +1,14 @@
 import { AuthProviders } from '@/modules/auth/domain/types/auth.types';
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Types } from 'mongoose';
+import { HydratedDocument } from 'mongoose';
 
 @Schema({ timestamps: true, versionKey: false })
 export class Auth {
   @Prop({ type: String })
   _id: string;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  userId: Types.ObjectId;
+  @Prop({ type: String, required: true, index: true })
+  userId: string;
 
   @Prop({ type: String, enum: AuthProviders, required: true })
   provider: AuthProviders;
