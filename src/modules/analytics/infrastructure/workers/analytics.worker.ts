@@ -1,3 +1,9 @@
+import {
+  ComputeDailyAnalyticsService,
+  type SessionData,
+  type TaskData,
+  type OccurrenceData,
+} from '@analytics/application/services/compute-daily-analytics.service';
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -26,7 +32,6 @@ import {
   type SessionDocument,
 } from '@sessions/infrastructure/persistence/session.schema';
 import type {
-  TimeLeak,
   AccuracyEntry,
   EstimationTrend,
 } from '@analytics/domain/types/analytics.types';
@@ -86,14 +91,6 @@ function getWeekStart(date: Date = new Date()): string {
   return d.toISOString().slice(0, 10);
 }
 
-function padTime(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-function toHHMM(date: Date): string {
-  return `${padTime(date.getUTCHours())}:${padTime(date.getUTCMinutes())}`;
-}
-
 // ─── Worker ───────────────────────────────────────────────────────────────────
 
 @Processor(ANALYTICS_QUEUE_NAME)
@@ -122,6 +119,8 @@ export class AnalyticsWorker extends WorkerHost {
 
     @InjectModel('HabitOccurrence')
     private readonly habitOccurrenceModel: Model<HabitOccurrenceLean>,
+
+    private readonly computeDailyService: ComputeDailyAnalyticsService,
   ) {
     super();
   }
@@ -164,166 +163,54 @@ export class AnalyticsWorker extends WorkerHost {
     const dayStart = new Date(`${date}T00:00:00.000Z`);
     const dayEnd = new Date(`${date}T23:59:59.999Z`);
 
-    // ── Sessions ──
-    const sessions = await this.sessionModel
-      .find({
-        userId,
-        status: 'COMPLETED',
-        startedAt: { $gte: dayStart, $lte: dayEnd },
-      })
-      .lean<SessionLean[]>();
+    // ── 1. Fetch raw data (infrastructure concern) ────────────────────────────
+    const [sessions, tasks, occurrences] = await Promise.all([
+      this.sessionModel
+        .find({
+          userId,
+          status: 'COMPLETED',
+          startedAt: { $gte: dayStart, $lte: dayEnd },
+        })
+        .lean<SessionData[]>(),
 
-    const sessionCount = sessions.length;
-    const totalLoggedMinutes = sessions.reduce(
-      (s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000),
-      0,
+      this.taskModel
+        .find({
+          userId,
+          deletedAt: null,
+          $or: [
+            { scheduledFor: { $gte: dayStart, $lte: dayEnd } },
+            { completedAt: { $gte: dayStart, $lte: dayEnd } },
+          ],
+        })
+        .lean<(TaskData & { _id: string })[]>()
+        .then((docs) => {
+          // Deduplicate (MongoDB $or won't return duplicates, but be explicit)
+          const seen = new Set<string>();
+          return docs.filter((t) => {
+            if (seen.has(t._id)) return false;
+            seen.add(t._id);
+            return true;
+          });
+        }),
+
+      this.habitOccurrenceModel.find({ userId, date }).lean<OccurrenceData[]>(),
+    ]);
+
+    // ── 2. Compute metrics (application service — pure business logic) ─────────
+    const computed = this.computeDailyService.compute(
+      sessions,
+      tasks,
+      occurrences,
     );
-    const netFocusMinutes = sessions.reduce(
-      (s, sess) => s + Math.round((sess.netFocusMs ?? 0) / 60_000),
-      0,
-    );
-    const deepWorkMinutes = sessions
-      .filter((sess) => sess.plantStatus === 'HEALTHY')
-      .reduce((s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000), 0);
-    const shallowWorkMinutes = totalLoggedMinutes - deepWorkMinutes;
 
-    const allDistractions = sessions.flatMap((sess) => sess.distractions ?? []);
-    const totalDistractions = allDistractions.length;
-    const totalDistractionMinutes = allDistractions.reduce(
-      (s, d) => s + Math.round((d.estimatedMs ?? 0) / 60_000),
-      0,
-    );
-    const avgDistractionPerSession =
-      sessionCount > 0
-        ? Math.round((totalDistractions / sessionCount) * 10) / 10
-        : 0;
-
-    // ── Tasks due or completed on this day ──
-    // totalTaskCount = tasks *scheduled* for today (regardless of status) UNION
-    // tasks *completed* today (catches unplanned work done outside a schedule).
-    // This makes taskCompletionRate meaningful instead of always 100%.
-    const tasks = await this.taskModel
-      .find({
-        userId,
-        deletedAt: null,
-        $or: [
-          { scheduledFor: { $gte: dayStart, $lte: dayEnd } },
-          { completedAt: { $gte: dayStart, $lte: dayEnd } },
-        ],
-      })
-      .lean<TaskLean[]>();
-
-    // Deduplicate: a task that was both scheduled today AND completed today
-    // appears in both branches of the $or — MongoDB already deduplicates _id,
-    // but be explicit just in case of edge cases with lean arrays.
-    const seenTaskIds = new Set<string>();
-    const uniqueTasks = tasks.filter((t) => {
-      if (seenTaskIds.has(t._id)) return false;
-      seenTaskIds.add(t._id);
-      return true;
-    });
-
-    const totalTaskCount = uniqueTasks.length;
-    const plannedTaskCount = uniqueTasks.filter(
-      (t) => t.type === 'PLANNED',
-    ).length;
-    const unplannedTaskCount = uniqueTasks.filter(
-      (t) => t.type === 'UNPLANNED',
-    ).length;
-    const completedTaskCount = uniqueTasks.filter(
-      (t) => t.status === 'COMPLETED',
-    ).length;
-    const unplannedPercent =
-      totalTaskCount > 0
-        ? Math.round((unplannedTaskCount / totalTaskCount) * 100)
-        : 0;
-    const taskCompletionRate =
-      totalTaskCount > 0
-        ? Math.round((completedTaskCount / totalTaskCount) * 100)
-        : 0;
-
-    // ── Habit occurrences on this day ──
-    const occurrences = await this.habitOccurrenceModel
-      .find({ userId, date })
-      .lean<HabitOccurrenceLean[]>();
-
-    const totalHabitCount = occurrences.length;
-    const completedHabitCount = occurrences.filter(
-      (o) => o.status === 'completed',
-    ).length;
-    const skippedHabitCount = occurrences.filter(
-      (o) => o.status === 'skipped',
-    ).length;
-    const missedHabitCount = occurrences.filter(
-      (o) => o.status === 'missed',
-    ).length;
-    const habitCompletionRate =
-      totalHabitCount > 0
-        ? Math.round((completedHabitCount / totalHabitCount) * 100)
-        : 0;
-
-    const tasksWithScore = uniqueTasks.filter(
-      (t) => t.efficiencyScore !== null && t.efficiencyScore !== undefined,
-    );
-    const avgEfficiencyScore =
-      tasksWithScore.length > 0
-        ? Math.round(
-            tasksWithScore.reduce((s, t) => s + (t.efficiencyScore ?? 0), 0) /
-              tasksWithScore.length,
-          )
-        : null;
-
-    // ── Time leaks: gaps > 30 min between consecutive sessions ──
-    const sortedSessions = [...sessions].sort(
-      (a, b) =>
-        new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime(),
-    );
-    const timeLeaks: TimeLeak[] = [];
-    for (let i = 0; i < sortedSessions.length - 1; i++) {
-      const currentEndedAt = sortedSessions[i].endedAt;
-      if (!currentEndedAt) continue;
-      const endedAt = new Date(currentEndedAt);
-      const nextStart = new Date(sortedSessions[i + 1].startedAt);
-      const gapMinutes = Math.round(
-        (nextStart.getTime() - endedAt.getTime()) / 60_000,
-      );
-      if (gapMinutes > 30) {
-        timeLeaks.push({
-          startTime: toHHMM(endedAt),
-          endTime: toHHMM(nextStart),
-          gapMinutes,
-        });
-      }
-    }
-
-    // ── Upsert ──
+    // ── 3. Persist result (infrastructure concern) ────────────────────────────
     await this.dailyModel.findOneAndUpdate(
       { userId, date },
       {
         $set: {
           userId,
           date,
-          totalLoggedMinutes,
-          netFocusMinutes,
-          deepWorkMinutes,
-          shallowWorkMinutes,
-          sessionCount,
-          totalDistractions,
-          totalDistractionMinutes,
-          avgDistractionPerSession,
-          totalTaskCount,
-          plannedTaskCount,
-          unplannedTaskCount,
-          completedTaskCount,
-          unplannedPercent,
-          taskCompletionRate,
-          totalHabitCount,
-          completedHabitCount,
-          skippedHabitCount,
-          missedHabitCount,
-          habitCompletionRate,
-          avgEfficiencyScore,
-          timeLeaks,
+          ...computed,
           computedAt: new Date(),
         },
         $setOnInsert: { _id: randomUUID() },
@@ -332,7 +219,7 @@ export class AnalyticsWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[Daily] userId=${userId} date=${date} — ${totalLoggedMinutes}min logged, habits=${completedHabitCount}/${totalHabitCount}, ${timeLeaks.length} time leaks`,
+      `[Daily] userId=${userId} date=${date} — ${computed.totalLoggedMinutes}min logged, habits=${computed.completedHabitCount}/${computed.totalHabitCount}, ${computed.timeLeaks.length} time leaks`,
     );
   }
 
