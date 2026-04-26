@@ -12,6 +12,8 @@ import {
 } from '@analytics/infrastructure/event-publisher/analytics-event-publisher';
 import { ANALYTICS_EVENT_PUBLISHER_PORT } from '@analytics/domain/ports/analytics-event-publisher.port';
 import { ComputeDailyAnalyticsService } from '@analytics/application/services/compute-daily-analytics.service';
+import { ComputeGoalAnalyticsService } from '@analytics/application/services/compute-goal-analytics.service';
+import { ComputeEstimationProfileService } from '@analytics/application/services/compute-estimation-profile.service';
 
 // Cross-module Mongoose models required by AnalyticsWorker
 import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
@@ -37,6 +39,8 @@ import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo
     AnalyticsWorker,
     AnalyticsEventPublisher,
     ComputeDailyAnalyticsService,
+    ComputeGoalAnalyticsService,
+    ComputeEstimationProfileService,
     {
       provide: ANALYTICS_EVENT_PUBLISHER_PORT,
       useExisting: AnalyticsEventPublisher,

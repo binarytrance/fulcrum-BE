@@ -4,6 +4,12 @@ import {
   type TaskData,
   type OccurrenceData,
 } from '@analytics/application/services/compute-daily-analytics.service';
+import {
+  ComputeGoalAnalyticsService,
+} from '@analytics/application/services/compute-goal-analytics.service';
+import {
+  ComputeEstimationProfileService,
+} from '@analytics/application/services/compute-estimation-profile.service';
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -31,10 +37,7 @@ import {
   SessionDoc,
   type SessionDocument,
 } from '@sessions/infrastructure/persistence/session.schema';
-import type {
-  AccuracyEntry,
-  EstimationTrend,
-} from '@analytics/domain/types/analytics.types';
+import type { AccuracyEntry } from '@analytics/domain/types/analytics.types';
 import { ANALYTICS_QUEUE_NAME } from '@analytics/infrastructure/event-publisher/analytics-event-publisher';
 
 // ─── Lean Types from cross-module models ─────────────────────────────────────
@@ -79,18 +82,6 @@ interface HabitOccurrenceLean {
   status: 'pending' | 'completed' | 'missed' | 'skipped';
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-/** Returns the YYYY-MM-DD string of the Monday starting the ISO week that contains `date`. */
-function getWeekStart(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getUTCDay(); // 0 = Sunday
-  const daysFromMonday = day === 0 ? 6 : day - 1;
-  d.setUTCDate(d.getUTCDate() - daysFromMonday);
-  d.setUTCHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
-}
-
 // ─── Worker ───────────────────────────────────────────────────────────────────
 
 @Processor(ANALYTICS_QUEUE_NAME)
@@ -121,6 +112,8 @@ export class AnalyticsWorker extends WorkerHost {
     private readonly habitOccurrenceModel: Model<HabitOccurrenceLean>,
 
     private readonly computeDailyService: ComputeDailyAnalyticsService,
+    private readonly computeGoalService: ComputeGoalAnalyticsService,
+    private readonly computeEstimationService: ComputeEstimationProfileService,
   ) {
     super();
   }
@@ -230,6 +223,7 @@ export class AnalyticsWorker extends WorkerHost {
   ): Promise<void> {
     const { userId, taskId } = payload;
 
+    // ── 1. Resolve goalId from the trigger task ───────────────────────────────
     const triggerTask = await this.taskModel
       .findById(taskId)
       .lean<{ goalId: string | null }>();
@@ -239,87 +233,27 @@ export class AnalyticsWorker extends WorkerHost {
     const goal = await this.goalModel.findById(goalId).lean<GoalLean>();
     if (!goal) return;
 
-    // ── All non-deleted tasks under this goal ──
+    // ── 2. Fetch raw data (infrastructure concern) ────────────────────────────
     const tasks = await this.taskModel
       .find({ goalId, deletedAt: null })
       .lean<TaskLean[]>();
 
-    const taskCount = tasks.length;
-    const completedTaskCount = tasks.filter(
-      (t) => t.status === 'COMPLETED',
-    ).length;
-    const completionPercent =
-      taskCount > 0 ? Math.round((completedTaskCount / taskCount) * 100) : 0;
-
-    const tasksWithScore = tasks.filter((t) => t.efficiencyScore != null);
-    const avgEfficiencyScore =
-      tasksWithScore.length > 0
-        ? Math.round(
-            tasksWithScore.reduce((s, t) => s + (t.efficiencyScore ?? 0), 0) /
-              tasksWithScore.length,
-          )
-        : null;
-
-    // ── All sessions for tasks under this goal ──
     const taskIds = tasks.map((t) => t._id);
     const sessions = await this.sessionModel
       .find({ taskId: { $in: taskIds }, status: 'COMPLETED' })
       .lean<SessionLean[]>();
 
-    const totalLoggedMinutes = sessions.reduce(
-      (s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000),
-      0,
-    );
+    // ── 3. Compute metrics (application service — pure business logic) ─────────
+    const computed = this.computeGoalService.compute(goal, tasks, sessions);
 
-    // ── Consistency: % of last 12 weeks that had ≥1 session ──
-    const twelveWeeksAgo = new Date();
-    twelveWeeksAgo.setUTCDate(twelveWeeksAgo.getUTCDate() - 84);
-    const recentSessions = sessions.filter(
-      (s) => new Date(s.startedAt) >= twelveWeeksAgo,
-    );
-    const activeWeekKeys = new Set(
-      recentSessions.map((s) => getWeekStart(new Date(s.startedAt))),
-    );
-    const consistencyScore = Math.round((activeWeekKeys.size / 12) * 100);
-    const weeksActive = Math.max(activeWeekKeys.size, 1);
-    const weeklyAvgMinutes = Math.round(totalLoggedMinutes / weeksActive);
-
-    // ── Pacing: based on estimatedDuration (ms) and estimatedEndDate ──
-    let projectedCompletionDate: Date | null = null;
-    let isOnTrack: boolean | null = null;
-    const estimatedMinutes =
-      goal.estimatedDuration != null
-        ? Math.round(goal.estimatedDuration / 60_000)
-        : 0;
-    if (estimatedMinutes > 0 && weeklyAvgMinutes > 0) {
-      const remaining = Math.max(0, estimatedMinutes - totalLoggedMinutes);
-      const weeksNeeded = remaining / weeklyAvgMinutes;
-      const projected = new Date();
-      projected.setUTCDate(
-        projected.getUTCDate() + Math.round(weeksNeeded * 7),
-      );
-      projectedCompletionDate = projected;
-      if (goal.estimatedEndDate) {
-        isOnTrack = projected <= goal.estimatedEndDate;
-      }
-    }
-
+    // ── 4. Persist result (infrastructure concern) ────────────────────────────
     await this.goalAnalyticsModel.findOneAndUpdate(
       { goalId },
       {
         $set: {
           goalId,
           userId,
-          goalTitle: goal.title,
-          totalLoggedMinutes,
-          taskCount,
-          completedTaskCount,
-          completionPercent,
-          avgEfficiencyScore,
-          consistencyScore,
-          weeklyAvgMinutes,
-          projectedCompletionDate,
-          isOnTrack,
+          ...computed,
           lastComputedAt: new Date(),
         },
         $setOnInsert: { _id: randomUUID() },
@@ -328,7 +262,7 @@ export class AnalyticsWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[Goal] goalId=${goalId} — ${totalLoggedMinutes}min logged, ${consistencyScore}% consistent, onTrack=${String(isOnTrack)}`,
+      `[Goal] goalId=${goalId} — ${computed.totalLoggedMinutes}min logged, ${computed.consistencyScore}% consistent, onTrack=${String(computed.isOnTrack)}`,
     );
   }
 
@@ -378,6 +312,7 @@ export class AnalyticsWorker extends WorkerHost {
   ): Promise<void> {
     const { userId, taskId } = payload;
 
+    // ── 1. Fetch task data (infrastructure concern) ───────────────────────────
     const task = await this.taskModel.findById(taskId).lean<{
       estimatedDuration: number;
       actualDuration: number | null;
@@ -387,51 +322,30 @@ export class AnalyticsWorker extends WorkerHost {
 
     if (!task?.actualDuration || task.efficiencyScore == null) return;
 
-    const newEntry: AccuracyEntry = {
-      taskId,
-      date: task.completedAt ?? new Date(),
-      estimated: task.estimatedDuration,
-      actual: task.actualDuration,
-      accuracy: task.efficiencyScore,
-    };
-
+    // ── 2. Fetch existing profile (infrastructure concern) ────────────────────
     const existing = await this.estimationModel
       .findOne({ userId })
       .lean<{ recentAccuracies: AccuracyEntry[] }>();
 
-    const updated: AccuracyEntry[] = [
-      newEntry,
-      ...(existing?.recentAccuracies ?? []),
-    ].slice(0, 30);
+    // ── 3. Compute updated profile (application service — pure business logic) ─
+    const computed = this.computeEstimationService.compute(
+      {
+        taskId,
+        date: task.completedAt ?? new Date(),
+        estimated: task.estimatedDuration,
+        actual: task.actualDuration,
+        accuracy: task.efficiencyScore,
+      },
+      existing?.recentAccuracies ?? [],
+    );
 
-    const rollingAverage =
-      updated.length > 0
-        ? Math.round(
-            updated.reduce((s, e) => s + e.accuracy, 0) / updated.length,
-          )
-        : null;
-
-    let trend: EstimationTrend = 'STABLE';
-    if (updated.length >= 6) {
-      const mid = Math.floor(updated.length / 2);
-      const recentHalf = updated.slice(0, mid);
-      const olderHalf = updated.slice(mid);
-      const recentAvg =
-        recentHalf.reduce((s, e) => s + e.accuracy, 0) / recentHalf.length;
-      const olderAvg =
-        olderHalf.reduce((s, e) => s + e.accuracy, 0) / olderHalf.length;
-      const diff = recentAvg - olderAvg;
-      trend = diff > 5 ? 'IMPROVING' : diff < -5 ? 'DECLINING' : 'STABLE';
-    }
-
+    // ── 4. Persist result (infrastructure concern) ────────────────────────────
     await this.estimationModel.findOneAndUpdate(
       { userId },
       {
         $set: {
           userId,
-          recentAccuracies: updated,
-          rollingAverage,
-          trend,
+          ...computed,
           updatedAt: new Date(),
         },
         $setOnInsert: { _id: randomUUID() },
@@ -440,7 +354,7 @@ export class AnalyticsWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[Estimation] userId=${userId} rolling avg=${String(rollingAverage)} trend=${trend}`,
+      `[Estimation] userId=${userId} rolling avg=${String(computed.rollingAverage)} trend=${computed.trend}`,
     );
   }
 
