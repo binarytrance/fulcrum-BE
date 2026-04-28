@@ -74,6 +74,16 @@ import {
   type OAuthCodeExchangeDto,
   OAuthCodeExchangeSchema,
 } from '@auth/presentation/dtos/oauth-code-exchange.dto';
+import { ForgotPasswordService } from '@auth/application/services/forgot-password.service';
+import { ResetPasswordService } from '@auth/application/services/reset-password.service';
+import {
+  type ForgotPasswordDto,
+  ForgotPasswordSchema,
+} from '@auth/presentation/dtos/forgot-password.dto';
+import {
+  type ResetPasswordDto,
+  ResetPasswordSchema,
+} from '@auth/presentation/dtos/reset-password.dto';
 
 // ─── Swagger schema helpers ───────────────────────────────────────────────────
 
@@ -127,6 +137,8 @@ export class AuthController {
     @Inject(TOKEN_PORT) private readonly tokenService: ITokenService,
     @Inject(FIND_USER_PORT) private readonly findUser: IFindUserPort,
     private readonly configService: ConfigService,
+    private readonly forgotPasswordService: ForgotPasswordService,
+    private readonly resetPasswordService: ResetPasswordService,
   ) {}
 
   // ── Cookie helpers ───────────────────────────────────────────────────────────
@@ -667,5 +679,84 @@ export class AuthController {
     await this.tokenService.revokeRefreshToken(payload.sub, payload.sessionId);
     this.clearRefreshCookie(res);
     return ok('Signed out successfully.');
+  }
+
+  // ── Forgot / Reset password ────────────────────────────────────────────────
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(ForgotPasswordSchema))
+  @ApiOperation({
+    summary: 'Request a password reset email',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email'],
+      properties: {
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'john@example.com',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description:
+      'If the email is registered, a password reset token will be sent.',
+    schema: ApiSuccessSchema(),
+  })
+  async forgotPassword(
+    @Body() dto: ForgotPasswordDto,
+  ): Promise<ApiResponseType> {
+    await this.forgotPasswordService.requestReset(dto.email);
+    return ok(
+      'If that email is registered, a password reset link has been sent.',
+    );
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @UsePipes(new ZodValidationPipe(ResetPasswordSchema))
+  @ApiOperation({
+    summary: 'Reset password using the token from email',
+  })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['email', 'token', 'newPassword'],
+      properties: {
+        email: {
+          type: 'string',
+          format: 'email',
+          example: 'john@example.com',
+        },
+        token: {
+          type: 'string',
+          example: 'a3f9c2',
+        },
+        newPassword: {
+          type: 'string',
+          minLength: 6,
+          example: 'newSecret456',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Password reset successfully.',
+    schema: ApiSuccessSchema(),
+  })
+  @ApiResponse({ status: 401, description: 'Invalid or expired reset token.' })
+  async resetPassword(@Body() dto: ResetPasswordDto): Promise<ApiResponseType> {
+    await this.resetPasswordService.execute(
+      dto.email,
+      dto.token,
+      dto.newPassword,
+    );
+    return ok('Password reset successfully.');
   }
 }

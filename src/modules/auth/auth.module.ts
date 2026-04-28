@@ -33,6 +33,12 @@ import { AuthSessionService } from '@auth/application/services/auth-session.serv
 import { SignupEmailEventPublisher } from '@auth/infrastructure/event-publisher/signup-email.event-publisher';
 import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
 import { OAuthPkceStateService } from '@auth/infrastructure/security/oauth-pkce-state.service';
+import { PASSWORD_RESET_TOKEN_REPO_PORT } from '@auth/domain/ports/password-reset-token-repo.port';
+import { PasswordResetTokenRepository } from '@auth/infrastructure/persistence/password-reset-token.repository';
+import { FORGOT_PASSWORD_EVENT_PUBLISHER_PORT } from '@auth/domain/ports/forgot-password-event-publisher.port';
+import { ForgotPasswordEmailEventPublisher } from '@auth/infrastructure/event-publisher/forgot-password-email.event-publisher';
+import { ForgotPasswordService } from '@auth/application/services/forgot-password.service';
+import { ResetPasswordService } from '@auth/application/services/reset-password.service';
 
 @Module({
   imports: [
@@ -58,6 +64,14 @@ import { OAuthPkceStateService } from '@auth/infrastructure/security/oauth-pkce-
     },
     // FIND_USER_PORT reuses the already-registered USER_REPO_PORT from UsersModule
     { provide: FIND_USER_PORT, useExisting: USER_REPO_PORT },
+    {
+      provide: PASSWORD_RESET_TOKEN_REPO_PORT,
+      useClass: PasswordResetTokenRepository,
+    },
+    {
+      provide: FORGOT_PASSWORD_EVENT_PUBLISHER_PORT,
+      useClass: ForgotPasswordEmailEventPublisher,
+    },
 
     // Application services
     SignupService,
@@ -67,6 +81,8 @@ import { OAuthPkceStateService } from '@auth/infrastructure/security/oauth-pkce-
     OAuthPkceStateService,
     VerifyEmailService,
     AuthSessionService,
+    ForgotPasswordService,
+    ResetPasswordService,
 
     // Passport strategies
     GoogleStrategy,
