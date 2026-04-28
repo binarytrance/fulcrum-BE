@@ -187,11 +187,32 @@ export class HabitsController {
 
   @Get()
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ summary: 'List all habits for the authenticated user (paginated)' })
-  @ApiQuery({ name: 'page', required: false, description: 'Page number (1-based, default 1)', example: 1 })
-  @ApiQuery({ name: 'limit', required: false, description: `Habits per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`, example: DEFAULT_LIMIT })
-  @ApiQuery({ name: 'status', required: false, description: 'Filter by status: active | paused | archived', enum: HabitStatus })
-  @ApiQuery({ name: 'goalId', required: false, description: 'Filter by goal ID' })
+  @ApiOperation({
+    summary: 'List all habits for the authenticated user (paginated)',
+  })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    description: 'Page number (1-based, default 1)',
+    example: 1,
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    description: `Habits per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
+    example: DEFAULT_LIMIT,
+  })
+  @ApiQuery({
+    name: 'status',
+    required: false,
+    description: 'Filter by status: active | paused | archived',
+    enum: HabitStatus,
+  })
+  @ApiQuery({
+    name: 'goalId',
+    required: false,
+    description: 'Filter by goal ID',
+  })
   async list(
     @Req() req: Request,
     @Query('page') page?: string,
@@ -224,11 +245,16 @@ export class HabitsController {
   @Get('due-today')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Get today's pending habit occurrences merged with habit data (daily planner)",
+    summary:
+      "Get today's pending habit occurrences merged with habit data (daily planner)",
   })
   async dueToday(
     @Req() req: Request,
-  ): Promise<ApiResponseType<(HabitResponse & { occurrenceId: string; occurrenceStatus: string })[]>> {
+  ): Promise<
+    ApiResponseType<
+      (HabitResponse & { occurrenceId: string; occurrenceStatus: string })[]
+    >
+  > {
     const { sub: userId } = req.user as TokenPayload;
     const entries = await this.getOccurrencesService.getDueToday(userId);
     return ok(

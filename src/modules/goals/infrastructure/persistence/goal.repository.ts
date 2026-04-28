@@ -57,7 +57,9 @@ export class GoalRepository implements IGoalRepository {
   }
 
   async findById(id: string): Promise<Goal | null> {
-    const doc = await this.goalModel.findOne({ _id: id, deletedAt: null }).lean<GoalDocLean>();
+    const doc = await this.goalModel
+      .findOne({ _id: id, deletedAt: null })
+      .lean<GoalDocLean>();
     if (!doc) return null;
     return this.toDomain(doc);
   }

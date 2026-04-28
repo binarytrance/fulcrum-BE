@@ -70,7 +70,10 @@ export class HabitRepository implements IHabitRepository {
   }
 
   async findById(id: string): Promise<HabitEntity | null> {
-    const doc = await this.model.findOne({ _id: id, deletedAt: null }).lean<HabitLean>().exec();
+    const doc = await this.model
+      .findOne({ _id: id, deletedAt: null })
+      .lean<HabitLean>()
+      .exec();
     return doc ? toDomain(doc) : null;
   }
 

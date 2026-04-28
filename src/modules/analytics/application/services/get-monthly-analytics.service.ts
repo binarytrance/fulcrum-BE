@@ -86,8 +86,14 @@ export class GetMonthlyAnalyticsService {
       (s, d) => s + d.totalLoggedMinutes,
       0,
     );
-    const netFocusMinutes = dailyDocs.reduce((s, d) => s + d.netFocusMinutes, 0);
-    const deepWorkMinutes = dailyDocs.reduce((s, d) => s + d.deepWorkMinutes, 0);
+    const netFocusMinutes = dailyDocs.reduce(
+      (s, d) => s + d.netFocusMinutes,
+      0,
+    );
+    const deepWorkMinutes = dailyDocs.reduce(
+      (s, d) => s + d.deepWorkMinutes,
+      0,
+    );
     const totalSessions = dailyDocs.reduce((s, d) => s + d.sessionCount, 0);
     const totalCompletedTasks = dailyDocs.reduce(
       (s, d) => s + d.completedTaskCount,
@@ -183,7 +189,9 @@ export class GetMonthlyAnalyticsService {
 
   async getRecent(userId: string, limit = 6): Promise<MonthlyAnalytics[]> {
     const month = currentMonth();
-    const months = Array.from({ length: limit }, (_, i) => minusMonths(month, i));
+    const months = Array.from({ length: limit }, (_, i) =>
+      minusMonths(month, i),
+    );
     const docs = await Promise.all(
       months.map((monthKey) => this.getByMonthOrNull(userId, monthKey)),
     );

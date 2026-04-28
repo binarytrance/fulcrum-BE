@@ -5,29 +5,29 @@ import { HydratedDocument } from 'mongoose';
 @Schema({ timestamps: true, versionKey: false })
 export class Habit {
   @Prop({ type: String })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true, index: true })
-  userId: string;
+  userId!: string;
 
   @Prop({ type: String, default: null, index: true })
-  goalId: string | null;
+  goalId!: string | null;
 
   @Prop({ type: String, required: true, trim: true })
-  title: string;
+  title!: string;
 
   @Prop({ type: String, default: null })
-  description: string | null;
+  description!: string | null;
 
   @Prop({ type: String, enum: HabitFrequency, required: true })
-  frequency: HabitFrequency;
+  frequency!: HabitFrequency;
 
   /** Day indices (0 = Sun … 6 = Sat). Empty = every day (DAILY). */
   @Prop({ type: [Number], default: [] })
-  daysOfWeek: number[];
+  daysOfWeek!: number[];
 
   @Prop({ type: Number, required: true, min: 1 })
-  targetDuration: number;
+  targetDuration!: number;
 
   @Prop({
     type: String,
@@ -35,19 +35,19 @@ export class Habit {
     default: HabitStatus.ACTIVE,
     index: true,
   })
-  status: HabitStatus;
+  status!: HabitStatus;
 
   @Prop({ type: Number, default: 0 })
-  currentStreak: number;
+  currentStreak!: number;
 
   @Prop({ type: Number, default: 0 })
-  longestStreak: number;
+  longestStreak!: number;
 
   @Prop({ type: Date, default: null, index: true })
-  deletedAt: Date | null;
+  deletedAt!: Date | null;
 
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 export type HabitDocument = HydratedDocument<Habit>;

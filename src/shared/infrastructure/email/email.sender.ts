@@ -20,7 +20,11 @@ export class NodeMailerEmailSender implements IEmailSender {
     });
   }
 
-  async send(email: string, token: string | null, type: import('@shared/domain/ports/email.port').EmailType = 'verification'): Promise<void> {
+  async send(
+    email: string,
+    token: string | null,
+    type: import('@shared/domain/ports/email.port').EmailType = 'verification',
+  ): Promise<void> {
     const isReset = type === 'password-reset';
     const subject = isReset ? 'Password Reset' : 'Email Verification';
     const text = isReset

@@ -5,22 +5,22 @@ import { HydratedDocument } from 'mongoose';
 @Schema({ timestamps: true, versionKey: false })
 export class User {
   @Prop({ type: String, required: true })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true })
-  firstname: string;
+  firstname!: string;
 
   @Prop({ type: String, default: null })
-  lastname: string | null;
+  lastname!: string | null;
 
   @Prop({ type: String, unique: true, index: true, required: true })
-  email: string;
+  email!: string;
 
   @Prop({ type: String, enum: UserStatus, default: 'ACTIVE', index: true })
-  status: string;
+  status!: string;
 
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 export type UserDocument = HydratedDocument<User>;

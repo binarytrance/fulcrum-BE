@@ -5,22 +5,22 @@ import { HydratedDocument } from 'mongoose';
 @Schema({ timestamps: true, versionKey: false })
 export class Auth {
   @Prop({ type: String })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true, index: true })
-  userId: string;
+  userId!: string;
 
   @Prop({ type: String, enum: AuthProviders, required: true })
-  provider: AuthProviders;
+  provider!: AuthProviders;
 
   @Prop({ type: String, default: null, index: true })
-  providerId: string | null;
+  providerId!: string | null;
 
   @Prop({ type: String, default: null, select: false })
-  hashedPassword: string | null;
+  hashedPassword!: string | null;
 
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 export type AuthDocument = HydratedDocument<Auth>;

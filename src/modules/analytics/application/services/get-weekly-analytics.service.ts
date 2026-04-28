@@ -98,8 +98,14 @@ export class GetWeeklyAnalyticsService {
       (s, d) => s + d.totalLoggedMinutes,
       0,
     );
-    const netFocusMinutes = dailyDocs.reduce((s, d) => s + d.netFocusMinutes, 0);
-    const deepWorkMinutes = dailyDocs.reduce((s, d) => s + d.deepWorkMinutes, 0);
+    const netFocusMinutes = dailyDocs.reduce(
+      (s, d) => s + d.netFocusMinutes,
+      0,
+    );
+    const deepWorkMinutes = dailyDocs.reduce(
+      (s, d) => s + d.deepWorkMinutes,
+      0,
+    );
     const totalSessions = dailyDocs.reduce((s, d) => s + d.sessionCount, 0);
     const totalCompletedTasks = dailyDocs.reduce(
       (s, d) => s + d.completedTaskCount,

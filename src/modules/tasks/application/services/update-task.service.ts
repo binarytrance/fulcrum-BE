@@ -66,14 +66,15 @@ export class UpdateTaskService {
       const newDuration = input.estimatedDuration ?? task.estimatedDuration;
 
       if (newDuration >= MAX_DURATION_MS) {
-        throw new BadRequestException('A single task cannot be 24 hours or more.');
+        throw new BadRequestException(
+          'A single task cannot be 24 hours or more.',
+        );
       }
 
       // Use the new scheduled date (if changed) as the cap day; fall back to current.
-      const capDay =
-        scheduledForChanged
-          ? (input.scheduledFor ?? task.scheduledFor ?? new Date())
-          : (task.scheduledFor ?? new Date());
+      const capDay = scheduledForChanged
+        ? (input.scheduledFor ?? task.scheduledFor ?? new Date())
+        : (task.scheduledFor ?? new Date());
 
       const [dayTotal, habitTotal] = await Promise.all([
         this.taskRepo.sumDailyDuration(userId, capDay),

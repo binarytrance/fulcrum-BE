@@ -4,28 +4,28 @@ import { HydratedDocument } from 'mongoose';
 @Schema({ timestamps: false, versionKey: false })
 export class PendingCredential {
   @Prop({ type: String })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true, unique: true, index: true })
-  email: string;
+  email!: string;
 
   @Prop({ type: String, required: true })
-  firstname: string;
+  firstname!: string;
 
   @Prop({ type: String, default: null })
-  lastname: string | null;
+  lastname!: string | null;
 
   @Prop({ type: String, required: true })
-  hashedPassword: string;
+  hashedPassword!: string;
 
   @Prop({ type: String, required: true })
-  emailVerificationToken: string;
+  emailVerificationToken!: string;
 
   @Prop({ type: Date, required: true })
-  tokenExpiresAt: Date;
+  tokenExpiresAt!: Date;
 
   @Prop({ type: Date, required: true })
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 export type PendingCredentialDocument = HydratedDocument<PendingCredential>;

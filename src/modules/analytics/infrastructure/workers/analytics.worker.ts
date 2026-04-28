@@ -4,12 +4,8 @@ import {
   type TaskData,
   type OccurrenceData,
 } from '@analytics/application/services/compute-daily-analytics.service';
-import {
-  ComputeGoalAnalyticsService,
-} from '@analytics/application/services/compute-goal-analytics.service';
-import {
-  ComputeEstimationProfileService,
-} from '@analytics/application/services/compute-estimation-profile.service';
+import { ComputeGoalAnalyticsService } from '@analytics/application/services/compute-goal-analytics.service';
+import { ComputeEstimationProfileService } from '@analytics/application/services/compute-estimation-profile.service';
 import { Processor, WorkerHost, OnWorkerEvent } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';

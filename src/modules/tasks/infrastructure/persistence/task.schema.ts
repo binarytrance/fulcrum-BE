@@ -9,19 +9,19 @@ import { HydratedDocument } from 'mongoose';
 @Schema({ timestamps: true, versionKey: false })
 export class Task {
   @Prop({ type: String })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true, index: true })
-  userId: string;
+  userId!: string;
 
   @Prop({ type: String, default: null, index: true })
-  goalId: string | null;
+  goalId!: string | null;
 
   @Prop({ type: String, required: true, trim: true })
-  title: string;
+  title!: string;
 
   @Prop({ type: String, default: null })
-  description: string | null;
+  description!: string | null;
 
   @Prop({
     type: String,
@@ -29,57 +29,57 @@ export class Task {
     default: TaskStatus.PENDING,
     index: true,
   })
-  status: TaskStatus;
+  status!: TaskStatus;
 
   @Prop({ type: String, enum: TaskPriority, default: TaskPriority.MEDIUM })
-  priority: TaskPriority;
+  priority!: TaskPriority;
 
   @Prop({ type: String, enum: TaskType, required: true })
-  type: TaskType;
+  type!: TaskType;
 
   /** The calendar date the user plans to work on this task */
   @Prop({ type: Date, default: null, index: true })
-  scheduledFor: Date | null;
+  scheduledFor!: Date | null;
 
   /** Planned end date for the task; null = no target date set */
   @Prop({ type: Date, default: null })
-  estimatedEndDate: Date | null;
+  estimatedEndDate!: Date | null;
 
   /** Actual date the user started working; null = not yet started */
   @Prop({ type: Date, default: null })
-  startDate: Date | null;
+  startDate!: Date | null;
 
   /** Date the task was completed or cancelled; null = still in progress */
   @Prop({ type: Date, default: null })
-  actualEndDate: Date | null;
+  actualEndDate!: Date | null;
 
   /** Time-box set at creation, in milliseconds */
   @Prop({ type: Number, required: true, min: 1000 })
-  estimatedDuration: number;
+  estimatedDuration!: number;
 
   /** Computed from sum of session durations on completion (Phase 4), in milliseconds */
   @Prop({ type: Number, default: null, min: 0 })
-  actualDuration: number | null;
+  actualDuration!: number | null;
 
   /**
    * (estimatedDuration / actualDuration) * 100
    * Used by the AI estimator in later phases.
    */
   @Prop({ type: Number, default: null })
-  efficiencyScore: number | null;
+  efficiencyScore!: number | null;
 
   @Prop({ type: Date, default: null })
-  completedAt: Date | null;
+  completedAt!: Date | null;
 
   @Prop({ type: Date, default: null, index: true })
-  deletedAt: Date | null;
+  deletedAt!: Date | null;
 
   /** (Phase 5: Habits) — links this task to a recurring habit occurrence */
   @Prop({ type: String, default: null, index: true })
-  habitId: string | null;
+  habitId!: string | null;
 
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }
 
 export type TaskDocument = HydratedDocument<Task>;

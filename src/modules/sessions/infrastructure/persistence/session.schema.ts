@@ -8,22 +8,22 @@ import { HydratedDocument } from 'mongoose';
 
 @Schema({ _id: false })
 export class DistractionSchema {
-  @Prop({ type: String, required: true }) reason: string;
-  @Prop({ type: Number, required: true, min: 0 }) estimatedMs: number;
-  @Prop({ type: Date, required: true }) loggedAt: Date;
+  @Prop({ type: String, required: true }) reason!: string;
+  @Prop({ type: Number, required: true, min: 0 }) estimatedMs!: number;
+  @Prop({ type: Date, required: true }) loggedAt!: Date;
 }
 
 @Schema({ timestamps: false, versionKey: false })
 export class SessionDoc {
   static readonly name = 'Session';
   @Prop({ type: String })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true, index: true })
-  userId: string;
+  userId!: string;
 
   @Prop({ type: String, required: true, index: true })
-  taskId: string;
+  taskId!: string;
 
   @Prop({
     type: String,
@@ -31,22 +31,22 @@ export class SessionDoc {
     default: SessionStatus.ACTIVE,
     index: true,
   })
-  status: SessionStatus;
+  status!: SessionStatus;
 
   @Prop({ type: String, enum: SessionSource, required: true })
-  source: SessionSource;
+  source!: SessionSource;
 
   @Prop({ type: Date, required: true })
-  startedAt: Date;
+  startedAt!: Date;
 
   @Prop({ type: Date, default: null })
-  endedAt: Date | null;
+  endedAt!: Date | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  durationMs: number | null;
+  durationMs!: number | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  netFocusMs: number | null;
+  netFocusMs!: number | null;
 
   @Prop({
     type: [
@@ -59,16 +59,16 @@ export class SessionDoc {
     ],
     default: [],
   })
-  distractions: DistractionSchema[];
+  distractions!: DistractionSchema[];
 
   @Prop({ type: String, enum: PlantStatus, default: PlantStatus.HEALTHY })
-  plantStatus: PlantStatus;
+  plantStatus!: PlantStatus;
 
   @Prop({ type: Number, default: 0, min: 0, max: 100 })
-  plantGrowthPercent: number;
+  plantGrowthPercent!: number;
 
   @Prop({ type: Date, required: true })
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 export type SessionDocument = HydratedDocument<SessionDoc>;

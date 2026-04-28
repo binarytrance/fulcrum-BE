@@ -58,7 +58,9 @@ export class TaskRepository implements ITaskRepository {
   }
 
   async findById(id: string): Promise<Task | null> {
-    const doc = await this.taskModel.findOne({ _id: id, deletedAt: null }).lean<TaskDocLean>();
+    const doc = await this.taskModel
+      .findOne({ _id: id, deletedAt: null })
+      .lean<TaskDocLean>();
     if (!doc) return null;
     return this.toDomain(doc);
   }

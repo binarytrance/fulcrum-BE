@@ -8,17 +8,17 @@ import { HydratedDocument } from 'mongoose';
 })
 export class HabitOccurrence {
   @Prop({ type: String })
-  _id: string;
+  _id!: string;
 
   @Prop({ type: String, required: true, index: true })
-  habitId: string;
+  habitId!: string;
 
   @Prop({ type: String, required: true, index: true })
-  userId: string;
+  userId!: string;
 
   /** YYYY-MM-DD (UTC) */
   @Prop({ type: String, required: true, index: true })
-  date: string;
+  date!: string;
 
   @Prop({
     type: String,
@@ -26,22 +26,22 @@ export class HabitOccurrence {
     default: OccurrenceStatus.PENDING,
     index: true,
   })
-  status: OccurrenceStatus;
+  status!: OccurrenceStatus;
 
   @Prop({ type: Date, default: null })
-  completedAt: Date | null;
+  completedAt!: Date | null;
 
   /** Session ID if the user ran a timer session for this occurrence */
   @Prop({ type: String, default: null })
-  sessionId: string | null;
+  sessionId!: string | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  durationMinutes: number | null;
+  durationMinutes!: number | null;
 
   @Prop({ type: String, default: null })
-  note: string | null;
+  note!: string | null;
 
-  createdAt: Date;
+  createdAt!: Date;
 }
 
 export type HabitOccurrenceDocument = HydratedDocument<HabitOccurrence>;
