@@ -71,6 +71,7 @@ export class ConfigService {
       port: this.get('REDIS_PORT'),
       username: this.get('REDIS_USERNAME'),
       password: this.get('REDIS_PASSWORD'),
+      tls: this.get('REDIS_TLS'),
     };
   }
 }
