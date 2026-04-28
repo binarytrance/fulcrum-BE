@@ -40,8 +40,8 @@ export class ConfigService {
     return {
       senderEmail: this.get('SENDER_EMAIL'),
       senderEmailPassword: this.get('SENDER_EMAIL_PASSWORD'),
-      sendgridApiKey: this.get('SENDGRID_API_KEY'),
-      sendgridSender: this.get('SENDGRID_SENDER'),
+      resendApiKey: this.get('RESEND_API_KEY'),
+      resendSender: this.get('RESEND_SENDER'),
     };
   }
 

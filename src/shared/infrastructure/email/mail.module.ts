@@ -2,8 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@shared/config/config.module';
 import { ConfigService } from '@shared/config/config.service';
 import { EMAIL_PORT } from '@shared/domain/ports/email.port';
-import { NodeMailerEmailSender } from '@shared/infrastructure/email/email.sender';
-import { SendGridEmailSender } from '@shared/infrastructure/email/sendgrid-email.sender';
+import { ResendEmailSender } from '@shared/infrastructure/email/resend-email.sender';
 
 @Module({
   imports: [ConfigModule],
@@ -11,9 +10,7 @@ import { SendGridEmailSender } from '@shared/infrastructure/email/sendgrid-email
     {
       provide: EMAIL_PORT,
       useFactory: (config: ConfigService) => {
-        return config.isProd
-          ? new SendGridEmailSender(config)
-          : new NodeMailerEmailSender(config);
+        return new ResendEmailSender(config);
       },
       inject: [ConfigService],
     },

@@ -39,8 +39,10 @@ export interface PauseResumeInput {
 export class UpdateHabitService {
   constructor(
     @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
-    @Inject(TASK_CAPACITY_PORT) private readonly taskCapacity: ITaskCapacityPort,
-    @Inject(HABIT_CAPACITY_PORT) private readonly habitCapacity: IHabitCapacityPort,
+    @Inject(TASK_CAPACITY_PORT)
+    private readonly taskCapacity: ITaskCapacityPort,
+    @Inject(HABIT_CAPACITY_PORT)
+    private readonly habitCapacity: IHabitCapacityPort,
   ) {}
 
   async update(input: UpdateHabitInput): Promise<Habit> {

@@ -37,8 +37,8 @@ export const envSchema = z.object({
   // Email
   SENDER_EMAIL: z.string(),
   SENDER_EMAIL_PASSWORD: z.string(),
-  SENDGRID_API_KEY: z.string(),
-  SENDGRID_SENDER: z.string(),
+  RESEND_API_KEY: z.string().default(''),
+  RESEND_SENDER: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;
