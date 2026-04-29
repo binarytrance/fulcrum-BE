@@ -182,7 +182,7 @@ export class HabitsController {
       targetDuration: dto.targetDuration,
       goalId: dto.goalId ?? null,
     });
-    return ok('Habit created.', toHabitResponse(habit));
+    return ok('Habit created successfully.', toHabitResponse(habit));
   }
 
   @Get()
@@ -234,7 +234,7 @@ export class HabitsController {
       pagination.limit,
     );
     return paginated(
-      'Habits retrieved.',
+      'Habits retrieved successfully.',
       items.map(toHabitResponse),
       total,
       pagination.page,
@@ -242,11 +242,15 @@ export class HabitsController {
     );
   }
 
+  @Get('daily')
   @Get('due-today')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary:
       "Get today's pending habit occurrences merged with habit data (daily planner)",
+    description:
+      'Alias routes supported: GET /habits/daily and GET /habits/due-today. ' +
+      'Returns pending occurrences joined with habit details for the authenticated user.',
   })
   async dueToday(
     @Req() req: Request,
@@ -258,7 +262,7 @@ export class HabitsController {
     const { sub: userId } = req.user as TokenPayload;
     const entries = await this.getOccurrencesService.getDueToday(userId);
     return ok(
-      "Today's habits retrieved.",
+      "Today's habits retrieved successfully.",
       entries.map(({ habit, occurrence }) => ({
         ...toHabitResponse(habit),
         occurrenceId: occurrence.id,
@@ -276,7 +280,7 @@ export class HabitsController {
   ): Promise<ApiResponseType<HabitResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const habit = await this.getHabitsService.getOne(id, userId);
-    return ok('Habit retrieved.', toHabitResponse(habit));
+    return ok('Habit retrieved successfully.', toHabitResponse(habit));
   }
 
   @Patch(':id')
@@ -284,6 +288,9 @@ export class HabitsController {
   @ApiParam({ name: 'id', description: 'Habit ID' })
   @ApiOperation({
     summary: 'Update habit title, description, or targetDuration',
+    description:
+      'Partial update endpoint for editable habit fields. ' +
+      'Status transitions are handled via dedicated pause/resume endpoints.',
   })
   async update(
     @Req() req: Request,
@@ -292,20 +299,24 @@ export class HabitsController {
   ): Promise<ApiResponseType<HabitResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const habit = await this.updateHabitService.update({ id, userId, ...dto });
-    return ok('Habit updated.', toHabitResponse(habit));
+    return ok('Habit updated successfully.', toHabitResponse(habit));
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', description: 'Habit ID' })
-  @ApiOperation({ summary: 'Archive (soft-delete) a habit' })
-  async archive(
+  @ApiOperation({
+    summary: 'Archive (soft-delete) a habit',
+    description:
+      'Sets deletedAt. Data is preserved in MongoDB and can be used for analytics/history.',
+  })
+  async delete(
     @Req() req: Request,
     @Param('id') id: string,
-  ): Promise<ApiResponseType<HabitResponse>> {
+  ): Promise<ApiResponseType> {
     const { sub: userId } = req.user as TokenPayload;
-    const habit = await this.deleteHabitService.execute(id, userId);
-    return ok('Habit archived.', toHabitResponse(habit));
+    await this.deleteHabitService.execute(id, userId);
+    return ok('Habit archived successfully.');
   }
 
   @Patch(':id/pause')
@@ -313,6 +324,9 @@ export class HabitsController {
   @ApiParam({ name: 'id', description: 'Habit ID' })
   @ApiOperation({
     summary: 'Pause an active habit (occurrences stop being generated)',
+    description:
+      'Transitions habit status from ACTIVE to PAUSED. ' +
+      'Future occurrence generation is halted until resumed.',
   })
   async pause(
     @Req() req: Request,
@@ -320,20 +334,24 @@ export class HabitsController {
   ): Promise<ApiResponseType<HabitResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const habit = await this.updateHabitService.pause({ id, userId });
-    return ok('Habit paused.', toHabitResponse(habit));
+    return ok('Habit paused successfully.', toHabitResponse(habit));
   }
 
   @Patch(':id/resume')
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', description: 'Habit ID' })
-  @ApiOperation({ summary: 'Resume a paused habit' })
+  @ApiOperation({
+    summary: 'Resume a paused habit',
+    description:
+      'Transitions habit status from PAUSED to ACTIVE and resumes future occurrence generation.',
+  })
   async resume(
     @Req() req: Request,
     @Param('id') id: string,
   ): Promise<ApiResponseType<HabitResponse>> {
     const { sub: userId } = req.user as TokenPayload;
     const habit = await this.updateHabitService.resume({ id, userId });
-    return ok('Habit resumed.', toHabitResponse(habit));
+    return ok('Habit resumed successfully.', toHabitResponse(habit));
   }
 
   // ─── Occurrences ─────────────────────────────────────────────────────────
@@ -348,7 +366,10 @@ export class HabitsController {
   ): Promise<ApiResponseType<OccurrenceResponse[]>> {
     const { sub: userId } = req.user as TokenPayload;
     const occurrences = await this.getOccurrencesService.getByHabit(id, userId);
-    return ok('Occurrences retrieved.', occurrences.map(toOccurrenceResponse));
+    return ok(
+      'Occurrences retrieved successfully.',
+      occurrences.map(toOccurrenceResponse),
+    );
   }
 
   @Patch(':id/occurrences/:occurrenceId/complete')
@@ -359,7 +380,8 @@ export class HabitsController {
     summary: 'Mark a habit occurrence as completed',
     description:
       'durationMinutes must be >= targetDuration * 0.8 (20% grace window). ' +
-      'Triggers streak recalculation asynchronously.',
+      'Triggers streak recalculation asynchronously. ' +
+      'Use this endpoint instead of generic habit update for completion transitions.',
   })
   async completeOccurrence(
     @Req() req: Request,
@@ -373,7 +395,10 @@ export class HabitsController {
       userId,
       ...dto,
     });
-    return ok('Occurrence completed.', toOccurrenceResponse(occurrence));
+    return ok(
+      'Occurrence completed successfully.',
+      toOccurrenceResponse(occurrence),
+    );
   }
 
   @Patch(':id/occurrences/:occurrenceId/skip')
@@ -382,7 +407,8 @@ export class HabitsController {
   @ApiParam({ name: 'occurrenceId', description: 'Occurrence ID' })
   @ApiOperation({
     summary: 'Skip a habit occurrence',
-    description: 'Skipped occurrences do not break the streak.',
+    description:
+      'Skipped occurrences do not break the streak and are tracked explicitly for analytics.',
   })
   async skipOccurrence(
     @Req() req: Request,
@@ -393,7 +419,10 @@ export class HabitsController {
       occurrenceId,
       userId,
     );
-    return ok('Occurrence skipped.', toOccurrenceResponse(occurrence));
+    return ok(
+      'Occurrence skipped successfully.',
+      toOccurrenceResponse(occurrence),
+    );
   }
 
   // ─── Analytics ───────────────────────────────────────────────────────────
@@ -412,6 +441,6 @@ export class HabitsController {
   ): Promise<ApiResponseType<HabitAnalytics>> {
     const { sub: userId } = req.user as TokenPayload;
     const analytics = await this.getAnalyticsService.execute(id, userId);
-    return ok('Analytics retrieved.', analytics);
+    return ok('Analytics retrieved successfully.', analytics);
   }
 }
