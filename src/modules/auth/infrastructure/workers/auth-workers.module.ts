@@ -3,7 +3,6 @@ import { BullModule } from '@nestjs/bullmq';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullMQAdapter } from '@bull-board/api/bullMQAdapter';
 import { SignupEmailWorker } from '@auth/infrastructure/workers/signup-email.worker';
-import { ForgotPasswordEmailWorker } from '@auth/infrastructure/workers/forgot-password-email.worker';
 import { MailModule } from '@shared/infrastructure/email/mail.module';
 
 @Module({
@@ -12,7 +11,7 @@ import { MailModule } from '@shared/infrastructure/email/mail.module';
     BullModule.registerQueue({ name: 'email' }),
     BullBoardModule.forFeature({ name: 'email', adapter: BullMQAdapter }),
   ],
-  providers: [SignupEmailWorker, ForgotPasswordEmailWorker],
+  providers: [SignupEmailWorker],
   exports: [BullModule],
 })
 export class AuthWorkersModule {}

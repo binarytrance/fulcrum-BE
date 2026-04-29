@@ -1,7 +1,7 @@
 import { WorkerHost, Processor, OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { EMAIL_PORT } from '@shared/domain/ports/email.port';
+import { EMAIL_PORT, EmailType } from '@shared/domain/ports/email.port';
 import type { IEmailSender } from '@shared/domain/ports/email.port';
 import { AuthJobPayloads, AuthJobs } from '@auth/domain/types/auth-jobs.types';
 
@@ -25,7 +25,7 @@ export class ForgotPasswordEmailWorker extends WorkerHost {
       );
       const { email, resetToken } = job.data;
 
-      await this.emailSender.send(email, resetToken, 'password-reset');
+      await this.emailSender.send(email, resetToken, EmailType.PASSWORD_RESET);
       this.logger.log(`Password reset email sent to ${email}`);
 
       return { delivered: true };

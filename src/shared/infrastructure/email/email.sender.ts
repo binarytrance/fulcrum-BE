@@ -1,7 +1,7 @@
 import { ConfigService } from '@shared/config/config.service';
 import { Injectable, Logger } from '@nestjs/common';
 import * as nodemailer from 'nodemailer';
-import { IEmailSender } from '@shared/domain/ports/email.port';
+import { EmailType, IEmailSender } from '@shared/domain/ports/email.port';
 
 @Injectable()
 export class NodeMailerEmailSender implements IEmailSender {
@@ -23,9 +23,9 @@ export class NodeMailerEmailSender implements IEmailSender {
   async send(
     email: string,
     token: string | null,
-    type: import('@shared/domain/ports/email.port').EmailType = 'verification',
+    type: EmailType = EmailType.VERIFICATION,
   ): Promise<void> {
-    const isReset = type === 'password-reset';
+    const isReset = type === EmailType.PASSWORD_RESET;
     const subject = isReset ? 'Password Reset' : 'Email Verification';
     const text = isReset
       ? `Your password reset token is: ${token}`

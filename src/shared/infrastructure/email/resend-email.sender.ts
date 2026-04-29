@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Resend } from 'resend';
-import { IEmailSender } from '@shared/domain/ports/email.port';
+import { IEmailSender, EmailType } from '@shared/domain/ports/email.port';
 import { ConfigService } from '@shared/config/config.service';
+import {
+  verificationEmailHtml,
+  verificationEmailText,
+  passwordResetEmailHtml,
+  passwordResetEmailText,
+} from '@shared/infrastructure/email/email.templates';
 
 @Injectable()
 export class ResendEmailSender implements IEmailSender {
@@ -15,7 +21,7 @@ export class ResendEmailSender implements IEmailSender {
   async send(
     email: string,
     token: string | null,
-    type: import('@shared/domain/ports/email.port').EmailType = 'verification',
+    type: EmailType = EmailType.VERIFICATION,
   ): Promise<void> {
     if (!this.config.email.resendApiKey) {
       throw new Error('RESEND_API_KEY is not configured');
@@ -28,14 +34,17 @@ export class ResendEmailSender implements IEmailSender {
       throw new Error('RESEND_SENDER or SENDER_EMAIL must be configured');
     }
 
-    const isReset = type === 'password-reset';
-    const subject = isReset ? 'Password Reset' : 'Email Verification';
+    const safeToken = token ?? '';
+    const isReset = type === EmailType.PASSWORD_RESET;
+    const subject = isReset
+      ? 'Reset your Fulcrum password'
+      : 'Verify your Fulcrum email';
     const text = isReset
-      ? `Your password reset token is: ${token}`
-      : `Your verification token is: ${token}`;
+      ? passwordResetEmailText(safeToken)
+      : verificationEmailText(safeToken);
     const html = isReset
-      ? `<p>Your password reset token is: <strong>${token}</strong></p>`
-      : `<p>Your verification token is: <strong>${token}</strong></p>`;
+      ? passwordResetEmailHtml(safeToken)
+      : verificationEmailHtml(safeToken);
 
     try {
       const result = await this.client.emails.send({

@@ -1,7 +1,7 @@
 import { WorkerHost, Processor, OnWorkerEvent } from '@nestjs/bullmq';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Job } from 'bullmq';
-import { EMAIL_PORT } from '@shared/domain/ports/email.port';
+import { EMAIL_PORT, EmailType } from '@shared/domain/ports/email.port';
 import type { IEmailSender } from '@shared/domain/ports/email.port';
 import { AuthJobPayloads, AuthJobs } from '@auth/domain/types/auth-jobs.types';
 
@@ -15,17 +15,32 @@ export class SignupEmailWorker extends WorkerHost {
   }
 
   async process(
-    job: Job<AuthJobPayloads[AuthJobs.SEND_SIGNUP_VERIFICATION]>,
+    job: Job<
+      | AuthJobPayloads[AuthJobs.SEND_SIGNUP_VERIFICATION]
+      | AuthJobPayloads[AuthJobs.SEND_FORGOT_PASSWORD]
+    >,
   ): Promise<{ delivered: boolean } | null> {
     this.logger.log(`Processing job ${job.id} - ${job.name}`);
 
     if (job.name === (AuthJobs.SEND_SIGNUP_VERIFICATION as string)) {
-      this.logger.log(
-        `job data - email: ${job.data.email}, token: ${job.data.verificationToken}`,
+      const { email, verificationToken } =
+        job.data as AuthJobPayloads[AuthJobs.SEND_SIGNUP_VERIFICATION];
+      this.logger.log(`Sending verification email to ${email}`);
+      await this.emailSender.send(
+        email,
+        verificationToken,
+        EmailType.VERIFICATION,
       );
-      const { email, verificationToken } = job.data;
-      await this.emailSender.send(email, verificationToken);
       this.logger.log(`Verification email sent to ${email}`);
+      return { delivered: true };
+    }
+
+    if (job.name === (AuthJobs.SEND_FORGOT_PASSWORD as string)) {
+      const { email, resetToken } =
+        job.data as AuthJobPayloads[AuthJobs.SEND_FORGOT_PASSWORD];
+      this.logger.log(`Sending password reset email to ${email}`);
+      await this.emailSender.send(email, resetToken, EmailType.PASSWORD_RESET);
+      this.logger.log(`Password reset email sent to ${email}`);
       return { delivered: true };
     }
 
