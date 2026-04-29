@@ -16,6 +16,10 @@ export const envSchema = z.object({
   REDIS_PASSWORD: z.string(),
   REDIS_HOST: z.string(),
   REDIS_PORT: z.coerce.number(),
+  REDIS_TLS: z
+    .string()
+    .transform((v) => v === 'true')
+    .default(false),
 
   // Google
   GOOGLE_CLIENT_ID: z.string(),
