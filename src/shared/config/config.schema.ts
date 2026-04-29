@@ -10,6 +10,10 @@ export const envSchema = z.object({
     .enum(['development', 'production', 'test'])
     .default('development'),
   PORT: z.coerce.number(),
+  RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
+  RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(100),
+  AUTH_RATE_LIMIT_WINDOW_MS: z.coerce.number().default(60_000),
+  AUTH_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(5),
 
   // Redis
   REDIS_USERNAME: z.string(),
@@ -33,6 +37,8 @@ export const envSchema = z.object({
 
   // Frontend
   FRONTEND_URL: z.string().default('http://localhost:3000'),
+  SWAGGER_USERNAME: z.string().default(''),
+  SWAGGER_PASSWORD: z.string().default(''),
 
   // Jwt
   JWT_ACCESS_SECRET: z.string(),

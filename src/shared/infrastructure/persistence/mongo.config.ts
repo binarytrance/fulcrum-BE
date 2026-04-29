@@ -6,6 +6,7 @@ export const createMongoConfig = (
 ): MongooseModuleOptions => {
   return {
     uri: config.mongo.uri,
+    dbName: config.mongo.dbName,
     autoIndex: !config.isProd,
     retryAttempts: 5,
     retryDelay: 3000,

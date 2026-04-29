@@ -16,10 +16,15 @@ import { createBullConfig } from '@shared/infrastructure/queue/bull.config';
       useFactory: createBullConfig,
     }),
     NestBullModule.registerQueue({ name: 'email' }),
-    BullBoardModule.forRoot({
-      route: '/queues',
-      adapter: ExpressAdapter,
-    }),
+    ...(process.env.NODE_ENV === 'production' &&
+    !(process.env.SWAGGER_USERNAME && process.env.SWAGGER_PASSWORD)
+      ? []
+      : [
+          BullBoardModule.forRoot({
+            route: '/queues',
+            adapter: ExpressAdapter,
+          }),
+        ]),
   ],
 })
 export class BullModule {}

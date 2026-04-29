@@ -18,6 +18,20 @@ export class ConfigService {
     return this.get('PORT');
   }
 
+  get rateLimit() {
+    return {
+      windowMs: this.get('RATE_LIMIT_WINDOW_MS'),
+      maxRequests: this.get('RATE_LIMIT_MAX_REQUESTS'),
+    };
+  }
+
+  get authRateLimit() {
+    return {
+      windowMs: this.get('AUTH_RATE_LIMIT_WINDOW_MS'),
+      maxRequests: this.get('AUTH_RATE_LIMIT_MAX_REQUESTS'),
+    };
+  }
+
   get mongo() {
     return {
       uri: this.get('MONGO_URL'),
@@ -63,6 +77,16 @@ export class ConfigService {
 
   get frontendUrl() {
     return this.get('FRONTEND_URL');
+  }
+
+  get swagger() {
+    return {
+      username: this.get('SWAGGER_USERNAME'),
+      password: this.get('SWAGGER_PASSWORD'),
+      hasCredentials:
+        this.get('SWAGGER_USERNAME').length > 0 &&
+        this.get('SWAGGER_PASSWORD').length > 0,
+    };
   }
 
   get redis() {
