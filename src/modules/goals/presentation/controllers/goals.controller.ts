@@ -15,6 +15,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -58,6 +59,79 @@ import {
   GoalStatus,
 } from '@goals/domain/types/goal.types';
 import { type GoalFilter } from '@goals/domain/ports/goal-repo.port';
+
+// ─── Swagger schema helpers ───────────────────────────────────────────────────
+
+const ApiSuccessSchema = (dataSchema?: object) => ({
+  type: 'object',
+  properties: {
+    success: { type: 'boolean', example: true },
+    message: { type: 'string' },
+    ...(dataSchema ? { data: dataSchema } : {}),
+  },
+});
+
+const PaginatedSchema = (itemSchema: object) => ({
+  type: 'object',
+  properties: {
+    items: { type: 'array', items: itemSchema },
+    total: { type: 'integer', example: 42 },
+    page: { type: 'integer', example: 1 },
+    limit: { type: 'integer', example: 10 },
+    totalPages: { type: 'integer', example: 5 },
+  },
+});
+
+const GoalProgressSchema = {
+  type: 'object',
+  properties: {
+    totalTasks: { type: 'integer', example: 7 },
+    completedTasks: { type: 'integer', example: 3 },
+    totalLoggedMs: { type: 'integer', example: 7200000 },
+    score: { type: 'number', example: 42, description: '0–100' },
+    lastComputedAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+const GoalResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', example: 'abc123' },
+    userId: { type: 'string', example: 'user123' },
+    parentGoalId: { type: 'string', nullable: true, example: null },
+    title: { type: 'string', example: 'Learn TypeScript' },
+    description: { type: 'string', nullable: true, example: 'Master advanced TS patterns' },
+    category: { type: 'string', enum: Object.values(GoalCategory), example: GoalCategory.LEARNING },
+    status: { type: 'string', enum: Object.values(GoalStatus), example: GoalStatus.ACTIVE },
+    priority: { type: 'string', enum: Object.values(GoalPriority), example: GoalPriority.HIGH },
+    estimatedEndDate: { type: 'string', format: 'date-time', nullable: true, example: '2026-12-31T00:00:00.000Z' },
+    estimatedDuration: { type: 'integer', nullable: true, example: 3600000, description: 'milliseconds' },
+    estimatedStartDate: { type: 'string', format: 'date-time', nullable: true, example: null },
+    actualStartDate: { type: 'string', format: 'date-time', nullable: true, example: null },
+    actualEndDate: { type: 'string', format: 'date-time', nullable: true, example: null },
+    isReadyToComplete: { type: 'boolean', example: false },
+    isOverdue: { type: 'boolean', example: false },
+    level: { type: 'integer', example: 1, description: '1 = top-level, 2 = sub-goal, 3 = sub-sub-goal' },
+    progress: GoalProgressSchema,
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+const GoalStatsSchema = {
+  type: 'object',
+  properties: {
+    total: { type: 'integer', example: 12 },
+    byStatus: {
+      type: 'object',
+      properties: Object.fromEntries(
+        Object.values(GoalStatus).map((s) => [s, { type: 'integer', example: 0 }]),
+      ),
+    },
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -148,7 +222,23 @@ export class GoalsController {
   @ApiOperation({
     summary: 'Create a goal or sub-goal (provide parentGoalId for sub-goals)',
   })
-  @ApiResponse({ status: 201, description: 'Goal created.' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['title', 'category', 'estimatedDuration'],
+      properties: {
+        title: { type: 'string', maxLength: 200, example: 'Learn TypeScript' },
+        description: { type: 'string', maxLength: 1000, example: 'Master advanced TS patterns', nullable: true },
+        category: { type: 'string', enum: Object.values(GoalCategory), example: GoalCategory.LEARNING },
+        priority: { type: 'string', enum: Object.values(GoalPriority), example: GoalPriority.HIGH, description: 'Defaults to MEDIUM if omitted' },
+        estimatedEndDate: { type: 'string', example: '2026-12-31', description: 'YYYY-MM-DD or ISO 8601 datetime' },
+        estimatedDuration: { type: 'integer', example: 7200000, description: 'milliseconds — e.g. 7200000 = 2 hours' },
+        estimatedStartDate: { type: 'string', example: '2026-06-01', description: 'YYYY-MM-DD or ISO 8601 datetime' },
+        parentGoalId: { type: 'string', example: null, description: 'Omit for top-level goals; max nesting depth is 3' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Goal created.', schema: ApiSuccessSchema(GoalResponseSchema) })
   @ApiResponse({
     status: 400,
     description: 'Nesting limit exceeded or validation error.',
@@ -173,31 +263,11 @@ export class GoalsController {
       'Returns a flat paginated list of every goal owned by the user — ' +
       'both top-level goals and sub-goals. No nested children.',
   })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number (1-based, default 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: `Goals per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
-    example: DEFAULT_LIMIT,
-  })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    description: `Filter by status. One of: ${Object.values(GoalStatus).join(', ')}`,
-    enum: GoalStatus,
-  })
-  @ApiQuery({
-    name: 'category',
-    required: false,
-    description: `Filter by category. One of: ${Object.values(GoalCategory).join(', ')}`,
-    enum: GoalCategory,
-  })
-  @ApiResponse({ status: 200, description: 'Goals returned.' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
+  @ApiQuery({ name: 'status', required: false, enum: GoalStatus, description: `Filter by status` })
+  @ApiQuery({ name: 'category', required: false, enum: GoalCategory, description: `Filter by category` })
+  @ApiResponse({ status: 200, description: 'Goals returned.', schema: ApiSuccessSchema(PaginatedSchema(GoalResponseSchema)) })
   async getAll(
     @Req() req: Request,
     @Query('page') page?: string,
@@ -244,7 +314,7 @@ export class GoalsController {
       '(ACTIVE, COMPLETED, PAUSED, ABANDONED) for the authenticated user. ' +
       'Computed in a single MongoDB aggregation.',
   })
-  @ApiResponse({ status: 200, description: 'Stats returned.' })
+  @ApiResponse({ status: 200, description: 'Stats returned.', schema: ApiSuccessSchema(GoalStatsSchema) })
   async getStats(@Req() req: Request): Promise<ApiResponseType<GoalStats>> {
     const { sub: userId } = req.user as TokenPayload;
     const stats = await this.getGoalsService.getStats(userId);
@@ -263,20 +333,10 @@ export class GoalsController {
       'Returns a flat paginated list (not a tree). ' +
       '`q` must be at least 1 character.',
   })
-  @ApiQuery({ name: 'q', required: true, description: 'Search query string' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number (1-based, default 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: `Results per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
-    example: DEFAULT_LIMIT,
-  })
-  @ApiResponse({ status: 200, description: 'Search results returned.' })
+  @ApiQuery({ name: 'q', required: true, schema: { type: 'string', minLength: 1 }, description: 'Case-insensitive substring match on title and description', example: 'typescript' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
+  @ApiResponse({ status: 200, description: 'Search results returned.', schema: ApiSuccessSchema(PaginatedSchema(GoalResponseSchema)) })
   @ApiResponse({ status: 400, description: 'Missing or empty query string.' })
   async search(
     @Req() req: Request,
@@ -308,7 +368,7 @@ export class GoalsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single goal by ID' })
   @ApiParam({ name: 'id', description: 'Goal ID' })
-  @ApiResponse({ status: 200, description: 'Goal retrieved.' })
+  @ApiResponse({ status: 200, description: 'Goal retrieved.', schema: ApiSuccessSchema(GoalResponseSchema) })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Goal not found.' })
   async getOne(
@@ -332,19 +392,9 @@ export class GoalsController {
       'under the specified goal. No further nesting.',
   })
   @ApiParam({ name: 'id', description: 'Parent goal ID' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number (1-based, default 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: `Sub-goals per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
-    example: DEFAULT_LIMIT,
-  })
-  @ApiResponse({ status: 200, description: 'Sub-goals returned.' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
+  @ApiResponse({ status: 200, description: 'Sub-goals returned.', schema: ApiSuccessSchema(PaginatedSchema(GoalResponseSchema)) })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Goal not found.' })
   async getSubgoals(
@@ -382,7 +432,25 @@ export class GoalsController {
       'Changing the estimatedEndDate queues an async AI pacing recalculation.',
   })
   @ApiParam({ name: 'id', description: 'Goal ID' })
-  @ApiResponse({ status: 200, description: 'Goal updated.' })
+  @ApiBody({
+    description: 'All fields optional. At least one must be present.',
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', maxLength: 200, example: 'Learn TypeScript deeply' },
+        description: { type: 'string', maxLength: 1000, nullable: true, example: 'Focus on generics and decorators' },
+        category: { type: 'string', enum: Object.values(GoalCategory), example: GoalCategory.LEARNING },
+        status: { type: 'string', enum: Object.values(GoalStatus), example: GoalStatus.PAUSED, description: 'ACTIVE→PAUSED|COMPLETED|ABANDONED; PAUSED→ACTIVE|ABANDONED; COMPLETED→ACTIVE' },
+        priority: { type: 'string', enum: Object.values(GoalPriority), example: GoalPriority.MEDIUM },
+        estimatedEndDate: { type: 'string', nullable: true, example: '2026-12-31', description: 'YYYY-MM-DD or ISO 8601; null to clear' },
+        estimatedDuration: { type: 'integer', nullable: true, example: 7200000, description: 'milliseconds; null to clear' },
+        estimatedStartDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
+        actualStartDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
+        actualEndDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Goal updated.', schema: ApiSuccessSchema(GoalResponseSchema) })
   @ApiResponse({ status: 400, description: 'Invalid status transition.' })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Goal not found.' })
@@ -407,7 +475,7 @@ export class GoalsController {
       'Data is preserved in MongoDB — never permanently removed.',
   })
   @ApiParam({ name: 'id', description: 'Goal ID' })
-  @ApiResponse({ status: 200, description: 'Goal soft-deleted.' })
+  @ApiResponse({ status: 200, description: 'Goal soft-deleted.', schema: ApiSuccessSchema() })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Goal not found.' })
   async delete(

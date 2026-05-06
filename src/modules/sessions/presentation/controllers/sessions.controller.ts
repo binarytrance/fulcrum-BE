@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiResponse,
@@ -43,6 +44,48 @@ import {
 } from '@shared/presentation/responses/api-response';
 import type { Session } from '@sessions/domain/entities/session.entity';
 import { Inject, ForbiddenException, NotFoundException } from '@nestjs/common';
+
+// ─── Swagger schema helpers ───────────────────────────────────────────────────
+
+const ApiSuccessSchema = (dataSchema?: object) => ({
+  type: 'object',
+  properties: {
+    success: { type: 'boolean', example: true },
+    message: { type: 'string' },
+    ...(dataSchema ? { data: dataSchema } : {}),
+  },
+});
+
+const DistractionSchema = {
+  type: 'object',
+  properties: {
+    reason: { type: 'string', example: 'Phone notification' },
+    estimatedMs: { type: 'integer', example: 300000, description: 'milliseconds' },
+    loggedAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+const SessionResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', example: 'sess_abc123' },
+    userId: { type: 'string', example: 'user_xyz' },
+    taskId: { type: 'string', example: 'tsk_abc123' },
+    status: { type: 'string', enum: ['ACTIVE', 'COMPLETED', 'ABANDONED'], example: 'COMPLETED' },
+    source: { type: 'string', enum: ['AUTO', 'MANUAL'], example: 'MANUAL' },
+    startedAt: { type: 'string', format: 'date-time' },
+    endedAt: { type: 'string', format: 'date-time', nullable: true },
+    durationMs: { type: 'integer', nullable: true, example: 3600000, description: 'milliseconds' },
+    netFocusMs: { type: 'integer', nullable: true, example: 3300000, description: 'milliseconds — durationMs minus distraction time' },
+    distractions: { type: 'array', items: DistractionSchema },
+    plantStatus: { type: 'string', enum: ['HEALTHY', 'WILTING', 'WILTED'], example: 'HEALTHY' },
+    plantGrowthPercent: { type: 'integer', example: 92, description: '0–100' },
+    elapsedMs: { type: 'integer', nullable: true, example: null, description: 'Only present for ACTIVE sessions — live elapsed ms' },
+    createdAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface SessionResponse {
   id: string;
@@ -127,7 +170,19 @@ export class SessionsController {
       'Log time spent on a task outside the app (no WebSocket needed). ' +
       'source is set to MANUAL. Counts toward goal progress and task actualDuration.',
   })
-  @ApiResponse({ status: 201, description: 'Manual session logged.' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['taskId', 'durationMs'],
+      properties: {
+        taskId: { type: 'string', example: 'tsk_abc123', description: 'Task this session is logged against' },
+        durationMs: { type: 'integer', minimum: 1000, maximum: 86400000, example: 3600000, description: 'Duration in milliseconds — min 1 s, max 24 h' },
+        startedAt: { type: 'string', format: 'date-time', example: '2026-05-07T09:00:00.000Z', description: 'ISO 8601 — defaults to now if omitted' },
+        note: { type: 'string', maxLength: 1000, example: 'Deep work block, no interruptions', description: 'Optional free-text note' },
+      },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Manual session logged.', schema: ApiSuccessSchema(SessionResponseSchema) })
   @ApiResponse({ status: 400, description: 'Validation error.' })
   @ApiResponse({ status: 404, description: 'Task not found.' })
   async manual(
@@ -145,7 +200,7 @@ export class SessionsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get all sessions for a task' })
   @ApiParam({ name: 'taskId', description: 'Task ID' })
-  @ApiResponse({ status: 200, description: 'Session list returned.' })
+  @ApiResponse({ status: 200, description: 'Session list returned.', schema: ApiSuccessSchema({ type: 'array', items: SessionResponseSchema }) })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   async getByTask(
     @Req() req: Request,
@@ -172,7 +227,7 @@ export class SessionsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Get a single session by ID' })
   @ApiParam({ name: 'id', description: 'Session ID' })
-  @ApiResponse({ status: 200, description: 'Session returned.' })
+  @ApiResponse({ status: 200, description: 'Session returned.', schema: ApiSuccessSchema(SessionResponseSchema) })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Session not found.' })
   async getOne(
