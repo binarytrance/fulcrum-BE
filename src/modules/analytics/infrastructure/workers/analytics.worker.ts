@@ -32,7 +32,7 @@ import {
 import {
   SessionDoc,
   type SessionDocument,
-} from '@sessions/infrastructure/persistence/session.schema';
+} from '@focus-sessions/infrastructure/persistence/session.schema';
 import type { AccuracyEntry } from '@analytics/domain/types/analytics.types';
 import { ANALYTICS_QUEUE_NAME } from '@analytics/infrastructure/event-publisher/analytics-event-publisher';
 

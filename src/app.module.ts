@@ -5,7 +5,7 @@ import { AuthModule } from '@auth/auth.module';
 import { SharedModule } from '@shared/shared.module';
 import { GoalsModule } from '@goals/goals.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
-import { SessionsModule } from '@/modules/sessions/sessions.module';
+import { FocusSessionsModule } from '@/modules/focus-sessions/focus-sessions.module';
 import { HabitsModule } from '@/modules/habits/habits.module';
 import { AnalyticsModule } from '@/modules/analytics/analytics.module';
 
@@ -16,7 +16,7 @@ import { AnalyticsModule } from '@/modules/analytics/analytics.module';
     AuthModule,
     GoalsModule,
     TasksModule,
-    SessionsModule,
+    FocusSessionsModule,
     HabitsModule,
     AnalyticsModule,
   ],

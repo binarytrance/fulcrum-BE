@@ -16,7 +16,7 @@ import { ComputeGoalAnalyticsService } from '@analytics/application/services/com
 import { ComputeEstimationProfileService } from '@analytics/application/services/compute-estimation-profile.service';
 
 // Cross-module Mongoose models required by AnalyticsWorker
-import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
+import { SessionMongoModule } from '@focus-sessions/infrastructure/persistence/session-mongo.module';
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';

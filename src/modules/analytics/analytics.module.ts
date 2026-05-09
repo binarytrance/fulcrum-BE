@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { SharedModule } from '@shared/shared.module';
 import { AnalyticsMongoModule } from '@analytics/infrastructure/persistence/analytics-mongo.module';
 import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
-import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
+import { SessionMongoModule } from '@focus-sessions/infrastructure/persistence/session-mongo.module';
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 
