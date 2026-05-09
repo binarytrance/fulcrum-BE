@@ -207,6 +207,85 @@ const DashboardResultSchema = {
   },
 };
 
+const GroupedDailyAnalyticsSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string' },
+    userId: { type: 'string' },
+    date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
+    computedAt: { type: 'string', format: 'date-time' },
+    focusSessions: {
+      type: 'object',
+      properties: {
+        sessionCount: { type: 'integer', example: 3 },
+        totalLoggedMinutes: { type: 'number', example: 240 },
+        netFocusMinutes: { type: 'number', example: 200 },
+        deepWorkMinutes: { type: 'number', example: 120 },
+        shallowWorkMinutes: { type: 'number', example: 80 },
+        totalDistractions: { type: 'integer', example: 5 },
+        totalDistractionMinutes: { type: 'number', example: 40 },
+        avgDistractionPerSession: { type: 'number', example: 1.7 },
+        avgEfficiencyScore: { type: 'number', nullable: true, example: 105 },
+        timeLeaks: { type: 'array', items: TimeleakSchema },
+      },
+    },
+    tasks: {
+      type: 'object',
+      properties: {
+        totalTaskCount: { type: 'integer', example: 8 },
+        plannedTaskCount: { type: 'integer', example: 5 },
+        unplannedTaskCount: { type: 'integer', example: 3 },
+        completedTaskCount: { type: 'integer', example: 6 },
+        unplannedPercent: {
+          type: 'number',
+          example: 37.5,
+          description: '0–100',
+        },
+        taskCompletionRate: {
+          type: 'number',
+          example: 75,
+          description: '0–100',
+        },
+      },
+    },
+    habits: {
+      type: 'object',
+      properties: {
+        totalHabitCount: { type: 'integer', example: 3 },
+        completedHabitCount: { type: 'integer', example: 2 },
+        skippedHabitCount: { type: 'integer', example: 1 },
+        missedHabitCount: { type: 'integer', example: 0 },
+        habitCompletionRate: {
+          type: 'number',
+          example: 66.7,
+          description: '0–100',
+        },
+      },
+    },
+    appStreak: {
+      type: 'object',
+      properties: {
+        current: {
+          type: 'integer',
+          example: 7,
+          description: 'Consecutive active days. 0 if streak is broken.',
+        },
+        longest: {
+          type: 'integer',
+          example: 21,
+          description: 'All-time longest streak.',
+        },
+        lastActiveDate: {
+          type: 'string',
+          format: 'date',
+          example: '2026-05-10',
+          nullable: true,
+        },
+      },
+    },
+  },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Validates YYYY-MM-DD format */
@@ -217,6 +296,43 @@ function parseDate(raw: string | undefined, label: string): string {
     throw new BadRequestException(`'${label}' must be in YYYY-MM-DD format.`);
   }
   return raw;
+}
+
+function toGroupedDailyResponse(a: DailyAnalytics, appStreak: AppStreak) {
+  return {
+    id: a.id,
+    userId: a.userId,
+    date: a.date,
+    computedAt: a.computedAt,
+    focusSessions: {
+      sessionCount: a.sessionCount,
+      totalLoggedMinutes: a.totalLoggedMinutes,
+      netFocusMinutes: a.netFocusMinutes,
+      deepWorkMinutes: a.deepWorkMinutes,
+      shallowWorkMinutes: a.shallowWorkMinutes,
+      totalDistractions: a.totalDistractions,
+      totalDistractionMinutes: a.totalDistractionMinutes,
+      avgDistractionPerSession: a.avgDistractionPerSession,
+      avgEfficiencyScore: a.avgEfficiencyScore,
+      timeLeaks: a.timeLeaks,
+    },
+    tasks: {
+      totalTaskCount: a.totalTaskCount,
+      plannedTaskCount: a.plannedTaskCount,
+      unplannedTaskCount: a.unplannedTaskCount,
+      completedTaskCount: a.completedTaskCount,
+      unplannedPercent: a.unplannedPercent,
+      taskCompletionRate: a.taskCompletionRate,
+    },
+    habits: {
+      totalHabitCount: a.totalHabitCount,
+      completedHabitCount: a.completedHabitCount,
+      skippedHabitCount: a.skippedHabitCount,
+      missedHabitCount: a.missedHabitCount,
+      habitCompletionRate: a.habitCompletionRate,
+    },
+    appStreak,
+  };
 }
 
 /** Validates YYYY-MM format */
@@ -280,20 +396,7 @@ export class AnalyticsController {
   @ApiResponse({
     status: 200,
     description: 'Daily analytics returned.',
-    schema: ApiSuccessSchema({
-      ...DailyAnalyticsSchema,
-      properties: {
-        ...DailyAnalyticsSchema.properties,
-        appStreak: {
-          type: 'object',
-          properties: {
-            current: { type: 'integer', example: 7, description: 'Consecutive active days. 0 if streak is broken.' },
-            longest: { type: 'integer', example: 21, description: 'All-time longest streak.' },
-            lastActiveDate: { type: 'string', format: 'date', example: '2026-05-10', nullable: true },
-          },
-        },
-      },
-    }),
+    schema: ApiSuccessSchema(GroupedDailyAnalyticsSchema),
   })
   @ApiResponse({ status: 404, description: 'No analytics found for this date.' })
   async getDaily(
@@ -322,7 +425,7 @@ export class AnalyticsController {
       lastActiveDate: raw.lastActiveDate,
     };
 
-    return ok('Daily analytics retrieved.', { ...analytics, appStreak });
+    return ok('Daily analytics retrieved.', toGroupedDailyResponse(analytics, appStreak));
   }
 
   @Get('daily/range')
