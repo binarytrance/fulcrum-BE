@@ -4,6 +4,7 @@ import {
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Query,
   Req,
@@ -40,6 +41,8 @@ import type { WeeklyAnalytics } from '@analytics/domain/entities/weekly-analytic
 import type { MonthlyAnalytics } from '@analytics/domain/entities/monthly-analytics.entity';
 import type { EstimationProfile } from '@analytics/domain/entities/estimation-profile.entity';
 import type { DashboardResult } from '@analytics/application/services/get-dashboard.service';
+import { USER_REPO_PORT, type IUserRepository } from '@users/domain/ports/user-rep.port';
+import type { AppStreak } from '@users/domain/types/user.types';
 
 // ─── Swagger schema helpers ───────────────────────────────────────────────────
 
@@ -238,6 +241,7 @@ export class AnalyticsController {
     private readonly getMonthlyService: GetMonthlyAnalyticsService,
     private readonly getEstimationService: GetEstimationProfileService,
     private readonly getDashboardService: GetDashboardService,
+    @Inject(USER_REPO_PORT) private readonly userRepo: IUserRepository,
   ) {}
 
   // ─── Dashboard ────────────────────────────────────────────────────────────
@@ -273,19 +277,52 @@ export class AnalyticsController {
     example: '2026-03-01',
     description: 'YYYY-MM-DD',
   })
-  @ApiResponse({ status: 200, description: 'Daily analytics returned.', schema: ApiSuccessSchema(DailyAnalyticsSchema) })
   @ApiResponse({
-    status: 404,
-    description: 'No analytics found for this date.',
+    status: 200,
+    description: 'Daily analytics returned.',
+    schema: ApiSuccessSchema({
+      ...DailyAnalyticsSchema,
+      properties: {
+        ...DailyAnalyticsSchema.properties,
+        appStreak: {
+          type: 'object',
+          properties: {
+            current: { type: 'integer', example: 7, description: 'Consecutive active days. 0 if streak is broken.' },
+            longest: { type: 'integer', example: 21, description: 'All-time longest streak.' },
+            lastActiveDate: { type: 'string', format: 'date', example: '2026-05-10', nullable: true },
+          },
+        },
+      },
+    }),
   })
+  @ApiResponse({ status: 404, description: 'No analytics found for this date.' })
   async getDaily(
     @Req() req: Request,
     @Query('date') dateStr?: string,
-  ): Promise<ApiResponseType<DailyAnalytics>> {
+  ): Promise<ApiResponseType<object>> {
     const { sub: userId } = req.user as TokenPayload;
     const date = parseDate(dateStr, 'date');
-    const analytics = await this.getDailyService.getByDate(userId, date);
-    return ok('Daily analytics retrieved.', analytics);
+
+    const [analytics, user] = await Promise.all([
+      this.getDailyService.getByDate(userId, date),
+      this.userRepo.findById(userId),
+    ]);
+
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = (() => {
+      const d = new Date(`${today}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    const raw = user?.appStreak ?? { current: 0, longest: 0, lastActiveDate: null };
+    const isLive = raw.lastActiveDate === today || raw.lastActiveDate === yesterday;
+    const appStreak: AppStreak = {
+      current: isLive ? raw.current : 0,
+      longest: raw.longest,
+      lastActiveDate: raw.lastActiveDate,
+    };
+
+    return ok('Daily analytics retrieved.', { ...analytics, appStreak });
   }
 
   @Get('daily/range')

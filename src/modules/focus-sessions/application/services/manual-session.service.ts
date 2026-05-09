@@ -18,6 +18,10 @@ import {
 } from '@shared/domain/ports/id-generator.port';
 import { SessionCompletedEvent } from '@focus-sessions/domain/events/session-completed.event';
 import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
+import {
   PlantStatus,
   SessionSource,
   SessionStatus,
@@ -44,6 +48,8 @@ export class ManualSessionService {
     private readonly taskAccess: ITaskAccessPort,
     @Inject(ID_GENERATOR_PORT)
     private readonly idGenerator: IIDGenerator,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   async execute(input: ManualSessionInput): Promise<Session> {
@@ -95,6 +101,10 @@ export class ManualSessionService {
         input.taskId,
         input.durationMs,
       ),
+    );
+    await this.appStreakPublisher.publishActivityRecorded(
+      input.userId,
+      new Date().toISOString().slice(0, 10),
     );
 
     return session;

@@ -27,6 +27,7 @@ import { HABIT_CAPACITY_PORT } from '@tasks/domain/ports/habit-capacity.port';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 import { HabitMongoModule } from '@habits/infrastructure/persistence/habit-mongo.module';
 import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
+import { UserWorkersModule } from '@users/infrastructure/workers/user-workers.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analyt
     HabitMongoModule,
     TaskWorkersModule,
     AnalyticsWorkersModule,
+    UserWorkersModule,
   ],
   controllers: [TasksController],
   providers: [

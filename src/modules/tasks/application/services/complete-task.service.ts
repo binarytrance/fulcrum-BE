@@ -15,6 +15,10 @@ import {
 } from '@tasks/domain/ports/task-event-publisher.port';
 import { TaskCompletedEvent } from '@tasks/domain/events/task-completed.event';
 import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
+import {
   TASK_CACHE_PORT,
   type ITaskCachePort,
 } from '@tasks/domain/ports/task-cache.port';
@@ -28,6 +32,8 @@ export class CompleteTaskService {
     private readonly taskEventPublisher: ITaskEventPublisher,
     @Inject(TASK_CACHE_PORT)
     private readonly taskCache: ITaskCachePort,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   /**
@@ -57,6 +63,10 @@ export class CompleteTaskService {
     // Fire-and-forget: recompute goal progress asynchronously
     await this.taskEventPublisher.publish(
       new TaskCompletedEvent(taskId, userId, task.goalId, task.habitId ?? null),
+    );
+    await this.appStreakPublisher.publishActivityRecorded(
+      userId,
+      new Date().toISOString().slice(0, 10),
     );
 
     return completed;

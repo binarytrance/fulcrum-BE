@@ -26,6 +26,7 @@ import { TaskAccessAdapter } from '@focus-sessions/infrastructure/adapters/task-
 // TaskMongoModule registers the 'Task' model needed by TaskAccessAdapter.
 // SessionWorker also needs it — but that is already imported inside SessionWorkersModule.
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
+import { UserWorkersModule } from '@users/infrastructure/workers/user-workers.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.mo
     SessionMongoModule,
     TaskMongoModule,
     SessionWorkersModule,
+    UserWorkersModule,
     JwtModule.register({}),
   ],
   controllers: [FocusSessionsController],

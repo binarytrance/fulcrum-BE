@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 
-import { UserStatus } from '@users/domain/types/user.types';
+import { DEFAULT_APP_STREAK, UserStatus } from '@users/domain/types/user.types';
 import { User } from '@users/domain/entities/user.entity';
 import { IUserRepository } from '@users/domain/ports/user-rep.port';
 import {
@@ -28,31 +28,13 @@ export class UserRepository implements IUserRepository {
 
     if (!doc) return null;
 
-    return new User({
-      id: doc._id,
-      firstname: doc.firstname,
-      lastname: doc.lastname,
-      email: doc.email,
-      status: doc.status as UserStatus,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
+    return this.toDomain(doc);
   }
 
   async findByEmail(email: string): Promise<User | null> {
     const doc = await this.userModel.findOne({ email }).lean();
-
     if (!doc) return null;
-
-    return new User({
-      id: doc._id,
-      firstname: doc.firstname,
-      lastname: doc.lastname,
-      email: doc.email,
-      status: doc.status as UserStatus,
-      createdAt: doc.createdAt,
-      updatedAt: doc.updatedAt,
-    });
+    return this.toDomain(doc);
   }
 
   async update(user: User): Promise<void> {
@@ -64,6 +46,24 @@ export class UserRepository implements IUserRepository {
     );
   }
 
+  private toDomain(doc: {
+    _id: string; firstname: string; lastname: string | null;
+    email: string; status: string;
+    appStreak?: { current: number; longest: number; lastActiveDate: string | null } | null;
+    createdAt: Date; updatedAt: Date;
+  }): User {
+    return new User({
+      id: doc._id,
+      firstname: doc.firstname,
+      lastname: doc.lastname,
+      email: doc.email,
+      status: doc.status as UserStatus,
+      appStreak: doc.appStreak ?? DEFAULT_APP_STREAK,
+      createdAt: doc.createdAt,
+      updatedAt: doc.updatedAt,
+    });
+  }
+
   private toPersistence(user: User) {
     return {
       _id: user.id,
@@ -71,6 +71,7 @@ export class UserRepository implements IUserRepository {
       firstname: user.firstname,
       lastname: user.lastname,
       status: user.status,
+      appStreak: user.appStreak,
     };
   }
 }

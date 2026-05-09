@@ -21,6 +21,10 @@ import {
   ANALYTICS_EVENT_PUBLISHER_PORT,
   type IAnalyticsEventPublisher,
 } from '@analytics/domain/ports/analytics-event-publisher.port';
+import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
 import type { HabitOccurrence } from '@habits/domain/entities/habit-occurrence.entity';
 import { COMPLETION_GRACE_PERCENT } from '@habits/domain/types/habit.types';
 
@@ -42,6 +46,8 @@ export class CompleteOccurrenceService {
     private readonly eventPublisher: IHabitEventPublisher,
     @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
     private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   async execute(input: CompleteOccurrenceInput): Promise<HabitOccurrence> {
@@ -85,6 +91,7 @@ export class CompleteOccurrenceService {
       input.userId,
       saved.date,
     );
+    await this.appStreakPublisher.publishActivityRecorded(input.userId, saved.date);
 
     return saved;
   }

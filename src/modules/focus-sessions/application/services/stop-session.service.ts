@@ -21,6 +21,10 @@ import {
   type ITaskAccessPort,
 } from '@focus-sessions/domain/ports/task-access.port';
 import { SessionCompletedEvent } from '@focus-sessions/domain/events/session-completed.event';
+import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
 import type { Session } from '@focus-sessions/domain/entities/session.entity';
 
 @Injectable()
@@ -34,6 +38,8 @@ export class StopSessionService {
     private readonly eventPublisher: ISessionEventPublisher,
     @Inject(TASK_ACCESS_PORT)
     private readonly taskAccess: ITaskAccessPort,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   async execute(sessionId: string, userId: string): Promise<Session> {
@@ -73,6 +79,10 @@ export class StopSessionService {
     // Queue background jobs (update task actualDuration, etc.)
     await this.eventPublisher.publishSessionCompleted(
       new SessionCompletedEvent(sessionId, userId, session.taskId, durationMs),
+    );
+    await this.appStreakPublisher.publishActivityRecorded(
+      userId,
+      new Date().toISOString().slice(0, 10),
     );
 
     return completed;

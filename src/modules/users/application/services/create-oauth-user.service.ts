@@ -34,6 +34,7 @@ export class CreateOAuthUserService {
       firstname,
       lastname,
       status: UserStatus.ACTIVE,
+      appStreak: { current: 0, longest: 0, lastActiveDate: null },
       createdAt: now,
       updatedAt: now,
     });
