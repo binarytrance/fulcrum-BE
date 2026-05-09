@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Get,
@@ -6,6 +7,7 @@ import {
   HttpStatus,
   Param,
   Post,
+  Query,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -14,6 +16,7 @@ import {
   ApiBody,
   ApiOperation,
   ApiParam,
+  ApiQuery,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -32,7 +35,16 @@ import {
   type ISessionTimerPort,
   type ActiveTimerState,
 } from '@focus-sessions/domain/ports/session-timer.port';
-import { SessionStatus } from '@focus-sessions/domain/types/session.types';
+import {
+  PlantStatus,
+  SessionSource,
+  SessionSortBy,
+  SessionStatus,
+} from '@focus-sessions/domain/types/session.types';
+import type {
+  SessionListFilter,
+  SessionListSort,
+} from '@focus-sessions/domain/ports/session-repo.port';
 import {
   ManualSessionSchema,
   type ManualSessionDto,
@@ -40,7 +52,9 @@ import {
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
+  paginated,
   type ApiResponse as ApiResponseType,
+  type PaginatedResponse,
 } from '@shared/presentation/responses/api-response';
 import type { Session } from '@focus-sessions/domain/entities/session.entity';
 import { Inject, ForbiddenException, NotFoundException } from '@nestjs/common';
@@ -84,6 +98,20 @@ const SessionResponseSchema = {
     createdAt: { type: 'string', format: 'date-time' },
   },
 };
+
+// ─── Pagination helpers ───────────────────────────────────────────────────────
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_LIMIT = 10;
+const MAX_LIMIT = 100;
+
+function parsePagination(page?: string, limit?: string) {
+  const p = Math.max(1, parseInt(page ?? String(DEFAULT_PAGE), 10) || DEFAULT_PAGE);
+  const l = Math.min(MAX_LIMIT, Math.max(1, parseInt(limit ?? String(DEFAULT_LIMIT), 10) || DEFAULT_LIMIT));
+  return { page: p, limit: l };
+}
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -192,6 +220,85 @@ export class FocusSessionsController {
     const { sub: userId } = req.user as TokenPayload;
     const session = await this.manualSessionService.execute({ userId, ...dto });
     return ok('Manual session logged.', toSessionResponse(session));
+  }
+
+  // ─── List sessions for authenticated user ───────────────────────────────────
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'List focus sessions',
+    description:
+      'Returns a paginated list of the authenticated user\'s focus sessions. ' +
+      'startDate is required (YYYY-MM-DD). endDate is optional — when omitted it defaults to startDate, returning all sessions for that day.',
+  })
+  @ApiQuery({ name: 'startDate', required: true, schema: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, example: '2026-05-10', description: 'Start of date range (YYYY-MM-DD)' })
+  @ApiQuery({ name: 'endDate', required: false, schema: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, example: '2026-05-10', description: 'End of date range (YYYY-MM-DD). Defaults to startDate.' })
+  @ApiQuery({ name: 'status', required: false, enum: SessionStatus, description: 'Filter by session status' })
+  @ApiQuery({ name: 'source', required: false, enum: SessionSource, description: 'Filter by session source' })
+  @ApiQuery({ name: 'plantStatus', required: false, enum: PlantStatus, description: 'Filter by plant status' })
+  @ApiQuery({ name: 'taskId', required: false, schema: { type: 'string' }, description: 'Filter by task ID' })
+  @ApiQuery({ name: 'sortBy', required: false, enum: SessionSortBy, description: 'Sort field', example: SessionSortBy.STARTED_AT })
+  @ApiQuery({ name: 'sortOrder', required: false, enum: ['asc', 'desc'], description: 'Sort direction', example: 'desc' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: DEFAULT_PAGE }, example: DEFAULT_PAGE })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
+  @ApiResponse({ status: 200, description: 'Sessions returned.' })
+  @ApiResponse({ status: 400, description: 'startDate is missing or invalid.' })
+  async getList(
+    @Req() req: Request,
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @Query('status') status?: string,
+    @Query('source') source?: string,
+    @Query('plantStatus') plantStatus?: string,
+    @Query('taskId') taskId?: string,
+    @Query('sortBy') sortBy?: string,
+    @Query('sortOrder') sortOrder?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<SessionResponse>>> {
+    const { sub: userId } = req.user as TokenPayload;
+
+    if (!startDate || !DATE_RE.test(startDate)) {
+      throw new BadRequestException('startDate is required and must be YYYY-MM-DD.');
+    }
+    if (endDate && !DATE_RE.test(endDate)) {
+      throw new BadRequestException('endDate must be YYYY-MM-DD.');
+    }
+
+    const filter: SessionListFilter = { startDate, endDate };
+    if (status && Object.values(SessionStatus).includes(status as SessionStatus)) {
+      filter.status = status as SessionStatus;
+    }
+    if (source && Object.values(SessionSource).includes(source as SessionSource)) {
+      filter.source = source as SessionSource;
+    }
+    if (plantStatus && Object.values(PlantStatus).includes(plantStatus as PlantStatus)) {
+      filter.plantStatus = plantStatus as PlantStatus;
+    }
+    if (taskId) filter.taskId = taskId;
+
+    const sort: SessionListSort = {
+      by: Object.values(SessionSortBy).includes(sortBy as SessionSortBy)
+        ? (sortBy as SessionSortBy)
+        : SessionSortBy.STARTED_AT,
+      order: sortOrder === 'asc' ? 'asc' : 'desc',
+    };
+
+    const pagination = parsePagination(page, limit);
+    const { items, total } = await this.sessionRepo.findByUser(userId, filter, sort, pagination);
+
+    const responses = await Promise.all(
+      items.map(async (s) => {
+        if (s.status === SessionStatus.ACTIVE) {
+          const timer = await this.sessionTimer.getTimer(s.id);
+          if (timer) return toSessionResponse(s, computeLiveGrowth(s, timer));
+        }
+        return toSessionResponse(s);
+      }),
+    );
+
+    return paginated('Sessions retrieved.', responses, total, pagination.page, pagination.limit);
   }
 
   // ─── Session history for a task ──────────────────────────────────────────────

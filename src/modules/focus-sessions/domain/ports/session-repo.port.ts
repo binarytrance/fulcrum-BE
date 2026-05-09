@@ -1,6 +1,31 @@
 import type { Session } from '@focus-sessions/domain/entities/session.entity';
+import {
+  PlantStatus,
+  SessionSource,
+  SessionStatus,
+  SessionSortBy,
+} from '@focus-sessions/domain/types/session.types';
 
 export const SESSION_REPO_PORT = Symbol('SESSION_REPO_PORT');
+
+export interface SessionListFilter {
+  startDate: string;
+  endDate?: string;
+  status?: SessionStatus;
+  source?: SessionSource;
+  plantStatus?: PlantStatus;
+  taskId?: string;
+}
+
+export interface SessionListSort {
+  by: SessionSortBy;
+  order: 'asc' | 'desc';
+}
+
+export interface SessionListPagination {
+  page: number;
+  limit: number;
+}
 
 export interface ISessionRepository {
   create(session: Session): Promise<void>;
@@ -15,4 +40,10 @@ export interface ISessionRepository {
    * Used to compute cumulative plant growth across sessions.
    */
   sumNetFocusMsByTaskId(taskId: string): Promise<number>;
+  findByUser(
+    userId: string,
+    filter: SessionListFilter,
+    sort: SessionListSort,
+    pagination: SessionListPagination,
+  ): Promise<{ items: Session[]; total: number }>;
 }

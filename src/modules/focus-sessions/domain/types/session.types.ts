@@ -26,3 +26,10 @@ export const WILTED_DISTRACTION_MS = 30 * 60 * 1000;
 
 /** Sessions with no heartbeat beyond this are auto-abandoned */
 export const SESSION_ABANDONMENT_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+export enum SessionSortBy {
+  STARTED_AT = 'startedAt',
+  DURATION_MS = 'durationMs',
+  NET_FOCUS_MS = 'netFocusMs',
+  PLANT_GROWTH_PERCENT = 'plantGrowthPercent',
+}

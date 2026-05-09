@@ -6,7 +6,12 @@ import {
   Session,
   type Distraction,
 } from '@focus-sessions/domain/entities/session.entity';
-import type { ISessionRepository } from '@focus-sessions/domain/ports/session-repo.port';
+import type {
+  ISessionRepository,
+  SessionListFilter,
+  SessionListSort,
+  SessionListPagination,
+} from '@focus-sessions/domain/ports/session-repo.port';
 import {
   PlantStatus,
   SessionSource,
@@ -76,6 +81,41 @@ export class SessionRepository implements ISessionRepository {
       .sort({ startedAt: -1 })
       .lean<SessionDocLean[]>();
     return docs.map((d) => this.toDomain(d));
+  }
+
+  async findByUser(
+    userId: string,
+    filter: SessionListFilter,
+    sort: SessionListSort,
+    pagination: SessionListPagination,
+  ): Promise<{ items: Session[]; total: number }> {
+    const endDateStr = filter.endDate ?? filter.startDate;
+    const query: Record<string, unknown> = {
+      userId,
+      startedAt: {
+        $gte: new Date(`${filter.startDate}T00:00:00.000Z`),
+        $lte: new Date(`${endDateStr}T23:59:59.999Z`),
+      },
+    };
+    if (filter.status) query.status = filter.status;
+    if (filter.source) query.source = filter.source;
+    if (filter.plantStatus) query.plantStatus = filter.plantStatus;
+    if (filter.taskId) query.taskId = filter.taskId;
+
+    const sortDir = sort.order === 'asc' ? 1 : -1;
+    const skip = (pagination.page - 1) * pagination.limit;
+
+    const [docs, total] = await Promise.all([
+      this.sessionModel
+        .find(query)
+        .sort({ [sort.by]: sortDir })
+        .skip(skip)
+        .limit(pagination.limit)
+        .lean<SessionDocLean[]>(),
+      this.sessionModel.countDocuments(query),
+    ]);
+
+    return { items: docs.map((d) => this.toDomain(d)), total };
   }
 
   async sumNetFocusMsByTaskId(taskId: string): Promise<number> {
