@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
@@ -48,6 +50,7 @@ import {
   type CompleteOccurrenceDto,
 } from '@habits/presentation/dtos/complete-occurrence.dto';
 
+import { HABIT_OCCURRENCE_REPO_PORT, type IHabitOccurrenceRepository } from '@habits/domain/ports/habit-occurrence-repo.port';
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
@@ -112,6 +115,28 @@ const OccurrenceResponseSchema = {
     durationMinutes: { type: 'number', nullable: true, example: 32 },
     note: { type: 'string', nullable: true, example: null },
     createdAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+const HistoryEntrySchema = {
+  type: 'object',
+  properties: {
+    date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
+    status: { type: 'string', enum: ['pending', 'completed', 'missed', 'skipped'], nullable: true, example: 'completed' },
+  },
+};
+
+const HabitWithHistorySchema = {
+  type: 'object',
+  properties: {
+    ...HabitResponseSchema.properties,
+    history: {
+      type: 'array',
+      items: HistoryEntrySchema,
+      description:
+        'Always exactly 7 entries ordered oldest→today, anchored to server date. ' +
+        'status is null when the habit had no occurrence on that day (e.g. weekday-specific habit on a weekend).',
+    },
   },
 };
 
@@ -241,6 +266,7 @@ export class HabitsController {
     private readonly skipOccurrenceService: SkipOccurrenceService,
     private readonly getAnalyticsService: GetAnalyticsService,
     private readonly getOccurrencesService: GetOccurrencesService,
+    @Inject(HABIT_OCCURRENCE_REPO_PORT) private readonly occurrenceRepo: IHabitOccurrenceRepository,
   ) {}
 
   // ─── Habits ──────────────────────────────────────────────────────────────
@@ -288,19 +314,34 @@ export class HabitsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all habits for the authenticated user (paginated)',
+    description:
+      'Each habit includes a 7-day completion history (oldest → today, null status = not scheduled that day). ' +
+      'Date filtering is by habit creation date: provide only startDate to get habits created on that day, ' +
+      'or startDate + endDate to get habits created within that range. Omit both to return all habits.',
   })
   @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 })
   @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
   @ApiQuery({ name: 'status', required: false, enum: HabitStatus, description: 'Filter by habit status' })
   @ApiQuery({ name: 'goalId', required: false, schema: { type: 'string' }, description: 'Filter by linked goal ID' })
-  @ApiResponse({ status: 200, description: 'Habits returned.', schema: ApiSuccessSchema(PaginatedSchema(HabitResponseSchema)) })
+  @ApiQuery({ name: 'startDate', required: false, schema: { type: 'string' }, example: '2026-01-01', description: 'YYYY-MM-DD — alone: returns habits created on that day; with endDate: returns habits created in the range' })
+  @ApiQuery({ name: 'endDate', required: false, schema: { type: 'string' }, example: '2026-05-10', description: 'YYYY-MM-DD — upper bound of creation date range; only valid when startDate is also provided' })
+  @ApiResponse({ status: 200, description: 'Habits returned.', schema: ApiSuccessSchema(PaginatedSchema(HabitWithHistorySchema)) })
   async list(
     @Req() req: Request,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
     @Query('goalId') goalId?: string,
-  ): Promise<ApiResponseType<PaginatedResponse<HabitResponse>>> {
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<HabitResponse & { history: { date: string; status: string | null }[] }>>> {
+    if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+      throw new BadRequestException("'startDate' must be in YYYY-MM-DD format.");
+    }
+    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      throw new BadRequestException("'endDate' must be in YYYY-MM-DD format.");
+    }
+
     const { sub: userId } = req.user as TokenPayload;
     const pagination = parsePagination(page, limit);
     const filter: HabitFilter = {};
@@ -308,15 +349,51 @@ export class HabitsController {
       filter.status = status as HabitStatus;
     }
     if (goalId) filter.goalId = goalId;
+    if (startDate) {
+      filter.createdAfter = startDate;
+      filter.createdBefore = endDate ?? startDate; // single day if no endDate
+    }
+
     const { items, total } = await this.getHabitsService.getPaged(
       userId,
       filter,
       pagination.page,
       pagination.limit,
     );
+
+    // Build 7-day window (6 days ago → today)
+    const today = new Date().toISOString().slice(0, 10);
+    const windowStart = (() => {
+      const d = new Date(`${today}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - 6);
+      return d.toISOString().slice(0, 10);
+    })();
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(`${today}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    const rawOccurrences = items.length > 0
+      ? await this.occurrenceRepo.findByUserInDateRange(userId, windowStart, today)
+      : [];
+
+    // Index by habitId → date → status
+    const byHabit = new Map<string, Map<string, string>>();
+    for (const occ of rawOccurrences) {
+      if (!byHabit.has(occ.habitId)) byHabit.set(occ.habitId, new Map());
+      byHabit.get(occ.habitId)!.set(occ.date, occ.status);
+    }
+
+    const responseItems = items.map((h) => ({
+      ...toHabitResponse(h),
+      history: days.map((date) => ({ date, status: byHabit.get(h.id)?.get(date) ?? null })),
+    }));
+
     return paginated(
       'Habits retrieved successfully.',
-      items.map(toHabitResponse),
+      responseItems,
       total,
       pagination.page,
       pagination.limit,
