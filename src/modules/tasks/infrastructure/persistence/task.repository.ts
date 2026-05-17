@@ -23,6 +23,39 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+/**
+ * Builds the $or date clause for scheduledFor / createdAt filtering.
+ * dateFrom only      → single calendar day
+ * dateFrom + dateTo  → inclusive range [startOfDay(from), endOfDay(to)]
+ * dateFrom + null    → open-ended from startOfDay(from) with no upper bound
+ */
+function buildDateClause(filter: import('@tasks/domain/ports/task-repo.port').TaskFilter): Record<string, unknown> | null {
+  if (!filter.dateFrom) return null;
+
+  const fromStart = new Date(filter.dateFrom);
+  fromStart.setUTCHours(0, 0, 0, 0);
+
+  const scheduledFor: Record<string, unknown> = { $gte: fromStart };
+  const createdAt: Record<string, unknown> = { $gte: fromStart };
+
+  if (filter.dateTo === null) {
+    // open-ended — no upper bound
+  } else {
+    const upperDate = filter.dateTo ?? filter.dateFrom; // undefined → same day
+    const toEnd = new Date(upperDate);
+    toEnd.setUTCHours(23, 59, 59, 999);
+    scheduledFor.$lte = toEnd;
+    createdAt.$lte = toEnd;
+  }
+
+  return {
+    $or: [
+      { scheduledFor },
+      { scheduledFor: null, createdAt },
+    ],
+  };
+}
+
 type TaskDocLean = {
   _id: { toString(): string };
   userId: { toString(): string };
@@ -96,18 +129,8 @@ export class TaskRepository implements ITaskRepository {
     if (filter?.status) query.status = filter.status;
     if (filter?.type) query.type = filter.type;
     if (filter?.goalId) query.goalId = filter.goalId;
-    if (filter?.scheduledFor) {
-      const start = new Date(filter.scheduledFor);
-      start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(filter.scheduledFor);
-      end.setUTCHours(23, 59, 59, 999);
-      // Planned tasks match via scheduledFor; unplanned tasks (scheduledFor: null)
-      // are bucketed by their creation date instead.
-      query.$or = [
-        { scheduledFor: { $gte: start, $lte: end } },
-        { scheduledFor: null, createdAt: { $gte: start, $lte: end } },
-      ];
-    }
+    const dateClause = filter ? buildDateClause(filter) : null;
+    if (dateClause) Object.assign(query, dateClause);
 
     const q = this.taskModel.find(query).sort({ createdAt: -1 });
 
@@ -125,16 +148,8 @@ export class TaskRepository implements ITaskRepository {
     if (filter?.status) query.status = filter.status;
     if (filter?.type) query.type = filter.type;
     if (filter?.goalId) query.goalId = filter.goalId;
-    if (filter?.scheduledFor) {
-      const start = new Date(filter.scheduledFor);
-      start.setUTCHours(0, 0, 0, 0);
-      const end = new Date(filter.scheduledFor);
-      end.setUTCHours(23, 59, 59, 999);
-      query.$or = [
-        { scheduledFor: { $gte: start, $lte: end } },
-        { scheduledFor: null, createdAt: { $gte: start, $lte: end } },
-      ];
-    }
+    const dateClause = filter ? buildDateClause(filter) : null;
+    if (dateClause) Object.assign(query, dateClause);
     return this.taskModel.countDocuments(query);
   }
 

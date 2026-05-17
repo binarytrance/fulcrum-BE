@@ -5,8 +5,18 @@ export interface TaskFilter {
   status?: TaskStatus;
   type?: TaskType;
   goalId?: string;
-  /** When provided, only tasks whose scheduledFor falls within this calendar day (UTC) are returned. */
-  scheduledFor?: Date;
+  /**
+   * Start of date filter (inclusive, UTC day boundary).
+   * Alone → single-day filter (same behaviour as the old scheduledFor param).
+   * With dateTo → range filter.
+   */
+  dateFrom?: Date;
+  /**
+   * End of date filter (inclusive, UTC day boundary).
+   * null → open-ended (no upper bound, i.e. Infinity).
+   * undefined → use dateFrom as the end too (single day).
+   */
+  dateTo?: Date | null;
 }
 
 export interface Pagination {
