@@ -1,3 +1,5 @@
+import type { AppStreak } from '@users/domain/types/user.types';
+
 export const FIND_USER_PORT = Symbol('FIND_USER_PORT');
 
 export interface AuthUserView {
@@ -5,6 +7,7 @@ export interface AuthUserView {
   email: string;
   firstname: string;
   lastname: string | null;
+  appStreak: AppStreak;
 }
 
 export interface IFindUserPort {

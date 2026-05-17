@@ -21,6 +21,10 @@ import {
   GoalStatus,
 } from '@goals/domain/types/goal.types';
 import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
+import {
   GOAL_CACHE_PORT,
   type IGoalCachePort,
 } from '@goals/domain/ports/goal-cache.port';
@@ -52,6 +56,8 @@ export class UpdateGoalService {
     private readonly goalEventPublisher: IGoalEventPublisher,
     @Inject(GOAL_CACHE_PORT)
     private readonly goalCache: IGoalCachePort,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   async execute(
@@ -99,6 +105,13 @@ export class UpdateGoalService {
     const updated = goal.update(input);
     await this.goalRepo.update(updated);
     await this.goalCache.invalidate(userId);
+
+    if (input.status === GoalStatus.COMPLETED) {
+      await this.appStreakPublisher.publishActivityRecorded(
+        userId,
+        new Date().toISOString().slice(0, 10),
+      );
+    }
 
     if (estimatedEndDateChanged) {
       // Fire-and-forget: AI pacing recalculation runs asynchronously

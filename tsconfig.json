@@ -27,7 +27,7 @@
       "@shared/*": ["./src/shared/*"],
       "@goals/*": ["./src/modules/goals/*"],
       "@tasks/*": ["./src/modules/tasks/*"],
-      "@sessions/*": ["./src/modules/sessions/*"],
+      "@focus-sessions/*": ["./src/modules/focus-sessions/*"],
       "@habits/*": ["./src/modules/habits/*"],
       "@analytics/*": ["./src/modules/analytics/*"]
     }

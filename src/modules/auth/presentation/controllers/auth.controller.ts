@@ -337,6 +337,14 @@ export class AuthController {
         email: { type: 'string' },
         firstname: { type: 'string' },
         lastname: { type: 'string', nullable: true },
+        appStreak: {
+          type: 'object',
+          properties: {
+            current: { type: 'integer', example: 7, description: 'Consecutive active days. 0 if streak is broken.' },
+            longest: { type: 'integer', example: 21, description: 'All-time longest streak.' },
+            lastActiveDate: { type: 'string', format: 'date', example: '2026-05-10', nullable: true },
+          },
+        },
       },
     }),
   })
@@ -347,16 +355,33 @@ export class AuthController {
       email: string;
       firstname: string;
       lastname: string | null;
+      appStreak: { current: number; longest: number; lastActiveDate: string | null };
     }>
   > {
     const payload = req.user as TokenPayload;
     const user = await this.findUser.findById(payload.sub);
     if (!user) throw new UnauthorizedException('User not found');
+
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = (() => {
+      const d = new Date(`${today}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - 1);
+      return d.toISOString().slice(0, 10);
+    })();
+    const { lastActiveDate, longest } = user.appStreak;
+    const isLive = lastActiveDate === today || lastActiveDate === yesterday;
+    const appStreak = {
+      current: isLive ? user.appStreak.current : 0,
+      longest,
+      lastActiveDate,
+    };
+
     return ok('User profile retrieved.', {
       id: user.id,
       email: user.email,
       firstname: user.firstname,
       lastname: user.lastname,
+      appStreak,
     });
   }
 

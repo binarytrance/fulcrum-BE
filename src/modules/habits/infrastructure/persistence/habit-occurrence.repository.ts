@@ -128,6 +128,19 @@ export class HabitOccurrenceRepository implements IHabitOccurrenceRepository {
     return docs.map(toDomain);
   }
 
+  async findByUserInDateRange(
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<HabitOccurrenceEntity[]> {
+    const docs = await this.model
+      .find({ userId, date: { $gte: from, $lte: to } })
+      .sort({ date: 1 })
+      .lean<OccurrenceLean[]>()
+      .exec();
+    return docs.map(toDomain);
+  }
+
   async findPendingBefore(date: string): Promise<HabitOccurrenceEntity[]> {
     const docs = await this.model
       .find({ status: OccurrenceStatus.PENDING, date: { $lt: date } })

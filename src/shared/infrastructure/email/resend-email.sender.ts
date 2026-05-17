@@ -12,10 +12,15 @@ import {
 @Injectable()
 export class ResendEmailSender implements IEmailSender {
   private readonly logger = new Logger(ResendEmailSender.name);
-  private readonly client: Resend;
+  private _client: Resend | null = null;
 
-  constructor(private readonly config: ConfigService) {
-    this.client = new Resend(this.config.email.resendApiKey);
+  constructor(private readonly config: ConfigService) {}
+
+  private getClient(): Resend {
+    if (!this._client) {
+      this._client = new Resend(this.config.email.resendApiKey);
+    }
+    return this._client;
   }
 
   async send(
@@ -47,7 +52,7 @@ export class ResendEmailSender implements IEmailSender {
       : verificationEmailHtml(safeToken);
 
     try {
-      const result = await this.client.emails.send({
+      const result = await this.getClient().emails.send({
         from: fromAddress,
         to: email,
         subject,

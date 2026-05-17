@@ -11,6 +11,7 @@ import { GoalRepository } from '@goals/infrastructure/persistence/goal.repositor
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
 import { GoalWorkersModule } from '@goals/infrastructure/workers/goal-workers.module';
 import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
+import { UserWorkersModule } from '@users/infrastructure/workers/user-workers.module';
 import { GoalCacheService } from '@goals/infrastructure/cache/goal-cache.service';
 
 @Module({
@@ -19,6 +20,7 @@ import { GoalCacheService } from '@goals/infrastructure/cache/goal-cache.service
     GoalMongoModule,
     GoalWorkersModule,
     AnalyticsWorkersModule,
+    UserWorkersModule,
   ],
   controllers: [GoalsController],
   providers: [

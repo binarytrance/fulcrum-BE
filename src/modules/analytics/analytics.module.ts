@@ -2,9 +2,12 @@ import { Module } from '@nestjs/common';
 import { SharedModule } from '@shared/shared.module';
 import { AnalyticsMongoModule } from '@analytics/infrastructure/persistence/analytics-mongo.module';
 import { AnalyticsWorkersModule } from '@analytics/infrastructure/workers/analytics-workers.module';
-import { SessionMongoModule } from '@sessions/infrastructure/persistence/session-mongo.module';
+import { SessionMongoModule } from '@focus-sessions/infrastructure/persistence/session-mongo.module';
 import { TaskMongoModule } from '@tasks/infrastructure/persistence/task-mongo.module';
 import { GoalMongoModule } from '@goals/infrastructure/persistence/goal-mongo.module';
+import { UserMongoModule } from '@users/infrastructure/persistence/user-mongo.module';
+import { UserRepository } from '@users/infrastructure/persistence/user.repository';
+import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
 
 import { DAILY_ANALYTICS_REPO_PORT } from '@analytics/domain/ports/daily-analytics-repo.port';
 import { GOAL_ANALYTICS_REPO_PORT } from '@analytics/domain/ports/goal-analytics-repo.port';
@@ -33,6 +36,7 @@ import { AnalyticsController } from '@analytics/presentation/controllers/analyti
     SessionMongoModule,
     TaskMongoModule,
     GoalMongoModule,
+    UserMongoModule,
   ],
   controllers: [AnalyticsController],
   providers: [
@@ -55,6 +59,8 @@ import { AnalyticsController } from '@analytics/presentation/controllers/analyti
     GetMonthlyAnalyticsService,
     GetEstimationProfileService,
     GetDashboardService,
+    UserRepository,
+    { provide: USER_REPO_PORT, useExisting: UserRepository },
   ],
 })
 export class AnalyticsModule {}

@@ -525,15 +525,17 @@ async function main() {
   // Use non-deleted task IDs as the pool that sessions can reference.
   const sessionTaskPool = tasks.filter((t) => t.deletedAt === null).map((t) => t._id);
 
-  for (let d = SESSION_SPREAD_DAYS; d >= 1; d--) {
+  for (let d = SESSION_SPREAD_DAYS; d >= 0; d--) {
     const dow        = daysAgo(d).getUTCDay();           // 0 = Sun, 6 = Sat
     const isWeekend  = dow === 0 || dow === 6;
     const seedDay    = (d * 13 + 5) >>> 0;
     // Weekdays: 1-3 sessions; weekends: 0-1 sessions
     const maxSlots   = isWeekend ? 2 : 3;
-    const slotCount  = isWeekend
-      ? (seedDay % 3 === 0 ? 1 : 0)
-      : 1 + (seedDay % maxSlots);
+    const slotCount  = d === 0
+      ? 2
+      : isWeekend
+        ? (seedDay % 3 === 0 ? 1 : 0)
+        : 1 + (seedDay % maxSlots);
 
     for (let sl = 0; sl < slotCount; sl++) {
       const taskIdx = (d * 7 + sl * 11) % sessionTaskPool.length;

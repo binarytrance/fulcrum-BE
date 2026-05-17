@@ -6,6 +6,8 @@ export const HABIT_REPO_PORT = Symbol('HABIT_REPO_PORT');
 export interface HabitFilter {
   status?: HabitStatus;
   goalId?: string;
+  createdAfter?: string;  // YYYY-MM-DD inclusive
+  createdBefore?: string; // YYYY-MM-DD inclusive
 }
 
 export interface PagedHabits {

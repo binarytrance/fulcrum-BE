@@ -23,6 +23,12 @@ export interface IHabitOccurrenceRepository {
     from: string,
     to: string,
   ): Promise<HabitOccurrence[]>;
+  /** All occurrences for a user across all habits in a date range — used for bulk history. */
+  findByUserInDateRange(
+    userId: string,
+    from: string,
+    to: string,
+  ): Promise<HabitOccurrence[]>;
   /** All PENDING occurrences with date strictly before `date` — used by nightly miss-marking. */
   findPendingBefore(date: string): Promise<HabitOccurrence[]>;
   save(occurrence: HabitOccurrence): Promise<HabitOccurrence>;

@@ -8,6 +8,10 @@ import {
   ANALYTICS_EVENT_PUBLISHER_PORT,
   type IAnalyticsEventPublisher,
 } from '@analytics/domain/ports/analytics-event-publisher.port';
+import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
 import { Goal } from '@goals/domain/entities/goal.entity';
 import {
   GOAL_REPO_PORT,
@@ -56,6 +60,8 @@ export class CreateGoalService {
     private readonly goalCache: IGoalCachePort,
     @Inject(ANALYTICS_EVENT_PUBLISHER_PORT)
     private readonly analyticsEventPublisher: IAnalyticsEventPublisher,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   async execute(input: CreateGoalInput): Promise<Goal> {
@@ -117,8 +123,11 @@ export class CreateGoalService {
     });
 
     await this.goalRepo.create(goal);
-    // Bust cached tree so next GET /goals reflects new goal
     await this.goalCache.invalidate(input.userId);
+    await this.appStreakPublisher.publishActivityRecorded(
+      input.userId,
+      new Date().toISOString().slice(0, 10),
+    );
     // Seed a zero-valued goal analytics doc so the goal appears on the dashboard immediately.
     await this.analyticsEventPublisher.queueGoalInit(
       input.userId,

@@ -94,6 +94,12 @@ export class HabitRepository implements IHabitRepository {
     const query: Record<string, unknown> = { userId, deletedAt: null };
     if (filter.status) query.status = filter.status;
     if (filter.goalId) query.goalId = filter.goalId;
+    if (filter.createdAfter || filter.createdBefore) {
+      const dateQuery: Record<string, Date> = {};
+      if (filter.createdAfter) dateQuery.$gte = new Date(`${filter.createdAfter}T00:00:00.000Z`);
+      if (filter.createdBefore) dateQuery.$lte = new Date(`${filter.createdBefore}T23:59:59.999Z`);
+      query.createdAt = dateQuery;
+    }
     const skip = (page - 1) * limit;
     const [docs, total] = await Promise.all([
       this.model

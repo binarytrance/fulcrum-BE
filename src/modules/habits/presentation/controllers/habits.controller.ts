@@ -1,10 +1,12 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   HttpCode,
   HttpStatus,
+  Inject,
   Param,
   Patch,
   Post,
@@ -14,6 +16,7 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiParam,
   ApiQuery,
@@ -47,6 +50,7 @@ import {
   type CompleteOccurrenceDto,
 } from '@habits/presentation/dtos/complete-occurrence.dto';
 
+import { HABIT_OCCURRENCE_REPO_PORT, type IHabitOccurrenceRepository } from '@habits/domain/ports/habit-occurrence-repo.port';
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
@@ -56,6 +60,111 @@ import {
 } from '@shared/presentation/responses/api-response';
 import { HabitStatus } from '@habits/domain/types/habit.types';
 import type { HabitFilter } from '@habits/domain/ports/habit-repo.port';
+
+// ─── Swagger schema helpers ───────────────────────────────────────────────────
+
+const ApiSuccessSchema = (dataSchema?: object) => ({
+  type: 'object',
+  properties: {
+    success: { type: 'boolean', example: true },
+    message: { type: 'string' },
+    ...(dataSchema ? { data: dataSchema } : {}),
+  },
+});
+
+const PaginatedSchema = (itemSchema: object) => ({
+  type: 'object',
+  properties: {
+    items: { type: 'array', items: itemSchema },
+    total: { type: 'integer', example: 20 },
+    page: { type: 'integer', example: 1 },
+    limit: { type: 'integer', example: 10 },
+    totalPages: { type: 'integer', example: 2 },
+  },
+});
+
+const HabitResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', example: 'hbt_abc123' },
+    userId: { type: 'string', example: 'user_xyz' },
+    goalId: { type: 'string', nullable: true, example: null },
+    title: { type: 'string', example: 'Morning run' },
+    description: { type: 'string', nullable: true, example: '30 min outdoor run' },
+    frequency: { type: 'string', enum: ['daily', 'specific_days'], example: 'daily' },
+    daysOfWeek: { type: 'array', items: { type: 'integer' }, example: [1, 3, 5], description: '0=Sun … 6=Sat' },
+    targetDuration: { type: 'integer', example: 30, description: 'minutes' },
+    status: { type: 'string', enum: Object.values(HabitStatus), example: 'active' },
+    currentStreak: { type: 'integer', example: 7 },
+    longestStreak: { type: 'integer', example: 21 },
+    createdAt: { type: 'string', format: 'date-time' },
+    updatedAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+const OccurrenceResponseSchema = {
+  type: 'object',
+  properties: {
+    id: { type: 'string', example: 'occ_abc123' },
+    habitId: { type: 'string', example: 'hbt_abc123' },
+    userId: { type: 'string', example: 'user_xyz' },
+    date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
+    status: { type: 'string', enum: ['pending', 'completed', 'missed', 'skipped'], example: 'pending' },
+    completedAt: { type: 'string', format: 'date-time', nullable: true, example: null },
+    sessionId: { type: 'string', nullable: true, example: null },
+    durationMinutes: { type: 'number', nullable: true, example: 32 },
+    note: { type: 'string', nullable: true, example: null },
+    createdAt: { type: 'string', format: 'date-time' },
+  },
+};
+
+const HistoryEntrySchema = {
+  type: 'object',
+  properties: {
+    date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
+    status: { type: 'string', enum: ['pending', 'completed', 'missed', 'skipped'], nullable: true, example: 'completed' },
+  },
+};
+
+const HabitWithHistorySchema = {
+  type: 'object',
+  properties: {
+    ...HabitResponseSchema.properties,
+    history: {
+      type: 'array',
+      items: HistoryEntrySchema,
+      description:
+        'Always exactly 7 entries ordered oldest→today, anchored to server date. ' +
+        'status is null when the habit had no occurrence on that day (e.g. weekday-specific habit on a weekend).',
+    },
+  },
+};
+
+const DailyHabitEntrySchema = {
+  type: 'object',
+  properties: {
+    ...HabitResponseSchema.properties,
+    occurrenceId: { type: 'string', example: 'occ_abc123' },
+    occurrenceStatus: { type: 'string', enum: ['pending', 'completed', 'missed', 'skipped'], example: 'pending' },
+  },
+};
+
+const HabitAnalyticsSchema = {
+  type: 'object',
+  properties: {
+    habitId: { type: 'string', example: 'hbt_abc123' },
+    currentStreak: { type: 'integer', example: 7 },
+    longestStreak: { type: 'integer', example: 21 },
+    completionRatePct: { type: 'number', example: 80, description: '0–100 over the last 30 days' },
+    totalCompleted: { type: 'integer', example: 24 },
+    totalMissed: { type: 'integer', example: 4 },
+    totalSkipped: { type: 'integer', example: 2 },
+    avgDurationMinutes: { type: 'number', nullable: true, example: 31.5 },
+    mostMissedDayOfWeek: { type: 'integer', nullable: true, example: 1, description: '0=Sun … 6=Sat; null if insufficient data' },
+  },
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_LIMIT = 10;
@@ -157,6 +266,7 @@ export class HabitsController {
     private readonly skipOccurrenceService: SkipOccurrenceService,
     private readonly getAnalyticsService: GetAnalyticsService,
     private readonly getOccurrencesService: GetOccurrencesService,
+    @Inject(HABIT_OCCURRENCE_REPO_PORT) private readonly occurrenceRepo: IHabitOccurrenceRepository,
   ) {}
 
   // ─── Habits ──────────────────────────────────────────────────────────────
@@ -164,9 +274,24 @@ export class HabitsController {
   @Post()
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create a new habit linked to a goal' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['title', 'frequency', 'targetDuration'],
+      properties: {
+        title: { type: 'string', maxLength: 200, example: 'Morning run' },
+        description: { type: 'string', maxLength: 1000, nullable: true, example: '30 min outdoor run' },
+        goalId: { type: 'string', nullable: true, example: null, description: 'Link to an existing goal ID; null for standalone habits' },
+        frequency: { type: 'string', enum: ['daily', 'specific_days'], example: 'specific_days' },
+        daysOfWeek: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 }, example: [1, 3, 5], description: '0=Sun … 6=Sat — required when frequency is specific_days' },
+        targetDuration: { type: 'integer', minimum: 1, example: 30, description: 'Target minutes per occurrence' },
+      },
+    },
+  })
   @ApiResponse({
     status: 201,
     description: 'Habit created with 30 days of occurrences.',
+    schema: ApiSuccessSchema(HabitResponseSchema),
   })
   async create(
     @Req() req: Request,
@@ -189,37 +314,34 @@ export class HabitsController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'List all habits for the authenticated user (paginated)',
+    description:
+      'Each habit includes a 7-day completion history (oldest → today, null status = not scheduled that day). ' +
+      'Date filtering is by habit creation date: provide only startDate to get habits created on that day, ' +
+      'or startDate + endDate to get habits created within that range. Omit both to return all habits.',
   })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    description: 'Page number (1-based, default 1)',
-    example: 1,
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    description: `Habits per page (default ${DEFAULT_LIMIT}, max ${MAX_LIMIT})`,
-    example: DEFAULT_LIMIT,
-  })
-  @ApiQuery({
-    name: 'status',
-    required: false,
-    description: 'Filter by status: active | paused | archived',
-    enum: HabitStatus,
-  })
-  @ApiQuery({
-    name: 'goalId',
-    required: false,
-    description: 'Filter by goal ID',
-  })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
+  @ApiQuery({ name: 'status', required: false, enum: HabitStatus, description: 'Filter by habit status' })
+  @ApiQuery({ name: 'goalId', required: false, schema: { type: 'string' }, description: 'Filter by linked goal ID' })
+  @ApiQuery({ name: 'startDate', required: false, schema: { type: 'string' }, example: '2026-01-01', description: 'YYYY-MM-DD — alone: returns habits created on that day; with endDate: returns habits created in the range' })
+  @ApiQuery({ name: 'endDate', required: false, schema: { type: 'string' }, example: '2026-05-10', description: 'YYYY-MM-DD — upper bound of creation date range; only valid when startDate is also provided' })
+  @ApiResponse({ status: 200, description: 'Habits returned.', schema: ApiSuccessSchema(PaginatedSchema(HabitWithHistorySchema)) })
   async list(
     @Req() req: Request,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('status') status?: string,
     @Query('goalId') goalId?: string,
-  ): Promise<ApiResponseType<PaginatedResponse<HabitResponse>>> {
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ): Promise<ApiResponseType<PaginatedResponse<HabitResponse & { history: { date: string; status: string | null }[] }>>> {
+    if (startDate && !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+      throw new BadRequestException("'startDate' must be in YYYY-MM-DD format.");
+    }
+    if (endDate && !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+      throw new BadRequestException("'endDate' must be in YYYY-MM-DD format.");
+    }
+
     const { sub: userId } = req.user as TokenPayload;
     const pagination = parsePagination(page, limit);
     const filter: HabitFilter = {};
@@ -227,15 +349,51 @@ export class HabitsController {
       filter.status = status as HabitStatus;
     }
     if (goalId) filter.goalId = goalId;
+    if (startDate) {
+      filter.createdAfter = startDate;
+      filter.createdBefore = endDate ?? startDate; // single day if no endDate
+    }
+
     const { items, total } = await this.getHabitsService.getPaged(
       userId,
       filter,
       pagination.page,
       pagination.limit,
     );
+
+    // Build 7-day window (6 days ago → today)
+    const today = new Date().toISOString().slice(0, 10);
+    const windowStart = (() => {
+      const d = new Date(`${today}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - 6);
+      return d.toISOString().slice(0, 10);
+    })();
+    const days: string[] = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(`${today}T00:00:00.000Z`);
+      d.setUTCDate(d.getUTCDate() - i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+
+    const rawOccurrences = items.length > 0
+      ? await this.occurrenceRepo.findByUserInDateRange(userId, windowStart, today)
+      : [];
+
+    // Index by habitId → date → status
+    const byHabit = new Map<string, Map<string, string>>();
+    for (const occ of rawOccurrences) {
+      if (!byHabit.has(occ.habitId)) byHabit.set(occ.habitId, new Map());
+      byHabit.get(occ.habitId)!.set(occ.date, occ.status);
+    }
+
+    const responseItems = items.map((h) => ({
+      ...toHabitResponse(h),
+      history: days.map((date) => ({ date, status: byHabit.get(h.id)?.get(date) ?? null })),
+    }));
+
     return paginated(
       'Habits retrieved successfully.',
-      items.map(toHabitResponse),
+      responseItems,
       total,
       pagination.page,
       pagination.limit,
@@ -252,6 +410,7 @@ export class HabitsController {
       'Alias routes supported: GET /habits/daily and GET /habits/due-today. ' +
       'Returns pending occurrences joined with habit details for the authenticated user.',
   })
+  @ApiResponse({ status: 200, description: "Today's habits returned.", schema: ApiSuccessSchema({ type: 'array', items: DailyHabitEntrySchema }) })
   async dueToday(
     @Req() req: Request,
   ): Promise<
@@ -274,6 +433,9 @@ export class HabitsController {
   @Get(':id')
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', description: 'Habit ID' })
+  @ApiResponse({ status: 200, description: 'Habit returned.', schema: ApiSuccessSchema(HabitResponseSchema) })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async getOne(
     @Req() req: Request,
     @Param('id') id: string,
@@ -292,6 +454,20 @@ export class HabitsController {
       'Partial update endpoint for editable habit fields. ' +
       'Status transitions are handled via dedicated pause/resume endpoints.',
   })
+  @ApiBody({
+    description: 'All fields optional. At least one must be present.',
+    schema: {
+      type: 'object',
+      properties: {
+        title: { type: 'string', maxLength: 200, example: 'Evening run' },
+        description: { type: 'string', maxLength: 1000, nullable: true, example: null },
+        targetDuration: { type: 'integer', minimum: 1, example: 45, description: 'Target minutes per occurrence' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Habit updated.', schema: ApiSuccessSchema(HabitResponseSchema) })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async update(
     @Req() req: Request,
     @Param('id') id: string,
@@ -310,6 +486,9 @@ export class HabitsController {
     description:
       'Sets deletedAt. Data is preserved in MongoDB and can be used for analytics/history.',
   })
+  @ApiResponse({ status: 200, description: 'Habit archived.', schema: ApiSuccessSchema() })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async delete(
     @Req() req: Request,
     @Param('id') id: string,
@@ -328,6 +507,9 @@ export class HabitsController {
       'Transitions habit status from ACTIVE to PAUSED. ' +
       'Future occurrence generation is halted until resumed.',
   })
+  @ApiResponse({ status: 200, description: 'Habit paused.', schema: ApiSuccessSchema(HabitResponseSchema) })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async pause(
     @Req() req: Request,
     @Param('id') id: string,
@@ -345,6 +527,9 @@ export class HabitsController {
     description:
       'Transitions habit status from PAUSED to ACTIVE and resumes future occurrence generation.',
   })
+  @ApiResponse({ status: 200, description: 'Habit resumed.', schema: ApiSuccessSchema(HabitResponseSchema) })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async resume(
     @Req() req: Request,
     @Param('id') id: string,
@@ -360,6 +545,9 @@ export class HabitsController {
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', description: 'Habit ID' })
   @ApiOperation({ summary: 'Get all occurrences for a habit' })
+  @ApiResponse({ status: 200, description: 'Occurrences returned.', schema: ApiSuccessSchema({ type: 'array', items: OccurrenceResponseSchema }) })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async getOccurrences(
     @Req() req: Request,
     @Param('id') id: string,
@@ -383,6 +571,20 @@ export class HabitsController {
       'Triggers streak recalculation asynchronously. ' +
       'Use this endpoint instead of generic habit update for completion transitions.',
   })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['durationMinutes'],
+      properties: {
+        durationMinutes: { type: 'integer', minimum: 1, example: 32, description: 'Actual minutes spent — must be ≥ targetDuration × 0.8' },
+        sessionId: { type: 'string', example: null, description: 'Optional: link to a session logged for this occurrence' },
+        note: { type: 'string', maxLength: 500, example: 'Felt great today', description: 'Optional free-text note' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Occurrence completed.', schema: ApiSuccessSchema(OccurrenceResponseSchema) })
+  @ApiResponse({ status: 400, description: 'Duration below grace threshold or invalid transition.' })
+  @ApiResponse({ status: 404, description: 'Occurrence not found.' })
   async completeOccurrence(
     @Req() req: Request,
     @Param('occurrenceId') occurrenceId: string,
@@ -410,6 +612,8 @@ export class HabitsController {
     description:
       'Skipped occurrences do not break the streak and are tracked explicitly for analytics.',
   })
+  @ApiResponse({ status: 200, description: 'Occurrence skipped.', schema: ApiSuccessSchema(OccurrenceResponseSchema) })
+  @ApiResponse({ status: 404, description: 'Occurrence not found.' })
   async skipOccurrence(
     @Req() req: Request,
     @Param('occurrenceId') occurrenceId: string,
@@ -435,6 +639,9 @@ export class HabitsController {
     description:
       'Returns completion rate, average duration, streaks, and day-of-week miss patterns over the last 30 days.',
   })
+  @ApiResponse({ status: 200, description: 'Habit analytics returned.', schema: ApiSuccessSchema(HabitAnalyticsSchema) })
+  @ApiResponse({ status: 403, description: 'Access denied.' })
+  @ApiResponse({ status: 404, description: 'Habit not found.' })
   async analytics(
     @Req() req: Request,
     @Param('id') id: string,

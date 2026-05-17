@@ -6,9 +6,10 @@ import { USER_REPO_PORT } from '@users/domain/ports/user-rep.port';
 import { UserRepository } from '@users/infrastructure/persistence/user.repository';
 import { SharedModule } from '@shared/shared.module';
 import { UserMongoModule } from '@users/infrastructure/persistence/user-mongo.module';
+import { UserWorkersModule } from '@users/infrastructure/workers/user-workers.module';
 
 @Module({
-  imports: [SharedModule, UserMongoModule],
+  imports: [SharedModule, UserMongoModule, UserWorkersModule],
   controllers: [UsersController],
   providers: [
     CreateUserService,
