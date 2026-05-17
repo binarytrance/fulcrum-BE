@@ -29,7 +29,6 @@ import type { TokenPayload } from '@auth/domain/types/token.types';
 
 import { CreateTaskService } from '@tasks/application/services/create-task.service';
 import { UpdateTaskService } from '@tasks/application/services/update-task.service';
-import { CompleteTaskService } from '@tasks/application/services/complete-task.service';
 import { DeleteTaskService } from '@tasks/application/services/delete-task.service';
 import {
   GetTasksService,
@@ -44,10 +43,6 @@ import {
   type UpdateTaskDto,
   UpdateTaskSchema,
 } from '@tasks/presentation/dtos/update-task.dto';
-import {
-  type CompleteTaskDto,
-  CompleteTaskSchema,
-} from '@tasks/presentation/dtos/complete-task.dto';
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
@@ -56,6 +51,7 @@ import {
   type PaginatedResponse,
 } from '@shared/presentation/responses/api-response';
 import { Task } from '@tasks/domain/entities/task.entity';
+import type { UpdateTaskInput } from '@tasks/application/services/update-task.service';
 import {
   TaskPriority,
   TaskStatus,
@@ -89,8 +85,13 @@ const TaskResponseSchema = {
   properties: {
     id: { type: 'string', example: 'tsk_abc123' },
     userId: { type: 'string', example: 'user_xyz' },
-    goalId: { type: 'string', nullable: true, example: null },
-    goalTitle: { type: 'string', nullable: true, example: 'Learn TypeScript' },
+    goal: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', nullable: true, example: null },
+        title: { type: 'string', nullable: true, example: 'Learn TypeScript' },
+      },
+    },
     title: { type: 'string', example: 'Write unit tests' },
     description: { type: 'string', nullable: true, example: null },
     status: { type: 'string', enum: Object.values(TaskStatus), example: TaskStatus.PENDING },
@@ -99,10 +100,14 @@ const TaskResponseSchema = {
     scheduledFor: { type: 'string', format: 'date-time', nullable: true, example: '2026-05-08T09:00:00.000Z' },
     estimatedEndDate: { type: 'string', format: 'date-time', nullable: true, example: null },
     startDate: { type: 'string', format: 'date-time', nullable: true, example: null },
-    actualEndDate: { type: 'string', format: 'date-time', nullable: true, example: null },
     estimatedDuration: { type: 'integer', example: 3600000, description: 'milliseconds' },
     actualDuration: { type: 'integer', nullable: true, example: null, description: 'milliseconds' },
-    efficiencyScore: { type: 'number', nullable: true, example: null, description: '>100 faster than estimated, <100 over-run' },
+    analytics: {
+      type: 'object',
+      properties: {
+        efficiencyScore: { type: 'number', nullable: true, example: null, description: '>100 faster than estimated, <100 over-run' },
+      },
+    },
     completedAt: { type: 'string', format: 'date-time', nullable: true, example: null },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
@@ -120,10 +125,20 @@ const DailyTaskSummarySchema = {
     scheduledFor: { type: 'string', format: 'date-time', nullable: true },
     estimatedDuration: { type: 'integer', example: 3600000, description: 'milliseconds' },
     actualDuration: { type: 'integer', nullable: true, example: null, description: 'milliseconds' },
-    efficiencyScore: { type: 'number', nullable: true, example: null },
     completedAt: { type: 'string', format: 'date-time', nullable: true },
-    goalId: { type: 'string', nullable: true, example: null },
-    goalTitle: { type: 'string', nullable: true, example: null },
+    goal: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', nullable: true, example: null },
+        title: { type: 'string', nullable: true, example: null },
+      },
+    },
+    analytics: {
+      type: 'object',
+      properties: {
+        efficiencyScore: { type: 'number', nullable: true, example: null, description: '>100 faster than estimated, <100 over-run' },
+      },
+    },
   },
 };
 
@@ -167,25 +182,18 @@ function parsePagination(page?: string, limit?: string) {
 interface TaskResponse {
   id: string;
   userId: string;
-  goalId: string | null;
-  goalTitle: string | null;
+  goal: { id: string | null; title: string | null };
   title: string;
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
   type: TaskType;
   scheduledFor: Date | null;
-  /** Planned end date for the task; null = no target date set */
   estimatedEndDate: Date | null;
-  /** Actual date the user started working; null = not yet started */
   startDate: Date | null;
-  /** Date the task was completed or cancelled; null = still in progress */
-  actualEndDate: Date | null;
-  /** Time-box the user set upfront, in milliseconds */
   estimatedDuration: number;
-  /** Actual time spent on the task, in milliseconds */
   actualDuration: number | null;
-  efficiencyScore: number | null;
+  analytics: { efficiencyScore: number | null };
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -195,8 +203,7 @@ function toTaskResponse(task: Task, goalTitle: string | null): TaskResponse {
   return {
     id: task.id,
     userId: task.userId,
-    goalId: task.goalId,
-    goalTitle,
+    goal: { id: task.goalId, title: goalTitle },
     title: task.title,
     description: task.description,
     status: task.status,
@@ -205,10 +212,9 @@ function toTaskResponse(task: Task, goalTitle: string | null): TaskResponse {
     scheduledFor: task.scheduledFor,
     estimatedEndDate: task.estimatedEndDate,
     startDate: task.startDate,
-    actualEndDate: task.actualEndDate,
     estimatedDuration: task.estimatedDuration,
     actualDuration: task.actualDuration,
-    efficiencyScore: task.efficiencyScore,
+    analytics: { efficiencyScore: task.efficiencyScore },
     completedAt: task.completedAt,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
@@ -223,7 +229,6 @@ export class TasksController {
   constructor(
     private readonly createTaskService: CreateTaskService,
     private readonly updateTaskService: UpdateTaskService,
-    private readonly completeTaskService: CompleteTaskService,
     private readonly deleteTaskService: DeleteTaskService,
     private readonly getTasksService: GetTasksService,
   ) {}
@@ -305,13 +310,20 @@ export class TasksController {
   @ApiOperation({
     summary: 'List tasks',
     description:
-      'Returns all non-deleted tasks for the authenticated user, with optional ' +
-      'filtering by `type`, `status`, or `goalId`. Results are paginated.',
+      'Returns all non-deleted tasks for the authenticated user, paginated. ' +
+      'Date filtering via startDate/endDate: ' +
+      'no dates → all tasks; ' +
+      'startDate only → that single day; ' +
+      'startDate + endDate → inclusive range; ' +
+      'startDate + endDate="Infinity" → from startDate with no upper bound. ' +
+      'For planned tasks the date is matched against scheduledFor; ' +
+      'for unplanned tasks (no scheduledFor) it falls back to createdAt.',
   })
   @ApiQuery({ name: 'type', required: false, enum: TaskType, description: 'Filter by task type' })
   @ApiQuery({ name: 'status', required: false, enum: TaskStatus, description: 'Filter by task status (combinable with type)' })
   @ApiQuery({ name: 'goalId', required: false, schema: { type: 'string' }, description: 'Filter by linked goal ID' })
-  @ApiQuery({ name: 'date', required: false, schema: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' }, example: '2026-05-08', description: 'Filter by scheduledFor calendar day (YYYY-MM-DD, UTC)' })
+  @ApiQuery({ name: 'startDate', required: false, schema: { type: 'string' }, example: '2026-05-08', description: 'YYYY-MM-DD — alone: single day; with endDate: start of range' })
+  @ApiQuery({ name: 'endDate', required: false, schema: { type: 'string' }, example: '2026-05-17', description: 'YYYY-MM-DD or "Infinity" — end of range; Infinity means no upper bound' })
   @ApiQuery({ name: 'page', required: false, schema: { type: 'integer', minimum: 1, default: 1 }, example: 1 })
   @ApiQuery({ name: 'limit', required: false, schema: { type: 'integer', minimum: 1, maximum: MAX_LIMIT, default: DEFAULT_LIMIT }, example: DEFAULT_LIMIT })
   @ApiResponse({ status: 200, description: 'Tasks returned.', schema: ApiSuccessSchema(PaginatedSchema(TaskResponseSchema)) })
@@ -320,23 +332,41 @@ export class TasksController {
     @Query('type') type?: TaskType,
     @Query('status') status?: TaskStatus,
     @Query('goalId') goalId?: string,
-    @Query('date') dateStr?: string,
+    @Query('startDate') startDateStr?: string,
+    @Query('endDate') endDateStr?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
   ): Promise<ApiResponseType<PaginatedResponse<TaskResponse>>> {
     const { sub: userId } = req.user as TokenPayload;
     const pagination = parsePagination(page, limit);
-    let scheduledFor: Date | undefined;
-    if (dateStr) {
-      const parsed = new Date(dateStr);
+
+    let dateFrom: Date | undefined;
+    let dateTo: Date | null | undefined;
+
+    if (startDateStr) {
+      const parsed = new Date(startDateStr);
       if (isNaN(parsed.getTime())) {
-        throw new BadRequestException('Invalid date format. Use YYYY-MM-DD.');
+        throw new BadRequestException("'startDate' must be in YYYY-MM-DD format.");
       }
-      scheduledFor = parsed;
+      dateFrom = parsed;
+
+      if (endDateStr !== undefined) {
+        if (endDateStr === 'Infinity') {
+          dateTo = null; // open-ended
+        } else {
+          const parsedEnd = new Date(endDateStr);
+          if (isNaN(parsedEnd.getTime())) {
+            throw new BadRequestException("'endDate' must be YYYY-MM-DD or 'Infinity'.");
+          }
+          dateTo = parsedEnd;
+        }
+      }
+      // endDate not provided → dateTo stays undefined → single day
     }
+
     const { items, total, goalTitles } = await this.getTasksService.getByFilter(
       userId,
-      { type, status, goalId, scheduledFor },
+      { type, status, goalId, dateFrom, dateTo },
       pagination,
     );
     return paginated(
@@ -431,52 +461,6 @@ export class TasksController {
     return ok('Task retrieved successfully.', toTaskResponse(task, goalTitle));
   }
 
-  // ─── Complete (dedicated endpoint) ───────────────────────────────────────────────
-  // Must be registered BEFORE PATCH /:id to avoid route shadowing
-
-  @Patch(':id/complete')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Complete a task',
-    description:
-      'Marks the task as COMPLETED and computes efficiencyScore = ' +
-      'round((estimatedDuration / actualDuration) * 100). ' +
-      'If actualDuration is omitted, estimatedDuration is used as a placeholder ' +
-      'until Phase 4 (Sessions) backfills the real value. ' +
-      'Triggers an async goal progress recomputation job if the task is linked to a goal.',
-  })
-  @ApiParam({ name: 'id', description: 'Task ID' })
-  @ApiBody({
-    description: 'Body is optional — send an empty object {} if you have no actual duration yet.',
-    schema: {
-      type: 'object',
-      properties: {
-        actualDuration: { type: 'integer', minimum: 1, example: 3400000, description: 'Actual time spent in milliseconds. Falls back to session-backfilled value, then estimatedDuration, if omitted.' },
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Task completed.', schema: ApiSuccessSchema(TaskResponseSchema) })
-  @ApiResponse({
-    status: 400,
-    description: 'Task cannot be completed from its current status.',
-  })
-  @ApiResponse({ status: 403, description: 'Access denied.' })
-  @ApiResponse({ status: 404, description: 'Task not found.' })
-  async complete(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(CompleteTaskSchema)) dto: CompleteTaskDto,
-  ): Promise<ApiResponseType<TaskResponse>> {
-    const { sub: userId } = req.user as TokenPayload;
-    const task = await this.completeTaskService.execute(
-      id,
-      userId,
-      dto.actualDuration,
-    );
-    const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
-    return ok('Task completed successfully.', toTaskResponse(task, goalTitle));
-  }
-
   // ─── Update ──────────────────────────────────────────────────────────────────────
 
   @Patch(':id')
@@ -485,8 +469,10 @@ export class TasksController {
     summary: 'Update a task',
     description:
       'Partial update. Status machine: PENDING→IN_PROGRESS|CANCELLED, ' +
-      'IN_PROGRESS→PENDING|CANCELLED. ' +
-      'To complete a task use PATCH /tasks/:id/complete.',
+      'IN_PROGRESS→PENDING|COMPLETED|CANCELLED, ' +
+      'COMPLETED→PENDING. ' +
+      'When setting status to COMPLETED, efficiencyScore is computed from actualDuration ' +
+      '(falls back to session-backfilled value, then estimatedDuration).',
   })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiBody({
@@ -497,11 +483,13 @@ export class TasksController {
         title: { type: 'string', maxLength: 200, example: 'Write integration tests' },
         description: { type: 'string', maxLength: 1000, nullable: true, example: null },
         priority: { type: 'string', enum: Object.values(TaskPriority), example: TaskPriority.MEDIUM },
-        status: { type: 'string', enum: ['PENDING', 'IN_PROGRESS', 'CANCELLED'], example: 'IN_PROGRESS', description: 'PENDING↔IN_PROGRESS, either→CANCELLED. Use /complete to mark COMPLETED.' },
+        status: { type: 'string', enum: Object.values(TaskStatus), example: 'IN_PROGRESS', description: 'See state machine in description.' },
         scheduledFor: { type: 'string', nullable: true, example: '2026-05-09', description: 'YYYY-MM-DD or ISO 8601; null to clear' },
         estimatedEndDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
         startDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
+        completedAt: { type: 'string', example: '2026-05-18T14:30:00.000Z', description: 'ISO 8601 — required when status is COMPLETED' },
         estimatedDuration: { type: 'integer', minimum: 1, maximum: 86400000, example: 5400000, description: 'milliseconds; max 24 h' },
+        actualDuration: { type: 'integer', minimum: 1, example: 3400000, description: 'milliseconds — used when completing a task to compute efficiencyScore' },
       },
     },
   })
@@ -515,7 +503,7 @@ export class TasksController {
     @Body(new ZodValidationPipe(UpdateTaskSchema)) dto: UpdateTaskDto,
   ): Promise<ApiResponseType<TaskResponse>> {
     const { sub: userId } = req.user as TokenPayload;
-    const task = await this.updateTaskService.execute(id, userId, dto);
+    const task = await this.updateTaskService.execute(id, userId, dto as UpdateTaskInput);
     const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
     return ok('Task updated successfully.', toTaskResponse(task, goalTitle));
   }

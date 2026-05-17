@@ -42,15 +42,9 @@ export interface DailyTaskSummary {
   scheduledFor: Date | null;
   estimatedDuration: number;
   actualDuration: number | null;
-  /**
-   * >100 = faster than estimated, <100 = over-run.
-   * null until the task is completed.
-   */
-  efficiencyScore: number | null;
   completedAt: Date | null;
-  goalId: string | null;
-  /** Goal title resolved from goalId; null for tasks not linked to a goal. */
-  goalTitle: string | null;
+  goal: { id: string | null; title: string | null };
+  analytics: { efficiencyScore: number | null };
 }
 
 export interface PagedTasks {
@@ -165,10 +159,9 @@ export class GetTasksService {
       scheduledFor: task.scheduledFor,
       estimatedDuration: task.estimatedDuration,
       actualDuration: task.actualDuration,
-      efficiencyScore: task.efficiencyScore,
       completedAt: task.completedAt,
-      goalId: task.goalId,
-      goalTitle: task.goalId ? (goalTitles.get(task.goalId) ?? null) : null,
+      goal: { id: task.goalId, title: task.goalId ? (goalTitles.get(task.goalId) ?? null) : null },
+      analytics: { efficiencyScore: task.efficiencyScore },
     };
   }
 

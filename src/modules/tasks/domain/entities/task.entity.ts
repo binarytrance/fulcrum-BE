@@ -17,7 +17,6 @@ export class Task {
   private readonly _scheduledFor: TaskFields['scheduledFor'];
   private readonly _estimatedEndDate: TaskFields['estimatedEndDate'];
   private readonly _startDate: TaskFields['startDate'];
-  private readonly _actualEndDate: TaskFields['actualEndDate'];
   private readonly _estimatedDuration: TaskFields['estimatedDuration'];
   private readonly _actualDuration: TaskFields['actualDuration'];
   private readonly _efficiencyScore: TaskFields['efficiencyScore'];
@@ -39,7 +38,6 @@ export class Task {
     this._scheduledFor = fields.scheduledFor;
     this._estimatedEndDate = fields.estimatedEndDate;
     this._startDate = fields.startDate;
-    this._actualEndDate = fields.actualEndDate;
     this._estimatedDuration = fields.estimatedDuration;
     this._actualDuration = fields.actualDuration;
     this._efficiencyScore = fields.efficiencyScore;
@@ -83,9 +81,6 @@ export class Task {
   get startDate() {
     return this._startDate;
   }
-  get actualEndDate() {
-    return this._actualEndDate;
-  }
   get estimatedDuration() {
     return this._estimatedDuration;
   }
@@ -124,7 +119,6 @@ export class Task {
       scheduledFor: this._scheduledFor,
       estimatedEndDate: this._estimatedEndDate,
       startDate: this._startDate,
-      actualEndDate: this._actualEndDate,
       estimatedDuration: this._estimatedDuration,
       actualDuration: this._actualDuration,
       efficiencyScore: this._efficiencyScore,
@@ -156,11 +150,6 @@ export class Task {
     >,
   ): Task {
     if (fields.status !== undefined && fields.status !== this._status) {
-      if (fields.status === TaskStatus.COMPLETED) {
-        throw new BadRequestException(
-          'Use the /complete endpoint to complete a task.',
-        );
-      }
       const allowed = TASK_STATUS_TRANSITIONS[this._status];
       if (!allowed.includes(fields.status)) {
         throw new BadRequestException(
@@ -177,7 +166,7 @@ export class Task {
    * Computes efficiencyScore = round((estimatedDuration / actualDuration) * 100).
    * A score > 100 means the user finished faster than estimated.
    */
-  complete(actualDuration: number): Task {
+  complete(actualDuration: number, completedAt: Date): Task {
     const allowed = TASK_STATUS_TRANSITIONS[this._status];
     if (!allowed.includes(TaskStatus.COMPLETED)) {
       throw new BadRequestException(
@@ -187,15 +176,13 @@ export class Task {
     const efficiencyScore = Math.round(
       (this._estimatedDuration / actualDuration) * 100,
     );
-    const now = new Date();
     return new Task({
       ...this.toFields(),
       status: TaskStatus.COMPLETED,
       actualDuration,
       efficiencyScore,
-      completedAt: now,
-      actualEndDate: now,
-      updatedAt: now,
+      completedAt,
+      updatedAt: new Date(),
     });
   }
 
@@ -204,7 +191,6 @@ export class Task {
     return new Task({
       ...this.toFields(),
       deletedAt: now,
-      actualEndDate: now,
       updatedAt: now,
     });
   }
@@ -219,7 +205,6 @@ export class Task {
       | 'completedAt'
       | 'deletedAt'
       | 'startDate'
-      | 'actualEndDate'
     >,
   ): Task {
     const now = new Date();
@@ -230,7 +215,6 @@ export class Task {
       completedAt: null,
       deletedAt: null,
       startDate: null,
-      actualEndDate: null,
       createdAt: now,
       updatedAt: now,
     });

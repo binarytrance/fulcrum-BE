@@ -19,6 +19,15 @@ import {
   HABIT_CAPACITY_PORT,
   type IHabitCapacityPort,
 } from '@tasks/domain/ports/habit-capacity.port';
+import {
+  TASK_EVENT_PUBLISHER_PORT,
+  type ITaskEventPublisher,
+} from '@tasks/domain/ports/task-event-publisher.port';
+import { TaskCompletedEvent } from '@tasks/domain/events/task-completed.event';
+import {
+  APP_STREAK_EVENT_PUBLISHER_PORT,
+  type IAppStreakEventPublisher,
+} from '@users/domain/ports/app-streak-event-publisher.port';
 
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 
@@ -31,6 +40,8 @@ export interface UpdateTaskInput {
   startDate?: Date | null;
   estimatedDuration?: number;
   status?: TaskStatus;
+  actualDuration?: number;
+  completedAt?: Date;
 }
 
 @Injectable()
@@ -42,6 +53,10 @@ export class UpdateTaskService {
     private readonly taskCache: ITaskCachePort,
     @Inject(HABIT_CAPACITY_PORT)
     private readonly habitCapacity: IHabitCapacityPort,
+    @Inject(TASK_EVENT_PUBLISHER_PORT)
+    private readonly taskEventPublisher: ITaskEventPublisher,
+    @Inject(APP_STREAK_EVENT_PUBLISHER_PORT)
+    private readonly appStreakPublisher: IAppStreakEventPublisher,
   ) {}
 
   async execute(
@@ -61,8 +76,8 @@ export class UpdateTaskService {
       input.estimatedDuration !== undefined &&
       input.estimatedDuration !== task.estimatedDuration;
 
-    // Re-check 24h cap whenever duration or scheduled date changes.
-    if (durationChanged || scheduledForChanged) {
+    // Re-check 24h cap whenever duration or scheduled date changes (skip on completion).
+    if ((durationChanged || scheduledForChanged) && input.status !== TaskStatus.COMPLETED) {
       const newDuration = input.estimatedDuration ?? task.estimatedDuration;
 
       if (newDuration >= MAX_DURATION_MS) {
@@ -92,17 +107,27 @@ export class UpdateTaskService {
       }
     }
 
-    // entity.update() enforces the status state machine
-    // and blocks direct transition to COMPLETED (use /complete endpoint)
+    if (input.status === TaskStatus.COMPLETED) {
+      const duration = input.actualDuration ?? task.actualDuration ?? task.estimatedDuration;
+      const completed = task.complete(duration, input.completedAt as Date);
+      await this.taskRepo.update(completed);
+      await this.taskCache.invalidate(userId, task.scheduledFor);
+      await this.taskEventPublisher.publish(
+        new TaskCompletedEvent(taskId, userId, task.goalId, task.habitId ?? null),
+      );
+      await this.appStreakPublisher.publishActivityRecorded(
+        userId,
+        new Date().toISOString().slice(0, 10),
+      );
+      return completed;
+    }
+
     const updated = task.update(input);
     await this.taskRepo.update(updated);
-
-    // Invalidate both old and new scheduled dates if date changed
     await this.taskCache.invalidate(userId, task.scheduledFor);
     if (scheduledForChanged) {
       await this.taskCache.invalidate(userId, input.scheduledFor ?? null);
     }
-
     return updated;
   }
 }

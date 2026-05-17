@@ -5,7 +5,6 @@ import { TasksController } from '@tasks/presentation/controllers/tasks.controlle
 
 import { CreateTaskService } from '@tasks/application/services/create-task.service';
 import { UpdateTaskService } from '@tasks/application/services/update-task.service';
-import { CompleteTaskService } from '@tasks/application/services/complete-task.service';
 import { DeleteTaskService } from '@tasks/application/services/delete-task.service';
 import { GetTasksService } from '@tasks/application/services/get-tasks.service';
 
@@ -49,7 +48,6 @@ import { UserWorkersModule } from '@users/infrastructure/workers/user-workers.mo
     { provide: TASK_CACHE_PORT, useExisting: TaskCacheService },
     CreateTaskService,
     UpdateTaskService,
-    CompleteTaskService,
     DeleteTaskService,
     GetTasksService,
   ],

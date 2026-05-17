@@ -49,10 +49,6 @@ export class Task {
   @Prop({ type: Date, default: null })
   startDate!: Date | null;
 
-  /** Date the task was completed or cancelled; null = still in progress */
-  @Prop({ type: Date, default: null })
-  actualEndDate!: Date | null;
-
   /** Time-box set at creation, in milliseconds */
   @Prop({ type: Number, required: true, min: 1000 })
   estimatedDuration!: number;

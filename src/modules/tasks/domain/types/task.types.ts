@@ -57,8 +57,6 @@ export interface TaskFields {
   estimatedEndDate: Date | null;
   /** Actual date the user started working; null = not yet started */
   startDate: Date | null;
-  /** Date the task was completed or cancelled; null = still in progress */
-  actualEndDate: Date | null;
   /** Time-box the user sets upfront, in milliseconds */
   estimatedDuration: number;
   /** In milliseconds, sum of session durations on completion (Phase 4: sessions) */
