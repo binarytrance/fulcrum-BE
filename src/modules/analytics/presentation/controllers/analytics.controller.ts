@@ -32,6 +32,7 @@ import { GetDashboardService } from '@analytics/application/services/get-dashboa
 
 import {
   ok,
+  ApiSuccessSchema,
   type ApiResponse as ApiResponseType,
 } from '@shared/presentation/responses/api-response';
 
@@ -41,250 +42,22 @@ import type { WeeklyAnalytics } from '@analytics/domain/entities/weekly-analytic
 import type { MonthlyAnalytics } from '@analytics/domain/entities/monthly-analytics.entity';
 import type { EstimationProfile } from '@analytics/domain/entities/estimation-profile.entity';
 import type { DashboardResult } from '@analytics/application/services/get-dashboard.service';
-import { USER_REPO_PORT, type IUserRepository } from '@users/domain/ports/user-rep.port';
+import {
+  USER_REPO_PORT,
+  type IUserRepository,
+} from '@users/domain/ports/user-rep.port';
 import type { AppStreak } from '@users/domain/types/user.types';
 
-// ─── Swagger schema helpers ───────────────────────────────────────────────────
-
-const ApiSuccessSchema = (dataSchema?: object) => ({
-  type: 'object',
-  properties: {
-    success: { type: 'boolean', example: true },
-    message: { type: 'string' },
-    ...(dataSchema ? { data: dataSchema } : {}),
-  },
-});
-
-const TimeleakSchema = {
-  type: 'object',
-  properties: {
-    startTime: { type: 'string', example: '10:30', description: 'HH:MM — when previous session ended' },
-    endTime: { type: 'string', example: '11:15', description: 'HH:MM — when next session started' },
-    gapMinutes: { type: 'integer', example: 45 },
-  },
-};
-
-const DailyAnalyticsSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    userId: { type: 'string' },
-    date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
-    totalLoggedMinutes: { type: 'number', example: 240 },
-    netFocusMinutes: { type: 'number', example: 200 },
-    deepWorkMinutes: { type: 'number', example: 120 },
-    shallowWorkMinutes: { type: 'number', example: 80 },
-    sessionCount: { type: 'integer', example: 3 },
-    totalDistractions: { type: 'integer', example: 5 },
-    totalDistractionMinutes: { type: 'number', example: 40 },
-    avgDistractionPerSession: { type: 'number', example: 1.7 },
-    totalTaskCount: { type: 'integer', example: 8 },
-    plannedTaskCount: { type: 'integer', example: 5 },
-    unplannedTaskCount: { type: 'integer', example: 3 },
-    completedTaskCount: { type: 'integer', example: 6 },
-    unplannedPercent: { type: 'number', example: 37.5, description: '0–100' },
-    taskCompletionRate: { type: 'number', example: 75, description: '0–100' },
-    totalHabitCount: { type: 'integer', example: 3 },
-    completedHabitCount: { type: 'integer', example: 2 },
-    skippedHabitCount: { type: 'integer', example: 1 },
-    missedHabitCount: { type: 'integer', example: 0 },
-    habitCompletionRate: { type: 'number', example: 66.7, description: '0–100' },
-    avgEfficiencyScore: { type: 'number', nullable: true, example: 105 },
-    timeLeaks: { type: 'array', items: TimeleakSchema },
-    computedAt: { type: 'string', format: 'date-time' },
-  },
-};
-
-const GoalBreakdownSchema = {
-  type: 'object',
-  properties: {
-    goalId: { type: 'string' },
-    goalTitle: { type: 'string', example: 'Learn TypeScript' },
-    minutesLogged: { type: 'integer', example: 120 },
-  },
-};
-
-const DayMinutesSchema = {
-  type: 'object',
-  nullable: true,
-  properties: {
-    date: { type: 'string', example: '2026-05-05', description: 'YYYY-MM-DD' },
-    minutes: { type: 'integer', example: 180 },
-  },
-};
-
-const WeeklyAnalyticsSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    userId: { type: 'string' },
-    weekStart: { type: 'string', example: '2026-05-04', description: 'YYYY-MM-DD — Monday of the week' },
-    totalLoggedMinutes: { type: 'number', example: 960 },
-    netFocusMinutes: { type: 'number', example: 840 },
-    deepWorkMinutes: { type: 'number', example: 480 },
-    totalSessions: { type: 'integer', example: 14 },
-    totalCompletedTasks: { type: 'integer', example: 22 },
-    avgDailyMinutes: { type: 'number', example: 137 },
-    bestDay: DayMinutesSchema,
-    worstDay: DayMinutesSchema,
-    timeLeaksIdentified: { type: 'integer', example: 3 },
-    goalBreakdown: { type: 'array', items: GoalBreakdownSchema },
-    computedAt: { type: 'string', format: 'date-time' },
-  },
-};
-
-const MonthlyAnalyticsSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    userId: { type: 'string' },
-    monthStart: { type: 'string', example: '2026-05-01', description: 'YYYY-MM-01' },
-    monthEnd: { type: 'string', example: '2026-05-31', description: 'YYYY-MM-DD' },
-    totalLoggedMinutes: { type: 'number', example: 4200 },
-    netFocusMinutes: { type: 'number', example: 3600 },
-    deepWorkMinutes: { type: 'number', example: 2000 },
-    totalSessions: { type: 'integer', example: 60 },
-    totalCompletedTasks: { type: 'integer', example: 90 },
-    avgDailyMinutes: { type: 'number', example: 140 },
-    bestDay: DayMinutesSchema,
-    worstDay: DayMinutesSchema,
-    timeLeaksIdentified: { type: 'integer', example: 12 },
-    goalBreakdown: { type: 'array', items: GoalBreakdownSchema },
-    computedAt: { type: 'string', format: 'date-time' },
-  },
-};
-
-const GoalAnalyticsSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    goalId: { type: 'string' },
-    userId: { type: 'string' },
-    goalTitle: { type: 'string', example: 'Learn TypeScript' },
-    totalLoggedMinutes: { type: 'number', example: 840 },
-    taskCount: { type: 'integer', example: 12 },
-    completedTaskCount: { type: 'integer', example: 7 },
-    completionPercent: { type: 'number', example: 58, description: '0–100' },
-    avgEfficiencyScore: { type: 'number', nullable: true, example: 102 },
-    consistencyScore: { type: 'number', example: 75, description: '0–100 — % of last 12 weeks with ≥1 session' },
-    weeklyAvgMinutes: { type: 'number', example: 70 },
-    projectedCompletionDate: { type: 'string', format: 'date-time', nullable: true, example: '2026-11-15T00:00:00.000Z' },
-    isOnTrack: { type: 'boolean', nullable: true, example: true },
-    lastComputedAt: { type: 'string', format: 'date-time' },
-  },
-};
-
-const AccuracyEntrySchema = {
-  type: 'object',
-  properties: {
-    taskId: { type: 'string' },
-    date: { type: 'string', format: 'date-time' },
-    estimated: { type: 'integer', example: 3600000, description: 'milliseconds' },
-    actual: { type: 'integer', example: 3400000, description: 'milliseconds' },
-    accuracy: { type: 'integer', example: 106, description: '>100 = finished faster than estimated' },
-  },
-};
-
-const EstimationProfileSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    userId: { type: 'string' },
-    recentAccuracies: { type: 'array', items: AccuracyEntrySchema, description: 'Last 30 completions, newest first' },
-    rollingAverage: { type: 'number', nullable: true, example: 103 },
-    trend: { type: 'string', enum: ['IMPROVING', 'DECLINING', 'STABLE'], nullable: true, example: 'STABLE' },
-    updatedAt: { type: 'string', format: 'date-time' },
-  },
-};
-
-const DashboardResultSchema = {
-  type: 'object',
-  properties: {
-    today: { ...DailyAnalyticsSchema, nullable: true, description: 'null if no session/task logged today yet' },
-    thisWeek: { ...WeeklyAnalyticsSchema, nullable: true, description: 'null if no activity this week yet' },
-    goals: { type: 'array', items: GoalAnalyticsSchema },
-    estimation: { ...EstimationProfileSchema, nullable: true, description: 'null if no tasks completed yet' },
-  },
-};
-
-const GroupedDailyAnalyticsSchema = {
-  type: 'object',
-  properties: {
-    id: { type: 'string' },
-    userId: { type: 'string' },
-    date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
-    computedAt: { type: 'string', format: 'date-time' },
-    focusSessions: {
-      type: 'object',
-      properties: {
-        sessionCount: { type: 'integer', example: 3 },
-        totalLoggedMinutes: { type: 'number', example: 240 },
-        netFocusMinutes: { type: 'number', example: 200 },
-        deepWorkMinutes: { type: 'number', example: 120 },
-        shallowWorkMinutes: { type: 'number', example: 80 },
-        totalDistractions: { type: 'integer', example: 5 },
-        totalDistractionMinutes: { type: 'number', example: 40 },
-        avgDistractionPerSession: { type: 'number', example: 1.7 },
-        avgEfficiencyScore: { type: 'number', nullable: true, example: 105 },
-        timeLeaks: { type: 'array', items: TimeleakSchema },
-      },
-    },
-    tasks: {
-      type: 'object',
-      properties: {
-        totalTaskCount: { type: 'integer', example: 8 },
-        plannedTaskCount: { type: 'integer', example: 5 },
-        unplannedTaskCount: { type: 'integer', example: 3 },
-        completedTaskCount: { type: 'integer', example: 6 },
-        unplannedPercent: {
-          type: 'number',
-          example: 37.5,
-          description: '0–100',
-        },
-        taskCompletionRate: {
-          type: 'number',
-          example: 75,
-          description: '0–100',
-        },
-      },
-    },
-    habits: {
-      type: 'object',
-      properties: {
-        totalHabitCount: { type: 'integer', example: 3 },
-        completedHabitCount: { type: 'integer', example: 2 },
-        skippedHabitCount: { type: 'integer', example: 1 },
-        missedHabitCount: { type: 'integer', example: 0 },
-        habitCompletionRate: {
-          type: 'number',
-          example: 66.7,
-          description: '0–100',
-        },
-      },
-    },
-    appStreak: {
-      type: 'object',
-      properties: {
-        current: {
-          type: 'integer',
-          example: 7,
-          description: 'Consecutive active days. 0 if streak is broken.',
-        },
-        longest: {
-          type: 'integer',
-          example: 21,
-          description: 'All-time longest streak.',
-        },
-        lastActiveDate: {
-          type: 'string',
-          format: 'date',
-          example: '2026-05-10',
-          nullable: true,
-        },
-      },
-    },
-  },
-};
+import {
+  DailyAnalyticsSchema,
+  WeeklyAnalyticsSchema,
+  MonthlyAnalyticsSchema,
+  GoalAnalyticsSchema,
+  EstimationProfileSchema,
+  DashboardResultSchema,
+  GroupedDailyAnalyticsSchema,
+  toGroupedDailyResponse,
+} from '@analytics/presentation/dtos/analytics-response.schemas';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -296,43 +69,6 @@ function parseDate(raw: string | undefined, label: string): string {
     throw new BadRequestException(`'${label}' must be in YYYY-MM-DD format.`);
   }
   return raw;
-}
-
-function toGroupedDailyResponse(a: DailyAnalytics, appStreak: AppStreak) {
-  return {
-    id: a.id,
-    userId: a.userId,
-    date: a.date,
-    computedAt: a.computedAt,
-    focusSessions: {
-      sessionCount: a.sessionCount,
-      totalLoggedMinutes: a.totalLoggedMinutes,
-      netFocusMinutes: a.netFocusMinutes,
-      deepWorkMinutes: a.deepWorkMinutes,
-      shallowWorkMinutes: a.shallowWorkMinutes,
-      totalDistractions: a.totalDistractions,
-      totalDistractionMinutes: a.totalDistractionMinutes,
-      avgDistractionPerSession: a.avgDistractionPerSession,
-      avgEfficiencyScore: a.avgEfficiencyScore,
-      timeLeaks: a.timeLeaks,
-    },
-    tasks: {
-      totalTaskCount: a.totalTaskCount,
-      plannedTaskCount: a.plannedTaskCount,
-      unplannedTaskCount: a.unplannedTaskCount,
-      completedTaskCount: a.completedTaskCount,
-      unplannedPercent: a.unplannedPercent,
-      taskCompletionRate: a.taskCompletionRate,
-    },
-    habits: {
-      totalHabitCount: a.totalHabitCount,
-      completedHabitCount: a.completedHabitCount,
-      skippedHabitCount: a.skippedHabitCount,
-      missedHabitCount: a.missedHabitCount,
-      habitCompletionRate: a.habitCompletionRate,
-    },
-    appStreak,
-  };
 }
 
 /** Validates YYYY-MM format */
@@ -369,7 +105,11 @@ export class AnalyticsController {
     description:
       "Returns today's daily analytics, current week's weekly analytics, all goal analytics, and the estimation accuracy profile in one call. Any section that hasn't been computed yet is returned as null / empty array.",
   })
-  @ApiResponse({ status: 200, description: 'Dashboard data returned.', schema: ApiSuccessSchema(DashboardResultSchema) })
+  @ApiResponse({
+    status: 200,
+    description: 'Dashboard data returned.',
+    schema: ApiSuccessSchema(DashboardResultSchema),
+  })
   async dashboard(
     @Req() req: Request,
   ): Promise<ApiResponseType<DashboardResult>> {
@@ -398,7 +138,10 @@ export class AnalyticsController {
     description: 'Daily analytics returned.',
     schema: ApiSuccessSchema(GroupedDailyAnalyticsSchema),
   })
-  @ApiResponse({ status: 404, description: 'No analytics found for this date.' })
+  @ApiResponse({
+    status: 404,
+    description: 'No analytics found for this date.',
+  })
   async getDaily(
     @Req() req: Request,
     @Query('date') dateStr?: string,
@@ -417,15 +160,27 @@ export class AnalyticsController {
       d.setUTCDate(d.getUTCDate() - 1);
       return d.toISOString().slice(0, 10);
     })();
-    const raw = user?.appStreak ?? { current: 0, longest: 0, lastActiveDate: null };
-    const isLive = raw.lastActiveDate === today || raw.lastActiveDate === yesterday;
+    const streak = (
+      user as {
+        appStreak?: {
+          current: number;
+          longest: number;
+          lastActiveDate: string | null;
+        };
+      } | null
+    )?.appStreak;
+    const lastActive = streak?.lastActiveDate ?? null;
+    const isLive = lastActive === today || lastActive === yesterday;
     const appStreak: AppStreak = {
-      current: isLive ? raw.current : 0,
-      longest: raw.longest,
-      lastActiveDate: raw.lastActiveDate,
+      current: isLive ? (streak?.current ?? 0) : 0,
+      longest: streak?.longest ?? 0,
+      lastActiveDate: lastActive,
     };
 
-    return ok('Daily analytics retrieved.', toGroupedDailyResponse(analytics, appStreak));
+    return ok(
+      'Daily analytics retrieved.',
+      toGroupedDailyResponse(analytics, appStreak),
+    );
   }
 
   @Get('daily/range')
@@ -447,7 +202,11 @@ export class AnalyticsController {
     example: '2026-03-01',
     description: 'YYYY-MM-DD',
   })
-  @ApiResponse({ status: 200, description: 'Date range analytics returned.', schema: ApiSuccessSchema({ type: 'array', items: DailyAnalyticsSchema }) })
+  @ApiResponse({
+    status: 200,
+    description: 'Date range analytics returned.',
+    schema: ApiSuccessSchema({ type: 'array', items: DailyAnalyticsSchema }),
+  })
   async getDailyRange(
     @Req() req: Request,
     @Query('startDate') startDateStr?: string,
@@ -479,7 +238,11 @@ export class AnalyticsController {
     example: '2026-02-23',
     description: 'YYYY-MM-DD — Monday of the target week',
   })
-  @ApiResponse({ status: 200, description: 'Weekly analytics returned.', schema: ApiSuccessSchema(WeeklyAnalyticsSchema) })
+  @ApiResponse({
+    status: 200,
+    description: 'Weekly analytics returned.',
+    schema: ApiSuccessSchema(WeeklyAnalyticsSchema),
+  })
   @ApiResponse({
     status: 404,
     description: 'No analytics found for this week.',
@@ -539,7 +302,11 @@ export class AnalyticsController {
     example: '2026-03',
     description: 'YYYY-MM',
   })
-  @ApiResponse({ status: 200, description: 'Monthly analytics returned.', schema: ApiSuccessSchema(MonthlyAnalyticsSchema) })
+  @ApiResponse({
+    status: 200,
+    description: 'Monthly analytics returned.',
+    schema: ApiSuccessSchema(MonthlyAnalyticsSchema),
+  })
   @ApiResponse({
     status: 404,
     description: 'No analytics found for this month.',
@@ -591,7 +358,11 @@ export class AnalyticsController {
   @ApiOperation({
     summary: 'Get analytics for all goals of the authenticated user',
   })
-  @ApiResponse({ status: 200, description: 'Goal analytics list returned.', schema: ApiSuccessSchema({ type: 'array', items: GoalAnalyticsSchema }) })
+  @ApiResponse({
+    status: 200,
+    description: 'Goal analytics list returned.',
+    schema: ApiSuccessSchema({ type: 'array', items: GoalAnalyticsSchema }),
+  })
   async getAllGoals(
     @Req() req: Request,
   ): Promise<ApiResponseType<GoalAnalytics[]>> {
@@ -608,7 +379,11 @@ export class AnalyticsController {
       'Includes total logged minutes, efficiency, consistency score (% of last 12 weeks with ≥1 session), and a projected completion date based on current pacing.',
   })
   @ApiParam({ name: 'goalId', description: 'Goal ID' })
-  @ApiResponse({ status: 200, description: 'Goal analytics returned.', schema: ApiSuccessSchema(GoalAnalyticsSchema) })
+  @ApiResponse({
+    status: 200,
+    description: 'Goal analytics returned.',
+    schema: ApiSuccessSchema(GoalAnalyticsSchema),
+  })
   @ApiResponse({
     status: 404,
     description: 'No analytics found for this goal.',
@@ -629,7 +404,11 @@ export class AnalyticsController {
     description:
       'Returns the last 30 task completions with estimated vs actual duration, a rolling average accuracy score (>100 = consistently finishing faster, <100 = consistently over-running), and a trend (IMPROVING / DECLINING / STABLE).',
   })
-  @ApiResponse({ status: 200, description: 'Estimation profile returned.', schema: ApiSuccessSchema(EstimationProfileSchema) })
+  @ApiResponse({
+    status: 200,
+    description: 'Estimation profile returned.',
+    schema: ApiSuccessSchema(EstimationProfileSchema),
+  })
   @ApiResponse({
     status: 404,
     description: 'No profile yet — complete at least one task.',

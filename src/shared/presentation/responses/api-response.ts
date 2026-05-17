@@ -16,6 +16,15 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+export const ApiSuccessSchema = (dataSchema?: object) => ({
+  type: 'object',
+  properties: {
+    success: { type: 'boolean', example: true },
+    message: { type: 'string' },
+    ...(dataSchema ? { data: dataSchema } : {}),
+  },
+});
+
 export function paginated<T>(
   message: string,
   items: T[],
