@@ -89,8 +89,13 @@ const TaskResponseSchema = {
   properties: {
     id: { type: 'string', example: 'tsk_abc123' },
     userId: { type: 'string', example: 'user_xyz' },
-    goalId: { type: 'string', nullable: true, example: null },
-    goalTitle: { type: 'string', nullable: true, example: 'Learn TypeScript' },
+    goal: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', nullable: true, example: null },
+        title: { type: 'string', nullable: true, example: 'Learn TypeScript' },
+      },
+    },
     title: { type: 'string', example: 'Write unit tests' },
     description: { type: 'string', nullable: true, example: null },
     status: { type: 'string', enum: Object.values(TaskStatus), example: TaskStatus.PENDING },
@@ -102,7 +107,12 @@ const TaskResponseSchema = {
     actualEndDate: { type: 'string', format: 'date-time', nullable: true, example: null },
     estimatedDuration: { type: 'integer', example: 3600000, description: 'milliseconds' },
     actualDuration: { type: 'integer', nullable: true, example: null, description: 'milliseconds' },
-    efficiencyScore: { type: 'number', nullable: true, example: null, description: '>100 faster than estimated, <100 over-run' },
+    analytics: {
+      type: 'object',
+      properties: {
+        efficiencyScore: { type: 'number', nullable: true, example: null, description: '>100 faster than estimated, <100 over-run' },
+      },
+    },
     completedAt: { type: 'string', format: 'date-time', nullable: true, example: null },
     createdAt: { type: 'string', format: 'date-time' },
     updatedAt: { type: 'string', format: 'date-time' },
@@ -120,10 +130,20 @@ const DailyTaskSummarySchema = {
     scheduledFor: { type: 'string', format: 'date-time', nullable: true },
     estimatedDuration: { type: 'integer', example: 3600000, description: 'milliseconds' },
     actualDuration: { type: 'integer', nullable: true, example: null, description: 'milliseconds' },
-    efficiencyScore: { type: 'number', nullable: true, example: null },
     completedAt: { type: 'string', format: 'date-time', nullable: true },
-    goalId: { type: 'string', nullable: true, example: null },
-    goalTitle: { type: 'string', nullable: true, example: null },
+    goal: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', nullable: true, example: null },
+        title: { type: 'string', nullable: true, example: null },
+      },
+    },
+    analytics: {
+      type: 'object',
+      properties: {
+        efficiencyScore: { type: 'number', nullable: true, example: null, description: '>100 faster than estimated, <100 over-run' },
+      },
+    },
   },
 };
 
@@ -167,25 +187,19 @@ function parsePagination(page?: string, limit?: string) {
 interface TaskResponse {
   id: string;
   userId: string;
-  goalId: string | null;
-  goalTitle: string | null;
+  goal: { id: string | null; title: string | null };
   title: string;
   description: string | null;
   status: TaskStatus;
   priority: TaskPriority;
   type: TaskType;
   scheduledFor: Date | null;
-  /** Planned end date for the task; null = no target date set */
   estimatedEndDate: Date | null;
-  /** Actual date the user started working; null = not yet started */
   startDate: Date | null;
-  /** Date the task was completed or cancelled; null = still in progress */
   actualEndDate: Date | null;
-  /** Time-box the user set upfront, in milliseconds */
   estimatedDuration: number;
-  /** Actual time spent on the task, in milliseconds */
   actualDuration: number | null;
-  efficiencyScore: number | null;
+  analytics: { efficiencyScore: number | null };
   completedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -195,8 +209,7 @@ function toTaskResponse(task: Task, goalTitle: string | null): TaskResponse {
   return {
     id: task.id,
     userId: task.userId,
-    goalId: task.goalId,
-    goalTitle,
+    goal: { id: task.goalId, title: goalTitle },
     title: task.title,
     description: task.description,
     status: task.status,
@@ -208,7 +221,7 @@ function toTaskResponse(task: Task, goalTitle: string | null): TaskResponse {
     actualEndDate: task.actualEndDate,
     estimatedDuration: task.estimatedDuration,
     actualDuration: task.actualDuration,
-    efficiencyScore: task.efficiencyScore,
+    analytics: { efficiencyScore: task.efficiencyScore },
     completedAt: task.completedAt,
     createdAt: task.createdAt,
     updatedAt: task.updatedAt,
