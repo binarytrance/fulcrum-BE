@@ -34,18 +34,22 @@ export const UpdateTaskSchema = z
         message: 'estimatedDuration cannot exceed 24 hours (86400000 ms).',
       })
       .optional(),
-    /**
-     * Status transitions: PENDING ↔ IN_PROGRESS, either → CANCELLED.
-     * To complete a task use the dedicated PATCH /tasks/:id/complete endpoint.
-     */
     status: z
       .nativeEnum(TaskStatus, {
-        error: 'status must be PENDING, IN_PROGRESS, or CANCELLED',
+        error: 'status must be PENDING, IN_PROGRESS, COMPLETED, or CANCELLED',
       })
       .optional(),
+    /** Actual time spent in milliseconds — used to compute efficiencyScore when completing a task. Falls back to session-backfilled value then estimatedDuration if omitted. */
+    actualDuration: z.number().int().positive().optional(),
+    /** ISO 8601 datetime — required when status is COMPLETED. */
+    completedAt: flexDate.optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: 'At least one field must be provided for update.',
-  });
+  })
+  .refine(
+    (data) => data.status !== TaskStatus.COMPLETED || data.completedAt !== undefined,
+    { message: "'completedAt' is required when completing a task.", path: ['completedAt'] },
+  );
 
 export type UpdateTaskDto = z.infer<typeof UpdateTaskSchema>;

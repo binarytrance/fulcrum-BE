@@ -29,7 +29,6 @@ import type { TokenPayload } from '@auth/domain/types/token.types';
 
 import { CreateTaskService } from '@tasks/application/services/create-task.service';
 import { UpdateTaskService } from '@tasks/application/services/update-task.service';
-import { CompleteTaskService } from '@tasks/application/services/complete-task.service';
 import { DeleteTaskService } from '@tasks/application/services/delete-task.service';
 import {
   GetTasksService,
@@ -44,10 +43,6 @@ import {
   type UpdateTaskDto,
   UpdateTaskSchema,
 } from '@tasks/presentation/dtos/update-task.dto';
-import {
-  type CompleteTaskDto,
-  CompleteTaskSchema,
-} from '@tasks/presentation/dtos/complete-task.dto';
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
 import {
   ok,
@@ -56,6 +51,7 @@ import {
   type PaginatedResponse,
 } from '@shared/presentation/responses/api-response';
 import { Task } from '@tasks/domain/entities/task.entity';
+import type { UpdateTaskInput } from '@tasks/application/services/update-task.service';
 import {
   TaskPriority,
   TaskStatus,
@@ -104,7 +100,6 @@ const TaskResponseSchema = {
     scheduledFor: { type: 'string', format: 'date-time', nullable: true, example: '2026-05-08T09:00:00.000Z' },
     estimatedEndDate: { type: 'string', format: 'date-time', nullable: true, example: null },
     startDate: { type: 'string', format: 'date-time', nullable: true, example: null },
-    actualEndDate: { type: 'string', format: 'date-time', nullable: true, example: null },
     estimatedDuration: { type: 'integer', example: 3600000, description: 'milliseconds' },
     actualDuration: { type: 'integer', nullable: true, example: null, description: 'milliseconds' },
     analytics: {
@@ -196,7 +191,6 @@ interface TaskResponse {
   scheduledFor: Date | null;
   estimatedEndDate: Date | null;
   startDate: Date | null;
-  actualEndDate: Date | null;
   estimatedDuration: number;
   actualDuration: number | null;
   analytics: { efficiencyScore: number | null };
@@ -218,7 +212,6 @@ function toTaskResponse(task: Task, goalTitle: string | null): TaskResponse {
     scheduledFor: task.scheduledFor,
     estimatedEndDate: task.estimatedEndDate,
     startDate: task.startDate,
-    actualEndDate: task.actualEndDate,
     estimatedDuration: task.estimatedDuration,
     actualDuration: task.actualDuration,
     analytics: { efficiencyScore: task.efficiencyScore },
@@ -236,7 +229,6 @@ export class TasksController {
   constructor(
     private readonly createTaskService: CreateTaskService,
     private readonly updateTaskService: UpdateTaskService,
-    private readonly completeTaskService: CompleteTaskService,
     private readonly deleteTaskService: DeleteTaskService,
     private readonly getTasksService: GetTasksService,
   ) {}
@@ -469,52 +461,6 @@ export class TasksController {
     return ok('Task retrieved successfully.', toTaskResponse(task, goalTitle));
   }
 
-  // ─── Complete (dedicated endpoint) ───────────────────────────────────────────────
-  // Must be registered BEFORE PATCH /:id to avoid route shadowing
-
-  @Patch(':id/complete')
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: 'Complete a task',
-    description:
-      'Marks the task as COMPLETED and computes efficiencyScore = ' +
-      'round((estimatedDuration / actualDuration) * 100). ' +
-      'If actualDuration is omitted, estimatedDuration is used as a placeholder ' +
-      'until Phase 4 (Sessions) backfills the real value. ' +
-      'Triggers an async goal progress recomputation job if the task is linked to a goal.',
-  })
-  @ApiParam({ name: 'id', description: 'Task ID' })
-  @ApiBody({
-    description: 'Body is optional — send an empty object {} if you have no actual duration yet.',
-    schema: {
-      type: 'object',
-      properties: {
-        actualDuration: { type: 'integer', minimum: 1, example: 3400000, description: 'Actual time spent in milliseconds. Falls back to session-backfilled value, then estimatedDuration, if omitted.' },
-      },
-    },
-  })
-  @ApiResponse({ status: 200, description: 'Task completed.', schema: ApiSuccessSchema(TaskResponseSchema) })
-  @ApiResponse({
-    status: 400,
-    description: 'Task cannot be completed from its current status.',
-  })
-  @ApiResponse({ status: 403, description: 'Access denied.' })
-  @ApiResponse({ status: 404, description: 'Task not found.' })
-  async complete(
-    @Req() req: Request,
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(CompleteTaskSchema)) dto: CompleteTaskDto,
-  ): Promise<ApiResponseType<TaskResponse>> {
-    const { sub: userId } = req.user as TokenPayload;
-    const task = await this.completeTaskService.execute(
-      id,
-      userId,
-      dto.actualDuration,
-    );
-    const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
-    return ok('Task completed successfully.', toTaskResponse(task, goalTitle));
-  }
-
   // ─── Update ──────────────────────────────────────────────────────────────────────
 
   @Patch(':id')
@@ -523,8 +469,10 @@ export class TasksController {
     summary: 'Update a task',
     description:
       'Partial update. Status machine: PENDING→IN_PROGRESS|CANCELLED, ' +
-      'IN_PROGRESS→PENDING|CANCELLED. ' +
-      'To complete a task use PATCH /tasks/:id/complete.',
+      'IN_PROGRESS→PENDING|COMPLETED|CANCELLED, ' +
+      'COMPLETED→PENDING. ' +
+      'When setting status to COMPLETED, efficiencyScore is computed from actualDuration ' +
+      '(falls back to session-backfilled value, then estimatedDuration).',
   })
   @ApiParam({ name: 'id', description: 'Task ID' })
   @ApiBody({
@@ -535,11 +483,13 @@ export class TasksController {
         title: { type: 'string', maxLength: 200, example: 'Write integration tests' },
         description: { type: 'string', maxLength: 1000, nullable: true, example: null },
         priority: { type: 'string', enum: Object.values(TaskPriority), example: TaskPriority.MEDIUM },
-        status: { type: 'string', enum: ['PENDING', 'IN_PROGRESS', 'CANCELLED'], example: 'IN_PROGRESS', description: 'PENDING↔IN_PROGRESS, either→CANCELLED. Use /complete to mark COMPLETED.' },
+        status: { type: 'string', enum: Object.values(TaskStatus), example: 'IN_PROGRESS', description: 'See state machine in description.' },
         scheduledFor: { type: 'string', nullable: true, example: '2026-05-09', description: 'YYYY-MM-DD or ISO 8601; null to clear' },
         estimatedEndDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
         startDate: { type: 'string', nullable: true, example: null, description: 'YYYY-MM-DD or ISO 8601; null to clear' },
+        completedAt: { type: 'string', example: '2026-05-18T14:30:00.000Z', description: 'ISO 8601 — required when status is COMPLETED' },
         estimatedDuration: { type: 'integer', minimum: 1, maximum: 86400000, example: 5400000, description: 'milliseconds; max 24 h' },
+        actualDuration: { type: 'integer', minimum: 1, example: 3400000, description: 'milliseconds — used when completing a task to compute efficiencyScore' },
       },
     },
   })
@@ -553,7 +503,7 @@ export class TasksController {
     @Body(new ZodValidationPipe(UpdateTaskSchema)) dto: UpdateTaskDto,
   ): Promise<ApiResponseType<TaskResponse>> {
     const { sub: userId } = req.user as TokenPayload;
-    const task = await this.updateTaskService.execute(id, userId, dto);
+    const task = await this.updateTaskService.execute(id, userId, dto as UpdateTaskInput);
     const goalTitle = await this.getTasksService.fetchGoalTitle(task.goalId);
     return ok('Task updated successfully.', toTaskResponse(task, goalTitle));
   }
