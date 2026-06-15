@@ -5,8 +5,8 @@ export const createRedisConfig = (config: ConfigService): RedisOptions => {
   return {
     host: config.redis.host,
     port: config.redis.port,
-    username: config.redis.username,
-    password: config.redis.password,
+    username: config.redis.username || undefined,
+    password: config.redis.password || undefined,
     retryStrategy: (times: number) => {
       const delay = Math.min(times * 1000, 5000);
       return delay;

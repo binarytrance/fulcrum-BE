@@ -16,8 +16,8 @@ export const envSchema = z.object({
   AUTH_RATE_LIMIT_MAX_REQUESTS: z.coerce.number().default(5),
 
   // Redis
-  REDIS_USERNAME: z.string(),
-  REDIS_PASSWORD: z.string(),
+  REDIS_USERNAME: z.string().default(''),
+  REDIS_PASSWORD: z.string().default(''),
   REDIS_HOST: z.string(),
   REDIS_PORT: z.coerce.number(),
   REDIS_TLS: z
