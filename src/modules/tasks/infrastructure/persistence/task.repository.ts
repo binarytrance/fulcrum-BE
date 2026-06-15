@@ -214,6 +214,7 @@ export class TaskRepository implements ITaskRepository {
     const byStatus: Record<TaskStatus, number> = {
       [TaskStatus.PENDING]: 0,
       [TaskStatus.IN_PROGRESS]: 0,
+      [TaskStatus.PAUSED]: 0,
       [TaskStatus.COMPLETED]: 0,
       [TaskStatus.CANCELLED]: 0,
     };
