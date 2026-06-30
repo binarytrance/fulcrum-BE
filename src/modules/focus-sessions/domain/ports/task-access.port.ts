@@ -13,7 +13,7 @@ export interface ITaskAccessPort {
   verifyOwnership(taskId: string, userId: string): Promise<void>;
 
   /**
-   * Returns the task's estimatedDuration in minutes.
+   * Returns the task's estimatedDuration in milliseconds.
    * Throws NotFoundException if not found.
    */
   getEstimatedDuration(taskId: string, userId: string): Promise<number>;
@@ -22,5 +22,5 @@ export interface ITaskAccessPort {
    * Persists the actual duration after a session completes.
    * Sums all completed sessions for the task and writes back.
    */
-  updateActualDuration(taskId: string, durationMinutes: number): Promise<void>;
+  updateActualDuration(taskId: string, duration: number): Promise<void>;
 }

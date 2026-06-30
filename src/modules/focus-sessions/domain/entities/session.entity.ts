@@ -11,7 +11,7 @@ import {
 
 export interface Distraction {
   reason: string;
-  estimatedMs: number;
+  estimated: number;
   loggedAt: Date;
 }
 
@@ -23,8 +23,8 @@ export interface SessionFields {
   source: SessionSource;
   startedAt: Date;
   endedAt: Date | null;
-  durationMs: number | null;
-  netFocusMs: number | null;
+  duration: number | null;
+  netFocus: number | null;
   distractions: Distraction[];
   plantStatus: PlantStatus;
   plantGrowthPercent: number;
@@ -39,8 +39,8 @@ export class Session {
   readonly source: SessionSource;
   readonly startedAt: Date;
   readonly endedAt: Date | null;
-  readonly durationMs: number | null;
-  readonly netFocusMs: number | null;
+  readonly duration: number | null;
+  readonly netFocus: number | null;
   readonly distractions: Distraction[];
   readonly plantStatus: PlantStatus;
   readonly plantGrowthPercent: number;
@@ -54,8 +54,8 @@ export class Session {
     this.source = fields.source;
     this.startedAt = fields.startedAt;
     this.endedAt = fields.endedAt;
-    this.durationMs = fields.durationMs;
-    this.netFocusMs = fields.netFocusMs;
+    this.duration = fields.duration;
+    this.netFocus = fields.netFocus;
     this.distractions = fields.distractions;
     this.plantStatus = fields.plantStatus;
     this.plantGrowthPercent = fields.plantGrowthPercent;
@@ -82,29 +82,29 @@ export class Session {
 
   /**
    * Returns a new completed Session with all metrics computed.
-   * @param durationMs  Elapsed timer milliseconds (from Redis).
-   * @param taskEstimatedDurationMs  Used to calculate plantGrowthPercent.
-   * @param previousNetFocusMs  Sum of netFocusMs from all prior COMPLETED sessions for this task.
+   * @param duration  Elapsed timer milliseconds (from Redis).
+   * @param taskEstimatedDuration  Used to calculate plantGrowthPercent.
+   * @param previousNetFocus  Sum of netFocus from all prior COMPLETED sessions for this task.
    */
   complete(
-    durationMs: number,
-    taskEstimatedDurationMs: number,
-    previousNetFocusMs: number = 0,
+    duration: number,
+    taskEstimatedDuration: number,
+    previousNetFocus: number = 0,
   ): Session {
     if (this.status !== SessionStatus.ACTIVE) {
       throw new BadRequestException('Session is not active.');
     }
-    const totalDistractionMs = this.distractions.reduce(
-      (sum, d) => sum + d.estimatedMs,
+    const totalDistraction = this.distractions.reduce(
+      (sum, d) => sum + d.estimated,
       0,
     );
-    const netFocusMs = Math.max(0, durationMs - totalDistractionMs);
-    const cumulativeNetFocusMs = previousNetFocusMs + netFocusMs;
+    const netFocus = Math.max(0, duration - totalDistraction);
+    const cumulativeNetFocus = previousNetFocus + netFocus;
     const plantGrowthPercent =
-      taskEstimatedDurationMs > 0
+      taskEstimatedDuration > 0
         ? Math.min(
             100,
-            Math.round((cumulativeNetFocusMs / taskEstimatedDurationMs) * 100),
+            Math.round((cumulativeNetFocus / taskEstimatedDuration) * 100),
           )
         : 0;
 
@@ -112,8 +112,8 @@ export class Session {
       ...this.toFields(),
       status: SessionStatus.COMPLETED,
       endedAt: new Date(),
-      durationMs,
-      netFocusMs,
+      duration,
+      netFocus,
       plantGrowthPercent,
       plantStatus: computePlantStatus(this.distractions),
     });
@@ -137,8 +137,8 @@ export class Session {
       source: this.source,
       startedAt: this.startedAt,
       endedAt: this.endedAt,
-      durationMs: this.durationMs,
-      netFocusMs: this.netFocusMs,
+      duration: this.duration,
+      netFocus: this.netFocus,
       distractions: this.distractions,
       plantStatus: this.plantStatus,
       plantGrowthPercent: this.plantGrowthPercent,
@@ -149,7 +149,7 @@ export class Session {
 
 function computePlantStatus(distractions: Distraction[]): PlantStatus {
   const count = distractions.length;
-  const totalMs = distractions.reduce((s, d) => s + d.estimatedMs, 0);
+  const totalMs = distractions.reduce((s, d) => s + d.estimated, 0);
 
   if (count >= WILTED_DISTRACTION_COUNT || totalMs >= WILTED_DISTRACTION_MS) {
     return PlantStatus.WILTED;

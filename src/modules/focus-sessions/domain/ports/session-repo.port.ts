@@ -36,10 +36,10 @@ export interface ISessionRepository {
   findStaleActive(olderThan: Date): Promise<Session[]>;
   findByTaskId(taskId: string): Promise<Session[]>;
   /**
-   * Sums netFocusMs for all COMPLETED sessions belonging to a task.
+   * Sums netFocus for all COMPLETED sessions belonging to a task.
    * Used to compute cumulative plant growth across sessions.
    */
-  sumNetFocusMsByTaskId(taskId: string): Promise<number>;
+  sumNetFocusByTaskId(taskId: string): Promise<number>;
   findByUser(
     userId: string,
     filter: SessionListFilter,

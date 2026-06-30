@@ -6,7 +6,7 @@ import {
 
 export interface HeartbeatResult {
   /** Current elapsed time in milliseconds (server-computed). */
-  elapsedMs: number;
+  elapsed: number;
   /**
    * Approximate plant growth percent based on elapsed vs estimated duration.
    * NetFocusTime won't be exact until stop (distractions reduce it), but this
@@ -29,24 +29,24 @@ export class HeartbeatService {
       throw new NotFoundException('No active timer found for this session.');
     }
 
-    const elapsedMs = await this.sessionTimer.heartbeat(sessionId);
+    const elapsed = await this.sessionTimer.heartbeat(sessionId);
 
-    if (elapsedMs === null) {
+    if (elapsed === null) {
       throw new NotFoundException('Timer expired or missing.');
     }
 
     const plantGrowthPercent =
-      timer.taskEstimatedDurationMs > 0
+      timer.taskEstimatedDuration > 0
         ? Math.min(
             100,
             Math.round(
-              ((elapsedMs + timer.previousNetFocusMsForTask) /
-                timer.taskEstimatedDurationMs) *
+              ((elapsed + timer.previousNetFocusForTask) /
+                timer.taskEstimatedDuration) *
                 100,
             ),
           )
         : 0;
 
-    return { elapsedMs, plantGrowthPercent };
+    return { elapsed, plantGrowthPercent };
   }
 }

@@ -5,9 +5,9 @@ import type { TimeLeak } from '@analytics/domain/types/analytics.types';
 
 export interface SessionData {
   taskId: string;
-  durationMs: number | null;
-  netFocusMs: number | null;
-  distractions: { estimatedMs: number }[];
+  duration: number | null;
+  netFocus: number | null;
+  distractions: { estimated: number }[];
   plantStatus: string;
   startedAt: Date;
   endedAt: Date | null;
@@ -77,22 +77,22 @@ export class ComputeDailyAnalyticsService {
     const sessionCount = sessions.length;
 
     const totalLoggedMinutes = sessions.reduce(
-      (s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000),
+      (s, sess) => s + Math.round((sess.duration ?? 0) / 60_000),
       0,
     );
     const netFocusMinutes = sessions.reduce(
-      (s, sess) => s + Math.round((sess.netFocusMs ?? 0) / 60_000),
+      (s, sess) => s + Math.round((sess.netFocus ?? 0) / 60_000),
       0,
     );
     const deepWorkMinutes = sessions
       .filter((sess) => sess.plantStatus === 'HEALTHY')
-      .reduce((s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000), 0);
+      .reduce((s, sess) => s + Math.round((sess.duration ?? 0) / 60_000), 0);
     const shallowWorkMinutes = totalLoggedMinutes - deepWorkMinutes;
 
     const allDistractions = sessions.flatMap((sess) => sess.distractions ?? []);
     const totalDistractions = allDistractions.length;
     const totalDistractionMinutes = allDistractions.reduce(
-      (s, d) => s + Math.round((d.estimatedMs ?? 0) / 60_000),
+      (s, d) => s + Math.round((d.estimated ?? 0) / 60_000),
       0,
     );
     const avgDistractionPerSession =

@@ -65,7 +65,7 @@ export class SessionTimerAdapter implements ISessionTimerPort {
     await this.redis.del(timerKey(sessionId), activeKey(userId));
   }
 
-  async getElapsedMs(sessionId: string): Promise<number | null> {
+  async getElapsed(sessionId: string): Promise<number | null> {
     const raw = await this.redis.get(timerKey(sessionId));
     if (!raw) return null;
     const state = JSON.parse(raw) as ActiveTimerState;
@@ -74,14 +74,14 @@ export class SessionTimerAdapter implements ISessionTimerPort {
 
   async extendTimer(
     sessionId: string,
-    additionalMs: number,
+    additional: number,
   ): Promise<ActiveTimerState> {
     const raw = await this.redis.get(timerKey(sessionId));
     if (!raw) throw new Error('Timer not found or expired.');
     const state = JSON.parse(raw) as ActiveTimerState;
     const updated: ActiveTimerState = {
       ...state,
-      taskEstimatedDurationMs: state.taskEstimatedDurationMs + additionalMs,
+      taskEstimatedDuration: state.taskEstimatedDuration + additional,
     };
     await this.redis.set(
       timerKey(sessionId),

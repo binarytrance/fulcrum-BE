@@ -29,7 +29,7 @@ export const SESSION_ABANDONMENT_MS = 4 * 60 * 60 * 1000; // 4 hours
 
 export enum SessionSortBy {
   STARTED_AT = 'startedAt',
-  DURATION_MS = 'durationMs',
-  NET_FOCUS_MS = 'netFocusMs',
+  DURATION = 'duration',
+  NET_FOCUS = 'netFocus',
   PLANT_GROWTH_PERCENT = 'plantGrowthPercent',
 }

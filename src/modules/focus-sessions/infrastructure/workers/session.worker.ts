@@ -59,15 +59,15 @@ export class SessionWorker extends WorkerHost {
   private async handleUpdateTaskDuration(
     payload: UpdateTaskDurationPayload,
   ): Promise<void> {
-    const { taskId, durationMs } = payload;
+    const { taskId, duration } = payload;
 
     // Accumulate total actual duration from all completed sessions for this task
     const result = await this.sessionModel.aggregate<{ total: number }>([
       { $match: { taskId, status: SessionStatus.COMPLETED } },
-      { $group: { _id: null, total: { $sum: '$durationMs' } } },
+      { $group: { _id: null, total: { $sum: '$duration' } } },
     ]);
 
-    const totalMs = result[0]?.total ?? durationMs;
+    const totalMs = result[0]?.total ?? duration;
 
     await this.taskModel.updateOne(
       { _id: taskId },
@@ -75,7 +75,7 @@ export class SessionWorker extends WorkerHost {
     );
 
     this.logger.log(
-      `[UpdateTaskDuration] taskId=${taskId} durationMs=${totalMs}`,
+      `[UpdateTaskDuration] taskId=${taskId} duration=${totalMs}`,
     );
   }
 

@@ -43,9 +43,9 @@ interface SessionLean {
   userId: string;
   taskId: string;
   status: string;
-  durationMs: number | null;
-  netFocusMs: number | null;
-  distractions: { estimatedMs: number }[];
+  duration: number | null;
+  netFocus: number | null;
+  distractions: { estimated: number }[];
   plantStatus: string;
   startedAt: Date;
   endedAt: Date | null;

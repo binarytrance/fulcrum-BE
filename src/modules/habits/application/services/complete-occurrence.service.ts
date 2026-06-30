@@ -31,9 +31,9 @@ import { COMPLETION_GRACE_PERCENT } from '@habits/domain/types/habit.types';
 export interface CompleteOccurrenceInput {
   occurrenceId: string;
   userId: string;
-  durationMinutes: number;
+  duration: number;
   sessionId?: string;
-  note?: string;
+  notes?: string;
 }
 
 @Injectable()
@@ -63,17 +63,17 @@ export class CompleteOccurrenceService {
     const minRequired = Math.floor(
       habit.targetDuration * COMPLETION_GRACE_PERCENT,
     );
-    if (input.durationMinutes < minRequired) {
+    if (input.duration < minRequired) {
       throw new BadRequestException(
-        `Duration too short. Minimum required: ${minRequired} min ` +
-          `(${COMPLETION_GRACE_PERCENT * 100}% of target ${habit.targetDuration} min).`,
+        `Duration too short. Minimum required: ${minRequired}ms ` +
+          `(${COMPLETION_GRACE_PERCENT * 100}% of target ${habit.targetDuration}ms).`,
       );
     }
 
     const completed = occurrence.complete({
-      durationMinutes: input.durationMinutes,
+      duration: input.duration,
       sessionId: input.sessionId,
-      note: input.note,
+      notes: input.notes,
     });
     const saved = await this.occurrenceRepo.save(completed);
 
@@ -83,7 +83,7 @@ export class CompleteOccurrenceService {
       occurrenceId: saved.id,
       userId: input.userId,
       date: saved.date,
-      durationMinutes: input.durationMinutes,
+      duration: input.duration,
       sessionId: input.sessionId ?? null,
     });
 

@@ -30,8 +30,8 @@ type SessionDocLean = {
   source: SessionSource;
   startedAt: Date;
   endedAt: Date | null;
-  durationMs: number | null;
-  netFocusMs: number | null;
+  duration: number | null;
+  netFocus: number | null;
   distractions: Distraction[];
   plantStatus: PlantStatus;
   plantGrowthPercent: number;
@@ -118,16 +118,16 @@ export class SessionRepository implements ISessionRepository {
     return { items: docs.map((d) => this.toDomain(d)), total };
   }
 
-  async sumNetFocusMsByTaskId(taskId: string): Promise<number> {
+  async sumNetFocusByTaskId(taskId: string): Promise<number> {
     const pipeline: PipelineStage[] = [
       {
         $match: {
           taskId,
           status: SessionStatus.COMPLETED,
-          netFocusMs: { $ne: null },
+          netFocus: { $ne: null },
         },
       },
-      { $group: { _id: null, total: { $sum: '$netFocusMs' } } },
+      { $group: { _id: null, total: { $sum: '$netFocus' } } },
     ];
     const result = await this.sessionModel.aggregate<{ total: number }>(
       pipeline,
@@ -144,8 +144,8 @@ export class SessionRepository implements ISessionRepository {
       source: session.source,
       startedAt: session.startedAt,
       endedAt: session.endedAt,
-      durationMs: session.durationMs,
-      netFocusMs: session.netFocusMs,
+      duration: session.duration,
+      netFocus: session.netFocus,
       distractions: session.distractions,
       plantStatus: session.plantStatus,
       plantGrowthPercent: session.plantGrowthPercent,
@@ -162,8 +162,8 @@ export class SessionRepository implements ISessionRepository {
       source: doc.source,
       startedAt: doc.startedAt,
       endedAt: doc.endedAt ?? null,
-      durationMs: doc.durationMs ?? null,
-      netFocusMs: doc.netFocusMs ?? null,
+      duration: doc.duration ?? null,
+      netFocus: doc.netFocus ?? null,
       distractions: doc.distractions ?? [],
       plantStatus: doc.plantStatus,
       plantGrowthPercent: doc.plantGrowthPercent ?? 0,

@@ -4,6 +4,6 @@ export interface HabitOccurrenceCompletedEvent {
   userId: string;
   /** YYYY-MM-DD */
   date: string;
-  durationMinutes: number;
+  duration: number;
   sessionId: string | null;
 }

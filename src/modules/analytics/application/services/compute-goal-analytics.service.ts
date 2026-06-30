@@ -16,7 +16,7 @@ export interface TaskGoalData {
 }
 
 export interface SessionGoalData {
-  durationMs: number | null;
+  duration: number | null;
   startedAt: Date;
 }
 
@@ -92,7 +92,7 @@ export class ComputeGoalAnalyticsService {
     // ── Session metrics ───────────────────────────────────────────────────────
 
     const totalLoggedMinutes = sessions.reduce(
-      (s, sess) => s + Math.round((sess.durationMs ?? 0) / 60_000),
+      (s, sess) => s + Math.round((sess.duration ?? 0) / 60_000),
       0,
     );
 

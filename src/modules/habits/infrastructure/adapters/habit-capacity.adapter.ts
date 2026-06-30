@@ -40,6 +40,6 @@ export class HabitCapacityAdapter implements IHabitCapacityPort {
       .select({ targetDuration: 1 })
       .lean<HabitLean[]>();
 
-    return habits.reduce((sum, h) => sum + h.targetDuration * 60_000, 0);
+    return habits.reduce((sum, h) => sum + h.targetDuration, 0);
   }
 }

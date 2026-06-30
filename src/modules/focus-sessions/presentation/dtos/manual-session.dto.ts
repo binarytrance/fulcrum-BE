@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 export const ManualSessionSchema = z.object({
   taskId: z.string().min(1),
-  durationMs: z
-    .number({ error: 'durationMs must be a number' })
+  duration: z
+    .number({ error: 'duration must be a number' })
     .int()
     .min(1_000)
     .max(24 * 60 * 60 * 1_000),

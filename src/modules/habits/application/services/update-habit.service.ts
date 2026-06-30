@@ -64,8 +64,8 @@ export class UpdateHabitService {
           this.habitCapacity.getPendingHabitMs(input.userId, today),
         ]);
         // Remove this habit's current contribution before adding new value.
-        const otherHabitMs = habitMs - habit.targetDuration * 60_000;
-        const newHabitMs = input.targetDuration * 60_000;
+        const otherHabitMs = habitMs - habit.targetDuration;
+        const newHabitMs = input.targetDuration;
         if (taskMs + otherHabitMs + newHabitMs > MAX_DAY_MS) {
           const todayStr = today.toISOString().slice(0, 10);
           throw new BadRequestException(

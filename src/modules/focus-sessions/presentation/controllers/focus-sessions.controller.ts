@@ -74,7 +74,7 @@ const DistractionSchema = {
   type: 'object',
   properties: {
     reason: { type: 'string', example: 'Phone notification' },
-    estimatedMs: { type: 'integer', example: 300000, description: 'milliseconds' },
+    estimated: { type: 'integer', example: 300000, description: 'milliseconds' },
     loggedAt: { type: 'string', format: 'date-time' },
   },
 };
@@ -89,12 +89,12 @@ const SessionResponseSchema = {
     source: { type: 'string', enum: ['AUTO', 'MANUAL'], example: 'MANUAL' },
     startedAt: { type: 'string', format: 'date-time' },
     endedAt: { type: 'string', format: 'date-time', nullable: true },
-    durationMs: { type: 'integer', nullable: true, example: 3600000, description: 'milliseconds' },
-    netFocusMs: { type: 'integer', nullable: true, example: 3300000, description: 'milliseconds — durationMs minus distraction time' },
+    duration: { type: 'integer', nullable: true, example: 3600000, description: 'milliseconds' },
+    netFocus: { type: 'integer', nullable: true, example: 3300000, description: 'milliseconds — duration minus distraction time' },
     distractions: { type: 'array', items: DistractionSchema },
     plantStatus: { type: 'string', enum: ['HEALTHY', 'WILTING', 'WILTED'], example: 'HEALTHY' },
     plantGrowthPercent: { type: 'integer', example: 92, description: '0–100' },
-    elapsedMs: { type: 'integer', nullable: true, example: null, description: 'Only present for ACTIVE sessions — live elapsed ms' },
+    elapsed: { type: 'integer', nullable: true, example: null, description: 'Only present for ACTIVE sessions — live elapsed ms' },
     createdAt: { type: 'string', format: 'date-time' },
   },
 };
@@ -123,39 +123,39 @@ interface SessionResponse {
   source: string;
   startedAt: Date;
   endedAt: Date | null;
-  durationMs: number | null;
-  netFocusMs: number | null;
+  duration: number | null;
+  netFocus: number | null;
   distractions: Session['distractions'];
   plantStatus: string;
   plantGrowthPercent: number;
   /** Elapsed milliseconds since session start (only present for ACTIVE sessions). */
-  elapsedMs: number | null;
+  elapsed: number | null;
   createdAt: Date;
 }
 
 function computeLiveGrowth(
   s: Session,
   timer: ActiveTimerState,
-): { plantGrowthPercent: number; elapsedMs: number } {
-  const elapsedMs = Date.now() - timer.startedAt;
-  const totalDistractionMs = s.distractions.reduce(
-    (sum, d) => sum + d.estimatedMs,
+): { plantGrowthPercent: number; elapsed: number } {
+  const elapsed = Date.now() - timer.startedAt;
+  const totalDistraction = s.distractions.reduce(
+    (sum, d) => sum + d.estimated,
     0,
   );
-  const netFocusMs = Math.max(0, elapsedMs - totalDistractionMs);
+  const netFocus = Math.max(0, elapsed - totalDistraction);
   const plantGrowthPercent =
-    timer.taskEstimatedDurationMs > 0
+    timer.taskEstimatedDuration > 0
       ? Math.min(
           100,
-          Math.round((netFocusMs / timer.taskEstimatedDurationMs) * 100),
+          Math.round((netFocus / timer.taskEstimatedDuration) * 100),
         )
       : 0;
-  return { plantGrowthPercent, elapsedMs };
+  return { plantGrowthPercent, elapsed };
 }
 
 function toSessionResponse(
   s: Session,
-  liveData?: { plantGrowthPercent: number; elapsedMs: number },
+  liveData?: { plantGrowthPercent: number; elapsed: number },
 ): SessionResponse {
   return {
     id: s.id,
@@ -165,12 +165,12 @@ function toSessionResponse(
     source: s.source,
     startedAt: s.startedAt,
     endedAt: s.endedAt,
-    durationMs: s.durationMs,
-    netFocusMs: s.netFocusMs,
+    duration: s.duration,
+    netFocus: s.netFocus,
     distractions: s.distractions,
     plantStatus: s.plantStatus,
     plantGrowthPercent: liveData?.plantGrowthPercent ?? s.plantGrowthPercent,
-    elapsedMs: liveData?.elapsedMs ?? null,
+    elapsed: liveData?.elapsed ?? null,
     createdAt: s.createdAt,
   };
 }
@@ -201,10 +201,10 @@ export class FocusSessionsController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['taskId', 'durationMs'],
+      required: ['taskId', 'duration'],
       properties: {
         taskId: { type: 'string', example: 'tsk_abc123', description: 'Task this session is logged against' },
-        durationMs: { type: 'integer', minimum: 1000, maximum: 86400000, example: 3600000, description: 'Duration in milliseconds — min 1 s, max 24 h' },
+        duration: { type: 'integer', minimum: 1000, maximum: 86400000, example: 3600000, description: 'Duration in milliseconds — min 1 s, max 24 h' },
         startedAt: { type: 'string', format: 'date-time', example: '2026-05-07T09:00:00.000Z', description: 'ISO 8601 — defaults to now if omitted' },
         note: { type: 'string', maxLength: 1000, example: 'Deep work block, no interruptions', description: 'Optional free-text note' },
       },

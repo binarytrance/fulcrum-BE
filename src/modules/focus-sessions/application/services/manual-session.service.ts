@@ -31,7 +31,7 @@ import type { Distraction } from '@focus-sessions/domain/entities/session.entity
 export interface ManualSessionInput {
   userId: string;
   taskId: string;
-  durationMs: number;
+  duration: number;
   /** ISO string of when the work was done. Defaults to now. */
   startedAt?: string;
   note?: string;
@@ -54,23 +54,24 @@ export class ManualSessionService {
 
   async execute(input: ManualSessionInput): Promise<Session> {
     await this.taskAccess.verifyOwnership(input.taskId, input.userId);
-    const estimatedDurationMs =
-      (await this.taskAccess.getEstimatedDuration(input.taskId, input.userId)) *
-      60_000;
+    const estimatedDuration = await this.taskAccess.getEstimatedDuration(
+      input.taskId,
+      input.userId,
+    );
 
     const now = new Date();
     const startedAt = input.startedAt ? new Date(input.startedAt) : now;
     const sessionId = this.idGenerator.generate();
 
-    const netFocusMs = input.durationMs;
-    const previousNetFocusMsForTask =
-      await this.sessionRepo.sumNetFocusMsByTaskId(input.taskId);
-    const cumulativeNetFocusMs = previousNetFocusMsForTask + netFocusMs;
+    const netFocus = input.duration;
+    const previousNetFocusForTask =
+      await this.sessionRepo.sumNetFocusByTaskId(input.taskId);
+    const cumulativeNetFocus = previousNetFocusForTask + netFocus;
     const plantGrowthPercent =
-      estimatedDurationMs > 0
+      estimatedDuration > 0
         ? Math.min(
             100,
-            Math.round((cumulativeNetFocusMs / estimatedDurationMs) * 100),
+            Math.round((cumulativeNetFocus / estimatedDuration) * 100),
           )
         : 0;
 
@@ -84,8 +85,8 @@ export class ManualSessionService {
       source: SessionSource.MANUAL,
       startedAt,
       endedAt: now,
-      durationMs: input.durationMs,
-      netFocusMs,
+      duration: input.duration,
+      netFocus,
       distractions,
       plantStatus: PlantStatus.HEALTHY,
       plantGrowthPercent,
@@ -99,7 +100,7 @@ export class ManualSessionService {
         sessionId,
         input.userId,
         input.taskId,
-        input.durationMs,
+        input.duration,
       ),
     );
     await this.appStreakPublisher.publishActivityRecorded(

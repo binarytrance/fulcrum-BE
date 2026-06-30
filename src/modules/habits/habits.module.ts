@@ -23,6 +23,7 @@ import { CreateHabitService } from '@habits/application/services/create-habit.se
 import { GetHabitsService } from '@habits/application/services/get-habits.service';
 import { UpdateHabitService } from '@habits/application/services/update-habit.service';
 import { DeleteHabitService } from '@habits/application/services/delete-habit.service';
+import { CompleteHabitService } from '@habits/application/services/complete-habit.service';
 import { CompleteOccurrenceService } from '@habits/application/services/complete-occurrence.service';
 import { SkipOccurrenceService } from '@habits/application/services/skip-occurrence.service';
 import { GetAnalyticsService } from '@habits/application/services/get-analytics.service';
@@ -57,6 +58,7 @@ import { GetOccurrencesService } from '@habits/application/services/get-occurren
     GetHabitsService,
     UpdateHabitService,
     DeleteHabitService,
+    CompleteHabitService,
     CompleteOccurrenceService,
     SkipOccurrenceService,
     GetAnalyticsService,

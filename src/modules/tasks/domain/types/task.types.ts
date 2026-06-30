@@ -4,6 +4,7 @@ export const MAX_TASK_DURATION_MS = 24 * 60 * 60 * 1000; // 86_400_000
 export enum TaskStatus {
   PENDING = 'PENDING',
   IN_PROGRESS = 'IN_PROGRESS',
+  PAUSED = 'PAUSED',
   COMPLETED = 'COMPLETED',
   CANCELLED = 'CANCELLED',
 }
@@ -31,12 +32,13 @@ export enum TaskType {
  * via a regular PATCH update.
  */
 export const TASK_STATUS_TRANSITIONS: Record<TaskStatus, TaskStatus[]> = {
-  [TaskStatus.PENDING]: [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
+  [TaskStatus.PENDING]: [TaskStatus.IN_PROGRESS, TaskStatus.COMPLETED, TaskStatus.CANCELLED],
   [TaskStatus.IN_PROGRESS]: [
-    TaskStatus.PENDING,
+    TaskStatus.PAUSED,
     TaskStatus.COMPLETED,
     TaskStatus.CANCELLED,
   ],
+  [TaskStatus.PAUSED]: [TaskStatus.IN_PROGRESS, TaskStatus.CANCELLED],
   [TaskStatus.COMPLETED]: [TaskStatus.PENDING],
   [TaskStatus.CANCELLED]: [],
 };

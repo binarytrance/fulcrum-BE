@@ -79,7 +79,7 @@ export class CreateHabitService {
         this.taskCapacity.getCommittedTaskMs(input.userId, today),
         this.habitCapacity.getPendingHabitMs(input.userId, today),
       ]);
-      const newHabitMs = input.targetDuration * 60_000;
+      const newHabitMs = input.targetDuration;
       if (taskMs + habitMs + newHabitMs > MAX_DAY_MS) {
         const todayStr = today.toISOString().slice(0, 10);
         throw new BadRequestException(
@@ -143,9 +143,10 @@ export class CreateHabitService {
         date: dateStr,
         status: OccurrenceStatus.PENDING,
         completedAt: null,
+        skippedAt: null,
         sessionId: null,
-        durationMinutes: null,
-        note: null,
+        duration: null,
+        notes: null,
         createdAt: now,
       });
     }

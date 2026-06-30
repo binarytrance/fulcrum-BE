@@ -11,7 +11,7 @@ import {
 import type { Habit } from '@habits/domain/entities/habit.entity';
 
 @Injectable()
-export class DeleteHabitService {
+export class CompleteHabitService {
   constructor(
     @Inject(HABIT_REPO_PORT) private readonly habitRepo: IHabitRepository,
   ) {}
@@ -21,6 +21,6 @@ export class DeleteHabitService {
     if (!habit || habit.deletedAt)
       throw new NotFoundException('Habit not found.');
     if (habit.userId !== userId) throw new ForbiddenException('Access denied.');
-    return this.habitRepo.save(habit.abandon());
+    return this.habitRepo.save(habit.complete());
   }
 }

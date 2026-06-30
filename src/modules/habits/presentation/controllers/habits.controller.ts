@@ -32,6 +32,7 @@ import { CreateHabitService } from '@habits/application/services/create-habit.se
 import { GetHabitsService } from '@habits/application/services/get-habits.service';
 import { UpdateHabitService } from '@habits/application/services/update-habit.service';
 import { DeleteHabitService } from '@habits/application/services/delete-habit.service';
+import { CompleteHabitService } from '@habits/application/services/complete-habit.service';
 import { CompleteOccurrenceService } from '@habits/application/services/complete-occurrence.service';
 import { SkipOccurrenceService } from '@habits/application/services/skip-occurrence.service';
 import { GetAnalyticsService } from '@habits/application/services/get-analytics.service';
@@ -46,9 +47,9 @@ import {
   type UpdateHabitDto,
 } from '@habits/presentation/dtos/update-habit.dto';
 import {
-  CompleteOccurrenceSchema,
-  type CompleteOccurrenceDto,
-} from '@habits/presentation/dtos/complete-occurrence.dto';
+  UpdateOccurrenceStatusSchema,
+  type UpdateOccurrenceStatusDto,
+} from '@habits/presentation/dtos/update-occurrence-status.dto';
 
 import { HABIT_OCCURRENCE_REPO_PORT, type IHabitOccurrenceRepository } from '@habits/domain/ports/habit-occurrence-repo.port';
 import { ZodValidationPipe } from '@shared/presentation/pipes/zod-validation.pipe';
@@ -93,7 +94,7 @@ const HabitResponseSchema = {
     description: { type: 'string', nullable: true, example: '30 min outdoor run' },
     frequency: { type: 'string', enum: ['daily', 'specific_days'], example: 'daily' },
     daysOfWeek: { type: 'array', items: { type: 'integer' }, example: [1, 3, 5], description: '0=Sun … 6=Sat' },
-    targetDuration: { type: 'integer', example: 30, description: 'minutes' },
+    targetDuration: { type: 'integer', example: 1800000, description: 'milliseconds' },
     status: { type: 'string', enum: Object.values(HabitStatus), example: 'active' },
     currentStreak: { type: 'integer', example: 7 },
     longestStreak: { type: 'integer', example: 21 },
@@ -111,9 +112,10 @@ const OccurrenceResponseSchema = {
     date: { type: 'string', example: '2026-05-07', description: 'YYYY-MM-DD' },
     status: { type: 'string', enum: ['pending', 'completed', 'missed', 'skipped'], example: 'pending' },
     completedAt: { type: 'string', format: 'date-time', nullable: true, example: null },
+    skippedAt: { type: 'string', format: 'date-time', nullable: true, example: null },
     sessionId: { type: 'string', nullable: true, example: null },
-    durationMinutes: { type: 'number', nullable: true, example: 32 },
-    note: { type: 'string', nullable: true, example: null },
+    duration: { type: 'number', nullable: true, example: 1920000 },
+    notes: { type: 'string', nullable: true, example: null },
     createdAt: { type: 'string', format: 'date-time' },
   },
 };
@@ -159,7 +161,7 @@ const HabitAnalyticsSchema = {
     totalCompleted: { type: 'integer', example: 24 },
     totalMissed: { type: 'integer', example: 4 },
     totalSkipped: { type: 'integer', example: 2 },
-    avgDurationMinutes: { type: 'number', nullable: true, example: 31.5 },
+    avgDuration: { type: 'number', nullable: true, example: 1890000 },
     mostMissedDayOfWeek: { type: 'integer', nullable: true, example: 1, description: '0=Sun … 6=Sat; null if insufficient data' },
   },
 };
@@ -211,9 +213,10 @@ interface OccurrenceResponse {
   date: string;
   status: string;
   completedAt: Date | null;
+  skippedAt: Date | null;
   sessionId: string | null;
-  durationMinutes: number | null;
-  note: string | null;
+  duration: number | null;
+  notes: string | null;
   createdAt: Date;
 }
 
@@ -243,9 +246,10 @@ function toOccurrenceResponse(o: HabitOccurrence): OccurrenceResponse {
     date: o.date,
     status: o.status,
     completedAt: o.completedAt,
+    skippedAt: o.skippedAt,
     sessionId: o.sessionId,
-    durationMinutes: o.durationMinutes,
-    note: o.note,
+    duration: o.duration,
+    notes: o.notes,
     createdAt: o.createdAt,
   };
 }
@@ -262,6 +266,7 @@ export class HabitsController {
     private readonly getHabitsService: GetHabitsService,
     private readonly updateHabitService: UpdateHabitService,
     private readonly deleteHabitService: DeleteHabitService,
+    private readonly completeHabitService: CompleteHabitService,
     private readonly completeOccurrenceService: CompleteOccurrenceService,
     private readonly skipOccurrenceService: SkipOccurrenceService,
     private readonly getAnalyticsService: GetAnalyticsService,
@@ -284,7 +289,7 @@ export class HabitsController {
         goalId: { type: 'string', nullable: true, example: null, description: 'Link to an existing goal ID; null for standalone habits' },
         frequency: { type: 'string', enum: ['daily', 'specific_days'], example: 'specific_days' },
         daysOfWeek: { type: 'array', items: { type: 'integer', minimum: 0, maximum: 6 }, example: [1, 3, 5], description: '0=Sun … 6=Sat — required when frequency is specific_days' },
-        targetDuration: { type: 'integer', minimum: 1, example: 30, description: 'Target minutes per occurrence' },
+        targetDuration: { type: 'integer', minimum: 1, example: 1800000, description: 'Target milliseconds per occurrence' },
       },
     },
   })
@@ -461,7 +466,7 @@ export class HabitsController {
       properties: {
         title: { type: 'string', maxLength: 200, example: 'Evening run' },
         description: { type: 'string', maxLength: 1000, nullable: true, example: null },
-        targetDuration: { type: 'integer', minimum: 1, example: 45, description: 'Target minutes per occurrence' },
+        targetDuration: { type: 'integer', minimum: 1, example: 2700000, description: 'Target milliseconds per occurrence' },
       },
     },
   })
@@ -482,11 +487,11 @@ export class HabitsController {
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', description: 'Habit ID' })
   @ApiOperation({
-    summary: 'Archive (soft-delete) a habit',
+    summary: 'Abandon a habit',
     description:
-      'Sets deletedAt. Data is preserved in MongoDB and can be used for analytics/history.',
+      'Marks the habit as abandoned. Sets deletedAt — data is preserved in MongoDB for analytics/history.',
   })
-  @ApiResponse({ status: 200, description: 'Habit archived.', schema: ApiSuccessSchema() })
+  @ApiResponse({ status: 200, description: 'Habit abandoned.', schema: ApiSuccessSchema() })
   @ApiResponse({ status: 403, description: 'Access denied.' })
   @ApiResponse({ status: 404, description: 'Habit not found.' })
   async delete(
@@ -495,7 +500,7 @@ export class HabitsController {
   ): Promise<ApiResponseType> {
     const { sub: userId } = req.user as TokenPayload;
     await this.deleteHabitService.execute(id, userId);
-    return ok('Habit archived successfully.');
+    return ok('Habit abandoned successfully.');
   }
 
   @Patch(':id/pause')
@@ -560,73 +565,64 @@ export class HabitsController {
     );
   }
 
-  @Patch(':id/occurrences/:occurrenceId/complete')
+  @Patch(':id/occurrences/:occurrenceId')
   @HttpCode(HttpStatus.OK)
   @ApiParam({ name: 'id', description: 'Habit ID' })
   @ApiParam({ name: 'occurrenceId', description: 'Occurrence ID' })
   @ApiOperation({
-    summary: 'Mark a habit occurrence as completed',
+    summary: 'Update a habit occurrence status',
     description:
-      'durationMinutes must be >= targetDuration * 0.8 (20% grace window). ' +
-      'Triggers streak recalculation asynchronously. ' +
-      'Use this endpoint instead of generic habit update for completion transitions.',
+      'Set status to "completed" or "skipped". ' +
+      'When completing, duration must be >= targetDuration * 0.8 (20% grace window) and triggers streak recalculation asynchronously. ' +
+      'Skipped occurrences do not break the streak and are tracked explicitly for analytics.',
   })
   @ApiBody({
     schema: {
-      type: 'object',
-      required: ['durationMinutes'],
-      properties: {
-        durationMinutes: { type: 'integer', minimum: 1, example: 32, description: 'Actual minutes spent — must be ≥ targetDuration × 0.8' },
-        sessionId: { type: 'string', example: null, description: 'Optional: link to a session logged for this occurrence' },
-        note: { type: 'string', maxLength: 500, example: 'Felt great today', description: 'Optional free-text note' },
-      },
+      oneOf: [
+        {
+          type: 'object',
+          required: ['status', 'duration'],
+          properties: {
+            status: { type: 'string', enum: ['completed'] },
+            duration: { type: 'integer', minimum: 1, example: 1920000, description: 'Actual milliseconds spent — must be ≥ targetDuration × 0.8' },
+            sessionId: { type: 'string', example: null, description: 'Optional: link to a session logged for this occurrence' },
+            notes: { type: 'string', maxLength: 500, example: 'Felt great today', description: 'Optional free-text notes' },
+          },
+        },
+        {
+          type: 'object',
+          required: ['status'],
+          properties: {
+            status: { type: 'string', enum: ['skipped'] },
+          },
+        },
+      ],
     },
   })
-  @ApiResponse({ status: 200, description: 'Occurrence completed.', schema: ApiSuccessSchema(OccurrenceResponseSchema) })
+  @ApiResponse({ status: 200, description: 'Occurrence status updated.', schema: ApiSuccessSchema(OccurrenceResponseSchema) })
   @ApiResponse({ status: 400, description: 'Duration below grace threshold or invalid transition.' })
   @ApiResponse({ status: 404, description: 'Occurrence not found.' })
-  async completeOccurrence(
+  async updateOccurrenceStatus(
     @Req() req: Request,
     @Param('occurrenceId') occurrenceId: string,
-    @Body(new ZodValidationPipe(CompleteOccurrenceSchema))
-    dto: CompleteOccurrenceDto,
+    @Body(new ZodValidationPipe(UpdateOccurrenceStatusSchema))
+    dto: UpdateOccurrenceStatusDto,
   ): Promise<ApiResponseType<OccurrenceResponse>> {
     const { sub: userId } = req.user as TokenPayload;
-    const occurrence = await this.completeOccurrenceService.execute({
-      occurrenceId,
-      userId,
-      ...dto,
-    });
-    return ok(
-      'Occurrence completed successfully.',
-      toOccurrenceResponse(occurrence),
-    );
-  }
 
-  @Patch(':id/occurrences/:occurrenceId/skip')
-  @HttpCode(HttpStatus.OK)
-  @ApiParam({ name: 'id', description: 'Habit ID' })
-  @ApiParam({ name: 'occurrenceId', description: 'Occurrence ID' })
-  @ApiOperation({
-    summary: 'Skip a habit occurrence',
-    description:
-      'Skipped occurrences do not break the streak and are tracked explicitly for analytics.',
-  })
-  @ApiResponse({ status: 200, description: 'Occurrence skipped.', schema: ApiSuccessSchema(OccurrenceResponseSchema) })
-  @ApiResponse({ status: 404, description: 'Occurrence not found.' })
-  async skipOccurrence(
-    @Req() req: Request,
-    @Param('occurrenceId') occurrenceId: string,
-  ): Promise<ApiResponseType<OccurrenceResponse>> {
-    const { sub: userId } = req.user as TokenPayload;
-    const occurrence = await this.skipOccurrenceService.execute(
-      occurrenceId,
-      userId,
-    );
-    return ok(
-      'Occurrence skipped successfully.',
-      toOccurrenceResponse(occurrence),
-    );
+    if (dto.status === 'completed') {
+      const occurrence = await this.completeOccurrenceService.execute({
+        occurrenceId,
+        userId,
+        duration: dto.duration,
+        sessionId: dto.sessionId,
+        notes: dto.notes,
+      });
+      return ok('Occurrence completed successfully.', toOccurrenceResponse(occurrence));
+    }
+
+    const occurrence = await this.skipOccurrenceService.execute(occurrenceId, userId);
+    return ok('Occurrence skipped successfully.', toOccurrenceResponse(occurrence));
   }
 
   // ─── Analytics ───────────────────────────────────────────────────────────

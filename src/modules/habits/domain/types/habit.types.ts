@@ -8,7 +8,8 @@ export enum HabitFrequency {
 export enum HabitStatus {
   ACTIVE = 'active',
   PAUSED = 'paused',
-  ARCHIVED = 'archived',
+  COMPLETED = 'completed',
+  ABANDONED = 'abandoned',
 }
 
 export enum OccurrenceStatus {
