@@ -75,7 +75,7 @@ interface GoalLean {
 interface HabitOccurrenceLean {
   userId: string;
   date: string;
-  status: 'pending' | 'completed' | 'missed' | 'skipped';
+  status: 'PENDING' | 'COMPLETED' | 'MISSED' | 'SKIPPED';
 }
 
 // ─── Worker ───────────────────────────────────────────────────────────────────

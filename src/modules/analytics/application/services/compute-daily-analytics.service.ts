@@ -21,7 +21,7 @@ export interface TaskData {
 }
 
 export interface OccurrenceData {
-  status: 'pending' | 'completed' | 'missed' | 'skipped';
+  status: 'PENDING' | 'COMPLETED' | 'MISSED' | 'SKIPPED';
 }
 
 // ─── Output type ─────────────────────────────────────────────────────────────
@@ -121,13 +121,13 @@ export class ComputeDailyAnalyticsService {
     // ── Habit metrics ─────────────────────────────────────────────────────────
     const totalHabitCount = occurrences.length;
     const completedHabitCount = occurrences.filter(
-      (o) => o.status === 'completed',
+      (o) => o.status === 'COMPLETED',
     ).length;
     const skippedHabitCount = occurrences.filter(
-      (o) => o.status === 'skipped',
+      (o) => o.status === 'SKIPPED',
     ).length;
     const missedHabitCount = occurrences.filter(
-      (o) => o.status === 'missed',
+      (o) => o.status === 'MISSED',
     ).length;
     const habitCompletionRate =
       totalHabitCount > 0

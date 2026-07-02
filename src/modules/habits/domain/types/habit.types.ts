@@ -1,23 +1,23 @@
 export enum HabitFrequency {
   /** Occurs every day */
-  DAILY = 'daily',
+  DAILY = 'DAILY',
   /** Occurs on specific days of the week; daysOfWeek[] must be non-empty */
-  SPECIFIC_DAYS = 'specific_days',
+  SPECIFIC_DAYS = 'SPECIFIC_DAYS',
 }
 
 export enum HabitStatus {
-  ACTIVE = 'active',
-  PAUSED = 'paused',
-  COMPLETED = 'completed',
-  ABANDONED = 'abandoned',
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  COMPLETED = 'COMPLETED',
+  ABANDONED = 'ABANDONED',
 }
 
 export enum OccurrenceStatus {
-  PENDING = 'pending',
-  COMPLETED = 'completed',
-  MISSED = 'missed',
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  MISSED = 'MISSED',
   /** Skipped by the user — does NOT break the streak */
-  SKIPPED = 'skipped',
+  SKIPPED = 'SKIPPED',
 }
 
 /**
