@@ -127,9 +127,10 @@ export class HabitWorker extends WorkerHost {
           date: futureDateStr,
           status: OccurrenceStatus.PENDING,
           completedAt: null,
+          skippedAt: null,
           sessionId: null,
-          durationMinutes: null,
-          note: null,
+          duration: null,
+          notes: null,
           createdAt: new Date(),
         });
       }

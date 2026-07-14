@@ -94,7 +94,7 @@ export class SessionGateway
       if (resume) {
         client.emit('sessionResume', resume);
         this.logger.log(
-          `Resumed session ${resume.sessionId} for user ${payload.sub} (elapsed ${resume.elapsedMs}ms)`,
+          `Resumed session ${resume.sessionId} for user ${payload.sub} (elapsed ${resume.elapsed}ms)`,
         );
       }
     } catch {
@@ -157,7 +157,7 @@ export class SessionGateway
         sessionId: dto.sessionId,
         userId,
         reason: dto.reason,
-        estimatedMs: dto.estimatedMs,
+        estimated: dto.estimated,
       });
       client.emit('distractionLogged', {
         distractions: session.distractions,
@@ -184,8 +184,8 @@ export class SessionGateway
       );
       client.emit('sessionStopped', {
         sessionId: session.id,
-        durationMs: session.durationMs,
-        netFocusMs: session.netFocusMs,
+        duration: session.duration,
+        netFocus: session.netFocus,
         distractionCount: session.distractions.length,
         plantStatus: session.plantStatus,
         plantGrowthPercent: session.plantGrowthPercent,
@@ -209,7 +209,7 @@ export class SessionGateway
       const result = await this.extendTrackingService.execute(
         dto.sessionId,
         userId,
-        dto.additionalMs,
+        dto.additional,
       );
       client.emit('trackingExtended', result);
     } catch (err) {

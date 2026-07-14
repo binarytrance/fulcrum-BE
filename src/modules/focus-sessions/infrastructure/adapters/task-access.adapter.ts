@@ -44,17 +44,16 @@ export class TaskAccessAdapter implements ITaskAccessPort {
     if (!task || task.userId.toString() !== userId) {
       throw new NotFoundException('Task not found.');
     }
-    // estimatedDuration is stored in ms — convert to minutes for session timer
-    return Math.round(task.estimatedDuration / 60_000);
+    return task.estimatedDuration;
   }
 
   async updateActualDuration(
     taskId: string,
-    durationMinutes: number,
+    duration: number,
   ): Promise<void> {
     await this.taskModel.updateOne(
       { _id: taskId },
-      { $set: { actualDuration: durationMinutes, updatedAt: new Date() } },
+      { $set: { actualDuration: duration, updatedAt: new Date() } },
     );
   }
 }

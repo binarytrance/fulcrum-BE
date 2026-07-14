@@ -82,13 +82,30 @@ export class Habit {
     });
   }
 
-  archive(): Habit {
-    if (this.status === HabitStatus.ARCHIVED) {
-      throw new BadRequestException('Habit is already archived.');
+  complete(): Habit {
+    if (this.status === HabitStatus.COMPLETED) {
+      throw new BadRequestException('Habit is already completed.');
+    }
+    if (this.status === HabitStatus.ABANDONED) {
+      throw new BadRequestException('Cannot complete an abandoned habit.');
     }
     return new Habit({
       ...this.toFields(),
-      status: HabitStatus.ARCHIVED,
+      status: HabitStatus.COMPLETED,
+      updatedAt: new Date(),
+    });
+  }
+
+  abandon(): Habit {
+    if (this.status === HabitStatus.ABANDONED) {
+      throw new BadRequestException('Habit is already abandoned.');
+    }
+    if (this.status === HabitStatus.COMPLETED) {
+      throw new BadRequestException('Cannot abandon a completed habit.');
+    }
+    return new Habit({
+      ...this.toFields(),
+      status: HabitStatus.ABANDONED,
       deletedAt: new Date(),
       updatedAt: new Date(),
     });

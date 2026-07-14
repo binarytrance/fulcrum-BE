@@ -17,7 +17,7 @@ interface TaskLean {
 }
 
 interface SessionLean {
-  durationMs: number | null;
+  duration: number | null;
 }
 
 type GoalJobUnion =
@@ -109,7 +109,7 @@ export class GoalWorker extends WorkerHost {
     if (taskIds.length > 0) {
       const result = await this.sessionModel.aggregate<{ total: number }>([
         { $match: { taskId: { $in: taskIds }, status: 'COMPLETED' } },
-        { $group: { _id: null, total: { $sum: '$durationMs' } } },
+        { $group: { _id: null, total: { $sum: '$duration' } } },
       ]);
       totalLoggedMs = result[0]?.total ?? 0;
     }

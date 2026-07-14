@@ -31,15 +31,27 @@ export class HabitOccurrence {
   @Prop({ type: Date, default: null })
   completedAt!: Date | null;
 
+  @Prop({
+    type: Date,
+    default: null,
+    validate: {
+      validator: function (this: HabitOccurrence, v: Date | null) {
+        return this.status !== OccurrenceStatus.SKIPPED || v != null;
+      },
+      message: 'skippedAt is required when status is skipped',
+    },
+  })
+  skippedAt!: Date | null;
+
   /** Session ID if the user ran a timer session for this occurrence */
   @Prop({ type: String, default: null })
   sessionId!: string | null;
 
   @Prop({ type: Number, default: null, min: 0 })
-  durationMinutes!: number | null;
+  duration!: number | null;
 
   @Prop({ type: String, default: null })
-  note!: string | null;
+  notes!: string | null;
 
   createdAt!: Date;
 }

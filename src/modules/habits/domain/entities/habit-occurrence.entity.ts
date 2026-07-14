@@ -9,9 +9,10 @@ export interface HabitOccurrenceFields {
   date: string;
   status: OccurrenceStatus;
   completedAt: Date | null;
+  skippedAt: Date | null;
   sessionId: string | null;
-  durationMinutes: number | null;
-  note: string | null;
+  duration: number | null;
+  notes: string | null;
   createdAt: Date;
 }
 
@@ -22,9 +23,10 @@ export class HabitOccurrence {
   readonly date: string;
   readonly status: OccurrenceStatus;
   readonly completedAt: Date | null;
+  readonly skippedAt: Date | null;
   readonly sessionId: string | null;
-  readonly durationMinutes: number | null;
-  readonly note: string | null;
+  readonly duration: number | null;
+  readonly notes: string | null;
   readonly createdAt: Date;
 
   constructor(fields: HabitOccurrenceFields) {
@@ -34,16 +36,17 @@ export class HabitOccurrence {
     this.date = fields.date;
     this.status = fields.status;
     this.completedAt = fields.completedAt;
+    this.skippedAt = fields.skippedAt;
     this.sessionId = fields.sessionId;
-    this.durationMinutes = fields.durationMinutes;
-    this.note = fields.note;
+    this.duration = fields.duration;
+    this.notes = fields.notes;
     this.createdAt = fields.createdAt;
   }
 
   complete(params: {
-    durationMinutes: number;
+    duration: number;
     sessionId?: string;
-    note?: string;
+    notes?: string;
   }): HabitOccurrence {
     if (this.status === OccurrenceStatus.COMPLETED) {
       throw new BadRequestException('Occurrence is already completed.');
@@ -55,9 +58,9 @@ export class HabitOccurrence {
       ...this.toFields(),
       status: OccurrenceStatus.COMPLETED,
       completedAt: new Date(),
-      durationMinutes: params.durationMinutes,
+      duration: params.duration,
       sessionId: params.sessionId ?? null,
-      note: params.note ?? null,
+      notes: params.notes ?? null,
     });
   }
 
@@ -78,6 +81,7 @@ export class HabitOccurrence {
     return new HabitOccurrence({
       ...this.toFields(),
       status: OccurrenceStatus.SKIPPED,
+      skippedAt: new Date(),
     });
   }
 
@@ -89,9 +93,10 @@ export class HabitOccurrence {
       date: this.date,
       status: this.status,
       completedAt: this.completedAt,
+      skippedAt: this.skippedAt,
       sessionId: this.sessionId,
-      durationMinutes: this.durationMinutes,
-      note: this.note,
+      duration: this.duration,
+      notes: this.notes,
       createdAt: this.createdAt,
     };
   }

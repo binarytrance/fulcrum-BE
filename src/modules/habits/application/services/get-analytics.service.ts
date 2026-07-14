@@ -27,7 +27,7 @@ export interface HabitAnalytics {
   totalCompleted: number;
   totalMissed: number;
   totalSkipped: number;
-  avgDurationMinutes: number | null;
+  avgDuration: number | null;
   /** Day-of-week (0=Sun…6=Sat) with highest miss rate; null if insufficient data */
   mostMissedDayOfWeek: number | null;
 }
@@ -77,9 +77,9 @@ export class GetAnalyticsService {
       denominator > 0 ? Math.round((completed.length / denominator) * 100) : 0;
 
     const durations = completed
-      .map((o) => o.durationMinutes)
+      .map((o) => o.duration)
       .filter((d): d is number => d !== null);
-    const avgDurationMinutes =
+    const avgDuration =
       durations.length > 0
         ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length)
         : null;
@@ -106,7 +106,7 @@ export class GetAnalyticsService {
       totalCompleted: completed.length,
       totalMissed: missed.length,
       totalSkipped: skipped.length,
-      avgDurationMinutes,
+      avgDuration,
       mostMissedDayOfWeek,
     };
   }

@@ -6,8 +6,8 @@ import {
 
 export interface ExtendTrackingResult {
   sessionId: string;
-  taskEstimatedDurationMs: number;
-  elapsedMs: number;
+  taskEstimatedDuration: number;
+  elapsed: number;
   plantGrowthPercent: number;
 }
 
@@ -21,7 +21,7 @@ export class ExtendTrackingService {
   async execute(
     sessionId: string,
     userId: string,
-    additionalMs: number,
+    additional: number,
   ): Promise<ExtendTrackingResult> {
     const timer = await this.sessionTimer.getTimer(sessionId);
     if (!timer || timer.userId !== userId) {
@@ -30,17 +30,17 @@ export class ExtendTrackingService {
 
     const updated = await this.sessionTimer.extendTimer(
       sessionId,
-      additionalMs,
+      additional,
     );
 
-    const elapsedMs = Date.now() - updated.startedAt;
+    const elapsed = Date.now() - updated.startedAt;
     const plantGrowthPercent =
-      updated.taskEstimatedDurationMs > 0
+      updated.taskEstimatedDuration > 0
         ? Math.min(
             100,
             Math.round(
-              ((elapsedMs + updated.previousNetFocusMsForTask) /
-                updated.taskEstimatedDurationMs) *
+              ((elapsed + updated.previousNetFocusForTask) /
+                updated.taskEstimatedDuration) *
                 100,
             ),
           )
@@ -48,8 +48,8 @@ export class ExtendTrackingService {
 
     return {
       sessionId,
-      taskEstimatedDurationMs: updated.taskEstimatedDurationMs,
-      elapsedMs,
+      taskEstimatedDuration: updated.taskEstimatedDuration,
+      elapsed,
       plantGrowthPercent,
     };
   }

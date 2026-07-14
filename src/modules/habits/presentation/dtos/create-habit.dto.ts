@@ -14,7 +14,7 @@ export const CreateHabitSchema = z
      * Values: 0 = Sunday … 6 = Saturday.
      */
     daysOfWeek: z.array(z.number().int().min(0).max(6)).optional().default([]),
-    /** Target duration per occurrence in minutes */
+    /** Target duration per occurrence in milliseconds */
     targetDuration: z
       .number({ error: 'targetDuration must be a positive number' })
       .int()

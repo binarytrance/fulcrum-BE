@@ -43,9 +43,9 @@ interface SessionLean {
   userId: string;
   taskId: string;
   status: string;
-  durationMs: number | null;
-  netFocusMs: number | null;
-  distractions: { estimatedMs: number }[];
+  duration: number | null;
+  netFocus: number | null;
+  distractions: { estimated: number }[];
   plantStatus: string;
   startedAt: Date;
   endedAt: Date | null;
@@ -75,7 +75,7 @@ interface GoalLean {
 interface HabitOccurrenceLean {
   userId: string;
   date: string;
-  status: 'pending' | 'completed' | 'missed' | 'skipped';
+  status: 'PENDING' | 'COMPLETED' | 'MISSED' | 'SKIPPED';
 }
 
 // ─── Worker ───────────────────────────────────────────────────────────────────

@@ -28,7 +28,7 @@ export class HabitCapacityAdapter implements IHabitCapacityPort {
     const dateStr = date.toISOString().slice(0, 10);
 
     const occs = await this.occModel
-      .find({ userId, date: dateStr, status: 'pending' })
+      .find({ userId, date: dateStr, status: 'PENDING' })
       .select({ habitId: 1 })
       .lean<OccurrenceLean[]>();
 
@@ -40,6 +40,6 @@ export class HabitCapacityAdapter implements IHabitCapacityPort {
       .select({ targetDuration: 1 })
       .lean<HabitLean[]>();
 
-    return habits.reduce((sum, h) => sum + h.targetDuration * 60_000, 0);
+    return habits.reduce((sum, h) => sum + h.targetDuration, 0);
   }
 }

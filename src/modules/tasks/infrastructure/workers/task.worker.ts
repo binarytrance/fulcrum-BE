@@ -32,7 +32,7 @@ interface GoalLean {
 
 interface SessionLean {
   taskId: string;
-  durationMs: number | null;
+  duration: number | null;
 }
 
 type TaskJobUnion =
@@ -125,7 +125,7 @@ export class TaskWorker extends WorkerHost {
     if (taskIds.length > 0) {
       const result = await this.sessionModel.aggregate<{ total: number }>([
         { $match: { taskId: { $in: taskIds }, status: 'COMPLETED' } },
-        { $group: { _id: null, total: { $sum: '$durationMs' } } },
+        { $group: { _id: null, total: { $sum: '$duration' } } },
       ]);
       totalLoggedMs = result[0]?.total ?? 0;
     }
@@ -160,8 +160,7 @@ export class TaskWorker extends WorkerHost {
     const task = await this.taskModel.findById(taskId).lean<TaskLean>().exec();
     if (!task?.habitId) return; // task not linked to a habit
 
-    const durationMs: number = task.actualDuration ?? task.estimatedDuration;
-    const durationMinutes: number = Math.round(durationMs / 60000);
+    const duration: number = task.actualDuration ?? task.estimatedDuration;
 
     const result = await this.occurrenceModel
       .findOneAndUpdate(
@@ -175,7 +174,7 @@ export class TaskWorker extends WorkerHost {
             status: OccurrenceStatus.COMPLETED,
             completedAt: new Date(),
             sessionId: null,
-            durationMinutes,
+            duration,
           },
         },
         { new: true },

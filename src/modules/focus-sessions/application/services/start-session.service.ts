@@ -25,8 +25,8 @@ import {
 export interface StartSessionResult {
   sessionId: string;
   serverStartedAt: number; // ms epoch — client must use this, not its own clock
-  taskEstimatedDurationMs: number;
-  previousNetFocusMsForTask: number;
+  taskEstimatedDuration: number;
+  previousNetFocusForTask: number;
 }
 
 @Injectable()
@@ -54,8 +54,10 @@ export class StartSessionService {
       );
     }
 
-    const estimatedDurationMs =
-      (await this.taskAccess.getEstimatedDuration(taskId, userId)) * 60_000;
+    const estimatedDuration = await this.taskAccess.getEstimatedDuration(
+      taskId,
+      userId,
+    );
     const now = new Date();
     const sessionId = this.idGenerator.generate();
 
@@ -67,8 +69,8 @@ export class StartSessionService {
       source: SessionSource.AUTO,
       startedAt: now,
       endedAt: null,
-      durationMs: null,
-      netFocusMs: null,
+      duration: null,
+      netFocus: null,
       distractions: [],
       plantStatus: PlantStatus.HEALTHY,
       plantGrowthPercent: 0,
@@ -77,8 +79,8 @@ export class StartSessionService {
 
     await this.sessionRepo.create(session);
 
-    const previousNetFocusMsForTask =
-      await this.sessionRepo.sumNetFocusMsByTaskId(taskId);
+    const previousNetFocusForTask =
+      await this.sessionRepo.sumNetFocusByTaskId(taskId);
 
     await this.sessionTimer.startTimer({
       sessionId,
@@ -86,15 +88,15 @@ export class StartSessionService {
       userId,
       startedAt: now.getTime(),
       lastHeartbeatAt: now.getTime(),
-      taskEstimatedDurationMs: estimatedDurationMs,
-      previousNetFocusMsForTask,
+      taskEstimatedDuration: estimatedDuration,
+      previousNetFocusForTask,
     });
 
     return {
       sessionId,
       serverStartedAt: now.getTime(),
-      taskEstimatedDurationMs: estimatedDurationMs,
-      previousNetFocusMsForTask,
+      taskEstimatedDuration: estimatedDuration,
+      previousNetFocusForTask,
     };
   }
 }

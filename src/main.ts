@@ -155,6 +155,7 @@ async function bootstrap() {
     });
   }
 
+  app.enableShutdownHooks();
   await app.listen(config.port);
 }
 

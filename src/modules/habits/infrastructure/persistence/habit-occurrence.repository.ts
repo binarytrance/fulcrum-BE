@@ -16,9 +16,10 @@ interface OccurrenceLean {
   date: string;
   status: OccurrenceStatus;
   completedAt: Date | null;
+  skippedAt: Date | null;
   sessionId: string | null;
-  durationMinutes: number | null;
-  note: string | null;
+  duration: number | null;
+  notes: string | null;
   createdAt: Date;
 }
 
@@ -30,9 +31,10 @@ function toDomain(doc: OccurrenceLean): HabitOccurrenceEntity {
     date: doc.date,
     status: doc.status,
     completedAt: doc.completedAt,
+    skippedAt: doc.skippedAt,
     sessionId: doc.sessionId,
-    durationMinutes: doc.durationMinutes,
-    note: doc.note,
+    duration: doc.duration,
+    notes: doc.notes,
     createdAt: doc.createdAt,
   });
 }
@@ -45,9 +47,10 @@ function toPersistence(occ: HabitOccurrenceEntity): Record<string, unknown> {
     date: occ.date,
     status: occ.status,
     completedAt: occ.completedAt,
+    skippedAt: occ.skippedAt,
     sessionId: occ.sessionId,
-    durationMinutes: occ.durationMinutes,
-    note: occ.note,
+    duration: occ.duration,
+    notes: occ.notes,
   };
 }
 
@@ -72,9 +75,10 @@ export class HabitOccurrenceRepository implements IHabitOccurrenceRepository {
       date: f.date,
       status: f.status,
       completedAt: f.completedAt,
+      skippedAt: f.skippedAt,
       sessionId: f.sessionId,
-      durationMinutes: f.durationMinutes,
-      note: f.note,
+      duration: f.duration,
+      notes: f.notes,
     }));
     await this.model.insertMany(docs, { ordered: false });
   }

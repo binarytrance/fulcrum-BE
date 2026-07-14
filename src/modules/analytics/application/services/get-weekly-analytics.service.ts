@@ -10,7 +10,7 @@ import { WeeklyAnalytics as WeeklyAnalyticsEntity } from '@analytics/domain/enti
 
 interface SessionLean {
   taskId: string;
-  durationMs: number | null;
+  duration: number | null;
 }
 
 interface TaskLean {
@@ -163,7 +163,7 @@ export class GetWeeklyAnalyticsService {
         goalMinutesMap.set(
           goalId,
           (goalMinutesMap.get(goalId) ?? 0) +
-            Math.round((sess.durationMs ?? 0) / 60_000),
+            Math.round((sess.duration ?? 0) / 60_000),
         );
       }
     }

@@ -49,25 +49,25 @@ export class StopSessionService {
       throw new ForbiddenException('Access denied.');
 
     // Get final elapsed from Redis — server time is the source of truth
-    const elapsedMs = await this.sessionTimer.getElapsedMs(sessionId);
+    const elapsed = await this.sessionTimer.getElapsed(sessionId);
 
     // If Redis key expired (e.g. crash + recovery), fall back to wall-clock diff
-    const finalElapsedMs =
-      elapsedMs ?? Date.now() - session.startedAt.getTime();
-    const durationMs = finalElapsedMs;
+    const finalElapsed =
+      elapsed ?? Date.now() - session.startedAt.getTime();
+    const duration = finalElapsed;
 
-    // Fetch task's estimated duration for plant growth calculation
-    const estimatedDurationMs =
-      (await this.taskAccess.getEstimatedDuration(session.taskId, userId)) *
-      60_000;
+    const estimatedDuration = await this.taskAccess.getEstimatedDuration(
+      session.taskId,
+      userId,
+    );
 
-    const previousNetFocusMs = await this.sessionRepo.sumNetFocusMsByTaskId(
+    const previousNetFocus = await this.sessionRepo.sumNetFocusByTaskId(
       session.taskId,
     );
     const completed = session.complete(
-      durationMs,
-      estimatedDurationMs,
-      previousNetFocusMs,
+      duration,
+      estimatedDuration,
+      previousNetFocus,
     );
 
     // Persist the final session document (immutable — never edited again)
@@ -78,7 +78,7 @@ export class StopSessionService {
 
     // Queue background jobs (update task actualDuration, etc.)
     await this.eventPublisher.publishSessionCompleted(
-      new SessionCompletedEvent(sessionId, userId, session.taskId, durationMs),
+      new SessionCompletedEvent(sessionId, userId, session.taskId, duration),
     );
     await this.appStreakPublisher.publishActivityRecorded(
       userId,
